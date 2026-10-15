@@ -5,7 +5,7 @@
 
 // 联动求值：按文档顺序逐个节点实例求出显隐、禁用、必填，并执行赋值。
 
-import type { EngineCompileResult, EngineEvaluation, ExpressionEngine } from './expression'
+import type { EngineCompileResult, EngineEvaluation, ExpressionEngine } from '@xihan-ui/expression'
 import type { FormIssue } from './issues'
 import type { JsonValue } from './json'
 import type { FormDocument, FormNode, LinkageRule } from './schema'

@@ -50,5 +50,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@xihan-ui/expression": "catalog:"
+  }
 }

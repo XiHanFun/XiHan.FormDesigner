@@ -107,7 +107,7 @@ describe('值校验：表达式规则', () => {
     const odd = ruled(fieldOf(registry, ids, 'text', 'x'), [{ id: 'a', kind: 'expression', expression: 'null' }, { id: 'b', kind: 'expression', expression: 'number' }, { id: 'c', kind: 'expression', expression: 'missing' }])
     expect(validateValues(documentOf([odd]), { x: 'v' }, { engine: createFakeEngine({ null: null, number: 1 }) })).toEqual([
       { code: 'XH_FORM_CONDITION_NOT_BOOLEAN', nodeId: odd.id, ruleId: 'b', path: ['x'] },
-      { code: 'XH_FORM_EXPRESSION_FAILED', nodeId: odd.id, ruleId: 'c', path: ['x'], data: { expressionCode: 'MISSING', start: 0, end: 7 } },
+      { code: 'XH_FORM_EXPRESSION_FAILED', nodeId: odd.id, ruleId: 'c', path: ['x'], data: { expressionCode: 'XH_EXPR_FUNCTION_FAILED', start: 0, end: 7 } },
     ])
   })
 

@@ -5,7 +5,8 @@
 
 // 表单控制器：持有表单值，改值后重算联动与状态，按需校验，管理行与选项，并通知订阅者。
 
-import type { ContainerNode, ExpressionEngine, FieldNode, FormDocument, FormIssue, FormNode, JsonValue, KindRegistry, NodeState, StateOverride, ValueIssue } from '@xihan-form/core'
+import type { ContainerNode, FieldNode, FormDocument, FormIssue, FormNode, JsonValue, KindRegistry, NodeState, StateOverride, ValueIssue } from '@xihan-form/core'
+import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { FormArrayMutation } from '@xihan-ui/headless'
 import type { OptionItem, OptionLoader, OptionsState } from './options'
 import type { DataPath, ResolvedPath } from './paths'
