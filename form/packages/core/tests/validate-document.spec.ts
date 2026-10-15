@@ -201,6 +201,16 @@ describe('schema 自校验：校验规则', () => {
     expect(codes(replaceNode(document, 2, withRules(table, [{ id: 'q', kind: 'required' }])), registry)).toEqual(['XH_FORM_RULE_NOT_APPLICABLE'])
   })
 
+  it('必须为 true 只适用于勾选框与开关，规则只带 id、kind、message', () => {
+    const { registry, ids, document, name, lines } = sample()
+    const agree = fieldOf(registry, ids, 'checkbox', 'agree')
+    const on = fieldOf(registry, ids, 'switch', 'on')
+    expect(codes(documentOf([withRules(agree, [{ id: 'a', kind: 'accepted', message: '请先同意' }]), withRules(on, [{ id: 'b', kind: 'accepted' }])]), registry)).toEqual([])
+    expect(codes(replaceNode(document, 0, withRules(name, [{ id: 'a', kind: 'accepted' }])), registry)).toEqual(['XH_FORM_RULE_NOT_APPLICABLE'])
+    expect(codes(replaceNode(document, 1, withRules(lines, [{ id: 'a', kind: 'accepted' }])), registry)).toEqual(['XH_FORM_RULE_NOT_APPLICABLE'])
+    expect(codes(documentOf([withRules(agree, [{ id: 'a', kind: 'accepted', min: 1 }])]), registry)).toEqual(['XH_FORM_UNKNOWN_NODE_FIELD'])
+  })
+
   it('长度与范围的上下限', () => {
     const { registry, ids, document, name } = sample()
     const age = fieldOf(registry, ids, 'number', 'age')

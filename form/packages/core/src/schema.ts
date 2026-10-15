@@ -16,14 +16,24 @@ export type PropertyGroup = 'basic' | 'data' | 'appearance'
 /** 全部属性分组。 */
 export const PROPERTY_GROUPS: readonly PropertyGroup[] = ['basic', 'data', 'appearance']
 
-/** 必填：值为 null、空串、只含空白的字符串或空列表时不通过。 */
+/**
+ * 必填：值为空时不通过，空值判定取 `@xihan-ui/headless` 的 `isEmptyFormValue`：
+ * null、只含空白的字符串、空列表与元素全为空的列表算空，`false` 与 `0` 不算空。
+ */
 export interface RequiredRule {
   readonly id: string
   readonly kind: 'required'
   readonly message?: string
 }
 
-/** 长度：字符串按 Unicode 码点、列表按元素个数，闭区间。 */
+/** 必须为 `true`：用于「必须勾选同意」，值为 `false` 或空时都不通过。只适用于布尔值字段。 */
+export interface AcceptedRule {
+  readonly id: string
+  readonly kind: 'accepted'
+  readonly message?: string
+}
+
+/** 长度：字符串按字素计（`@xihan-ui/headless` 的 `graphemeLength`，与文本框的字数一致）、列表按元素个数，闭区间。 */
 export interface LengthRule {
   readonly id: string
   readonly kind: 'length'
@@ -59,7 +69,7 @@ export interface ExpressionRule {
 }
 
 /** 声明式校验规则。`message` 是模板作者写给最终用户的提示，缺省时由运行时按规则种类给出。 */
-export type ValidationRule = RequiredRule | LengthRule | RangeRule | PatternRule | ExpressionRule
+export type ValidationRule = RequiredRule | AcceptedRule | LengthRule | RangeRule | PatternRule | ExpressionRule
 
 /** 校验规则的种类。 */
 export type ValidationKind = ValidationRule['kind']
