@@ -6,24 +6,24 @@
 // 把宿主给的数据按文档规整成一份表单值：核对形状，缺的取初始值，多带的键原样保留。
 
 import type { ContainerNode, FormNode, KindRegistry } from '@xihan-form/core'
-import type { JsonValue } from '@xihan-ui/core/json'
-import type { BoundNode, DataPath } from './paths'
+import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
+import type { BoundNode } from './paths'
 import { createRowValues, isValueOfKind } from '@xihan-form/core'
 import { cloneJson, findJsonViolation, isPlainObject } from '@xihan-ui/core/json'
 import { FormRuntimeError, pathText } from './errors'
 import { isListContainer, rowChildren, scopeBindings } from './paths'
 
-function invalid(path: DataPath): never {
+function invalid(path: JsonPath): never {
   throw new FormRuntimeError('XH_FORM_RT_INVALID_VALUE', { path: pathText(path) })
 }
 
-function requireJson(value: unknown, path: DataPath): asserts value is JsonValue {
+function requireJson(value: unknown, path: JsonPath): asserts value is JsonValue {
   if (findJsonViolation(value) !== undefined)
     invalid(path)
 }
 
 /** 核对单个绑定节点的值并返回规整后的副本；值的形状不符时抛 `XH_FORM_RT_INVALID_VALUE`。 */
-export function normalizeValue(node: BoundNode, value: unknown, path: DataPath, registry: KindRegistry): JsonValue {
+export function normalizeValue(node: BoundNode, value: unknown, path: JsonPath, registry: KindRegistry): JsonValue {
   requireJson(value, path)
   if (isListContainer(node)) {
     if (!Array.isArray(value))
@@ -37,12 +37,12 @@ export function normalizeValue(node: BoundNode, value: unknown, path: DataPath, 
 }
 
 /** 规整列表容器的一行：缺的键取新行的初始值。 */
-export function normalizeRow(container: ContainerNode, row: unknown, path: DataPath, registry: KindRegistry): Record<string, JsonValue> {
+export function normalizeRow(container: ContainerNode, row: unknown, path: JsonPath, registry: KindRegistry): Record<string, JsonValue> {
   return normalizeScope(rowChildren(container), row, path, createRowValues(container, registry), registry)
 }
 
 /** 规整一个作用域的数据：`defaults` 提供缺失键的初始值。 */
-export function normalizeScope(children: readonly FormNode[], data: unknown, path: DataPath, defaults: Readonly<Record<string, JsonValue>>, registry: KindRegistry): Record<string, JsonValue> {
+export function normalizeScope(children: readonly FormNode[], data: unknown, path: JsonPath, defaults: Readonly<Record<string, JsonValue>>, registry: KindRegistry): Record<string, JsonValue> {
   if (!isPlainObject(data))
     invalid(path)
   requireJson(data, path)

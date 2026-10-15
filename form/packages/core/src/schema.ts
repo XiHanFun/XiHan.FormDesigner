@@ -5,7 +5,10 @@
 
 // 表单文档的数据结构：节点、区域、校验规则与联动规则。
 
-import type { PropertyBag } from './json'
+import type { JsonValue } from '@xihan-ui/core/json'
+
+/** 属性包：一组按名字存放的 JSON 值。 */
+export type PropertyBag = Readonly<Record<string, JsonValue>>
 
 /** 当前的文档结构版本。 */
 export const FORM_SCHEMA_VERSION = 1

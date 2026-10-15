@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import {
   createDocument,
   createNode,
-  deepFreeze,
   deriveKey,
   descendantsOf,
   findNode,
@@ -162,12 +161,7 @@ describe('遍历', () => {
   })
 })
 
-describe('深冻结与 JSON 往返', () => {
-  it('deepFreeze 冻结整棵对象树', () => {
-    const value = deepFreeze({ a: { b: [1] } })
-    expect(Object.isFrozen(value.a.b)).toBe(true)
-  })
-
+describe('节点的 JSON 往返', () => {
   it('容器节点同样可以 JSON 往返', () => {
     const { registry, ids } = setup()
     const node: ContainerNode = containerOf(registry, ids, 'tabs')

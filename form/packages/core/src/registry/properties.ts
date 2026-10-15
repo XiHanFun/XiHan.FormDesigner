@@ -6,10 +6,9 @@
 // 属性描述：属性的名字、取值类型与缺省值，同时驱动属性面板与 schema 自校验。
 
 import type { JsonValue } from '@xihan-ui/core/json'
-import type { PropertyBag } from '../json'
-import type { PropertyGroup } from '../schema'
+import type { PropertyBag, PropertyGroup } from '../schema'
+import { isJsonValue } from '@xihan-ui/core/json'
 import { findOptionViolation } from '@xihan-ui/headless'
-import { isJsonValue } from '../json'
 
 /**
  * 属性的取值类型：

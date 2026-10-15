@@ -6,11 +6,10 @@
 // 按原型新建文档、节点与区域；id 一律来自注入的 IdSource。
 
 import type { IdSource } from './ids'
-import type { PropertyBag } from './json'
 import type { ContainerKindDefinition, KindRegistry } from './registry/kinds'
 import type { PropertyDescriptor } from './registry/properties'
-import type { FormDocument, FormNode, Region } from './schema'
-import { deepFreeze } from './json'
+import type { FormDocument, FormNode, PropertyBag, Region } from './schema'
+import { deepFreeze } from '@xihan-ui/core/json'
 import { defaultProperties } from './registry/properties'
 import { FORM_SCHEMA_VERSION } from './schema'
 

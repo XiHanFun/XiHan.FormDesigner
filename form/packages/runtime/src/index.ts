@@ -10,4 +10,3 @@ export type { AddRowOptions, FormController, FormControllerOptions, FormEvent, F
 export { FormRuntimeError } from './state/errors'
 export type { FormRuntimeErrorCode } from './state/errors'
 export type { OptionItem, OptionLoader, OptionRequest, OptionsState } from './state/options'
-export type { DataPath } from './state/paths'

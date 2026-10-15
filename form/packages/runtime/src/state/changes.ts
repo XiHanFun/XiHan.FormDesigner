@@ -6,35 +6,11 @@
 // 变化范围：两份值、两组问题、两张状态表与两张选项表之间的差异。
 
 import type { NodeState, ValueIssue } from '@xihan-form/core'
-import type { JsonValue } from '@xihan-ui/core/json'
-import type { DataPath } from './paths'
-import { isPlainObject, jsonEquals } from '@xihan-ui/core/json'
+import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
+import { jsonEquals } from '@xihan-ui/core/json'
 
-function collect(before: JsonValue | undefined, after: JsonValue | undefined, path: (string | number)[], out: DataPath[]): void {
-  if (jsonEquals(before, after))
-    return
-  if (isPlainObject(before) && isPlainObject(after)) {
-    const keys = new Set([...Object.keys(before), ...Object.keys(after)])
-    for (const key of keys)
-      collect(before[key] as JsonValue | undefined, after[key] as JsonValue | undefined, [...path, key], out)
-    return
-  }
-  if (Array.isArray(before) && Array.isArray(after) && before.length === after.length) {
-    before.forEach((item, index) => collect(item, after[index], [...path, index], out))
-    return
-  }
-  out.push(path)
-}
-
-/** 两份表单值之间变化的路径：对象逐键、等长数组逐项比较，长度变了的数组整体报出。 */
-export function changedValuePaths(before: Readonly<Record<string, JsonValue>>, after: Readonly<Record<string, JsonValue>>): DataPath[] {
-  const out: DataPath[] = []
-  collect(before as JsonValue, after as JsonValue, [], out)
-  return out
-}
-
-function groupByPath(issues: readonly ValueIssue[]): Map<string, { path: DataPath, issues: ValueIssue[] }> {
-  const groups = new Map<string, { path: DataPath, issues: ValueIssue[] }>()
+function groupByPath(issues: readonly ValueIssue[]): Map<string, { path: JsonPath, issues: ValueIssue[] }> {
+  const groups = new Map<string, { path: JsonPath, issues: ValueIssue[] }>()
   for (const issue of issues) {
     const key = JSON.stringify(issue.path)
     const group = groups.get(key)
@@ -47,10 +23,10 @@ function groupByPath(issues: readonly ValueIssue[]): Map<string, { path: DataPat
 }
 
 /** 两组问题之间变化的路径：某条路径上的问题出现、消失或内容变了。 */
-export function changedIssuePaths(before: readonly ValueIssue[], after: readonly ValueIssue[]): DataPath[] {
+export function changedIssuePaths(before: readonly ValueIssue[], after: readonly ValueIssue[]): JsonPath[] {
   const left = groupByPath(before)
   const right = groupByPath(after)
-  const out: DataPath[] = []
+  const out: JsonPath[] = []
   for (const key of new Set([...left.keys(), ...right.keys()])) {
     const a = left.get(key)
     const b = right.get(key)

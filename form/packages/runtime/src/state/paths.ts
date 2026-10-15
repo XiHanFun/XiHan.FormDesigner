@@ -3,15 +3,10 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 数据路径：作用域里的绑定、按路径找节点实例、按路径读写值。
+// 数据路径：作用域里的绑定、按路径找节点实例；路径读写取 @xihan-ui/core/json。
 
 import type { ContainerNode, FieldNode, FormNode } from '@xihan-form/core'
-import type { JsonValue } from '@xihan-ui/core/json'
-import { isPlainObject } from '@xihan-ui/core/json'
-import { FormRuntimeError, pathText } from './errors'
-
-/** 数据路径：键与行号交替，如 `['lines', 1, 'price']`。 */
-export type DataPath = readonly (string | number)[]
+import type { JsonPath } from '@xihan-ui/core/json'
 
 /** 带数据键的节点：字段，或列表容器。 */
 export type BoundNode = FieldNode | (ContainerNode & { readonly key: string })
@@ -45,7 +40,7 @@ export interface ResolvedPath {
 }
 
 /** 按文档结构解析数据路径；路径必须以数据键结尾，列表之后紧跟行号。解析不了返回 `undefined`。 */
-export function resolvePath(children: readonly FormNode[], path: DataPath): ResolvedPath | undefined {
+export function resolvePath(children: readonly FormNode[], path: JsonPath): ResolvedPath | undefined {
   let scope = children
   const rowPath: number[] = []
   for (let index = 0; index < path.length; index += 1) {
@@ -65,33 +60,4 @@ export function resolvePath(children: readonly FormNode[], path: DataPath): Reso
     index += 1
   }
   return undefined
-}
-
-/** 按路径读值；途中缺失返回 `undefined`。 */
-export function getAt(values: Readonly<Record<string, JsonValue>>, path: DataPath): JsonValue | undefined {
-  let current: JsonValue | undefined = values as JsonValue
-  for (const segment of path) {
-    if (typeof segment === 'number') {
-      if (!Array.isArray(current))
-        return undefined
-      current = (current as readonly JsonValue[])[segment]
-    }
-    else {
-      if (!isPlainObject(current) || !Object.hasOwn(current, segment))
-        return undefined
-      current = (current as Record<string, JsonValue>)[segment]
-    }
-  }
-  return current
-}
-
-/** 按路径写值，原地修改；途中的行或对象不存在时抛 `XH_FORM_RT_UNKNOWN_PATH`。 */
-export function setAt(values: Record<string, JsonValue>, path: DataPath, value: JsonValue): void {
-  const parentPath = path.slice(0, -1)
-  const parent = parentPath.length === 0 ? values : getAt(values, parentPath)
-  const last = path[path.length - 1]
-  if (typeof last !== 'string' || !isPlainObject(parent))
-    throw new FormRuntimeError('XH_FORM_RT_UNKNOWN_PATH', { path: pathText(path) })
-  const target = parent as Record<string, JsonValue>
-  target[last] = value
 }
