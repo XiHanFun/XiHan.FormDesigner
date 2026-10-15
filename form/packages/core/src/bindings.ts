@@ -8,7 +8,7 @@
 import type { JsonValue } from '@xihan-ui/core/json'
 import type { KindRegistry, ValueKind } from './registry/kinds'
 import type { ContainerNode, FieldNode, FormDocument, FormNode } from './schema'
-import { isPlainObject } from '@xihan-ui/core/json'
+import { cloneJson, isPlainObject } from '@xihan-ui/core/json'
 import { RUNTIME_VARIABLES } from './expression'
 import { isJsonValue } from './json'
 import { findNode } from './traverse'
@@ -99,17 +99,6 @@ export function isValueOfKind(kind: ValueKind, value: unknown): boolean {
     case 'object':
       return value === null || (isPlainObject(value) && isJsonValue(value))
   }
-}
-
-function cloneJson(value: JsonValue): JsonValue {
-  if (value === null || typeof value !== 'object')
-    return value
-  if (Array.isArray(value))
-    return value.map(cloneJson)
-  const out: Record<string, JsonValue> = {}
-  for (const [key, item] of Object.entries(value))
-    out[key] = cloneJson(item)
-  return out
 }
 
 function initialValueOf(node: FieldNode, registry: KindRegistry): JsonValue {
