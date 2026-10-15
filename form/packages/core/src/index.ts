@@ -5,4 +5,23 @@
 
 // 导出 @xihanfun/form-core 的公共接口。
 
-export {}
+export { createDocument, createNode, createRegion, deriveKey, FORM_SETTING_PROPERTIES, isValidKey } from './create'
+export type { CreateNodeOptions } from './create'
+export { createSequentialIds } from './ids'
+export type { IdSource } from './ids'
+export { deepFreeze, isJsonValue, isPlainObject, jsonEqual } from './json'
+export type { JsonObject, JsonPrimitive, JsonValue, PropertyBag } from './json'
+export { BUILTIN_KINDS, createBuiltinKindRegistry } from './registry/builtin'
+export { BUILTIN_CONTAINERS, BUILTIN_STATICS, tableCells, tableSize } from './registry/builtin-containers'
+export type { TableCell } from './registry/builtin-containers'
+export { BUILTIN_FIELDS } from './registry/builtin-fields'
+export { createEditorRegistry, DEFAULT_EDITORS } from './registry/editors'
+export type { EditorRegistry, EditorRegistryOptions } from './registry/editors'
+export { createKindRegistry, LINKAGE_ACTIONS } from './registry/kinds'
+export type { ContainerKindDefinition, FieldKindDefinition, KindDefinition, KindRegistry, StaticKindDefinition, StructureProblem, ValueKind } from './registry/kinds'
+export { defaultProperties, EMPTY_PROPERTY_SCHEMA, isValidPropertyValue } from './registry/properties'
+export type { PropertyDescriptor, PropertySchema, PropertyType } from './registry/properties'
+export { FORM_SCHEMA_VERSION, PROPERTY_GROUPS } from './schema'
+export type { ContainerNode, ExpressionRule, FieldNode, FormDocument, FormNode, LengthRule, LinkageAction, LinkageRule, NodeType, PatternRule, PropertyGroup, RangeRule, Region, RequiredRule, StaticNode, ValidationKind, ValidationRule } from './schema'
+export { descendantsOf, findNode, findRegion, walkNodes } from './traverse'
+export type { FoundNode, FoundRegion, NodeLocation, NodeVisitor, VisitContext } from './traverse'
