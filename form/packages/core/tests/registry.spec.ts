@@ -7,7 +7,6 @@ import {
   createBuiltinKindRegistry,
   createEditorRegistry,
   createKindRegistry,
-  createSequentialIds,
   DEFAULT_EDITORS,
   defaultProperties,
   EMPTY_PROPERTY_SCHEMA,
@@ -177,14 +176,5 @@ describe('属性编辑器登记表', () => {
   it('不同的登记表互不影响', () => {
     createEditorRegistry({ byName: { label: 'x' } })
     expect(createEditorRegistry().resolve('text', label)).toBe('text')
-  })
-})
-
-describe('id 来源', () => {
-  it('按序号递增，实例之间互不影响', () => {
-    const a = createSequentialIds('a')
-    const b = createSequentialIds('b', 10)
-    expect([a.nextId(), a.nextId(), b.nextId(), a.nextId()]).toEqual(['a1', 'a2', 'b10', 'a3'])
-    expect(() => createSequentialIds('x', -1)).toThrow(TypeError)
   })
 })

@@ -1,18 +1,20 @@
-import type { ContainerNode, FieldNode, FormDocument, FormNode, IdSource, KindRegistry, Region } from '../src'
-import { createBuiltinKindRegistry, createDocument, createNode, createSequentialIds } from '../src'
+import type { IdAllocator } from '@xihan-ui/designer-kit'
+import type { ContainerNode, FieldNode, FormDocument, FormNode, KindRegistry, Region } from '../src'
+import { createIdAllocator } from '@xihan-ui/designer-kit'
+import { createBuiltinKindRegistry, createDocument, createNode } from '../src'
 
 /** 每个用例一套独立的登记表与 id 来源。 */
-export function setup(): { registry: KindRegistry, ids: IdSource } {
-  return { registry: createBuiltinKindRegistry(), ids: createSequentialIds() }
+export function setup(): { registry: KindRegistry, ids: IdAllocator } {
+  return { registry: createBuiltinKindRegistry(), ids: createIdAllocator('n') }
 }
 
 /** 新建字段并指定键。 */
-export function fieldOf(registry: KindRegistry, ids: IdSource, kind: string, key: string): FieldNode {
+export function fieldOf(registry: KindRegistry, ids: IdAllocator, kind: string, key: string): FieldNode {
   return createNode(registry, kind, ids, { key }) as FieldNode
 }
 
 /** 新建容器。 */
-export function containerOf(registry: KindRegistry, ids: IdSource, kind: string, key?: string): ContainerNode {
+export function containerOf(registry: KindRegistry, ids: IdAllocator, kind: string, key?: string): ContainerNode {
   return createNode(registry, kind, ids, key === undefined ? {} : { key }) as ContainerNode
 }
 

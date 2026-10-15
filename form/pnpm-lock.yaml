@@ -98,6 +98,10 @@ importers:
       '@xihan-ui/headless':
         specifier: link:../../../../XiHan.UI/ui/packages/engine/headless
         version: link:../../../../XiHan.UI/ui/packages/engine/headless
+    devDependencies:
+      '@xihan-ui/designer-kit':
+        specifier: link:../../../../XiHan.UI/ui/packages/features/designer-kit
+        version: link:../../../../XiHan.UI/ui/packages/features/designer-kit
 
 packages:
 
