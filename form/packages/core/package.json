@@ -1,5 +1,5 @@
 {
-  "name": "@xihanfun/form-core",
+  "name": "@xihan-form/core",
   "type": "module",
   "version": "0.0.0",
   "description": "XiHan Form Designer core — form schema, validation, linkage rules and edit commands; pure TypeScript, no DOM.",

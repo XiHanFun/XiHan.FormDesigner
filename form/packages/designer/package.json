@@ -1,5 +1,5 @@
 {
-  "name": "@xihanfun/form-designer",
+  "name": "@xihan-form/designer",
   "type": "module",
   "version": "0.0.0",
   "description": "XiHan Form Designer — a visual form designer delivered as Web Components.",
@@ -50,7 +50,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@xihanfun/form-core": "workspace:^",
-    "@xihanfun/form-runtime": "workspace:^"
+    "@xihan-form/core": "workspace:^",
+    "@xihan-form/runtime": "workspace:^"
   }
 }

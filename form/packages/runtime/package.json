@@ -1,5 +1,5 @@
 {
-  "name": "@xihanfun/form-runtime",
+  "name": "@xihan-form/runtime",
   "type": "module",
   "version": "0.0.0",
   "description": "XiHan Form Designer runtime — Web Components for rendering, reading and validating forms.",
@@ -50,6 +50,6 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@xihanfun/form-core": "workspace:^"
+    "@xihan-form/core": "workspace:^"
   }
 }

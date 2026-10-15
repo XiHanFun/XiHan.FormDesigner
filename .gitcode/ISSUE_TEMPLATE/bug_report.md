@@ -41,7 +41,7 @@ labels: bug
 
 ## 相关包
 
-<!-- 如 @xihanfun/form-designer -->
+<!-- 如 @xihan-form/designer -->
 
 ## 版本
 
