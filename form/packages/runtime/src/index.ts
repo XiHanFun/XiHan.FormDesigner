@@ -5,4 +5,9 @@
 
 // 导出 @xihan-form/runtime 的公共接口。
 
-export {}
+export { createFormController } from './state/controller'
+export type { AddRowOptions, FormController, FormControllerOptions, FormEvent, FormEventType, FormTarget, GetFormDataOptions, LinkageIssue, ValidationOutcome } from './state/controller'
+export { FormRuntimeError } from './state/errors'
+export type { FormRuntimeErrorCode } from './state/errors'
+export type { OptionItem, OptionLoader, OptionRequest, OptionsState } from './state/options'
+export type { DataPath } from './state/paths'
