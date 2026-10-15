@@ -11,6 +11,7 @@ import type { KindDefinition, KindRegistry, ValueKind } from './registry/kinds'
 import type { PropertyDescriptor } from './registry/properties'
 import type { NodeType, ValidationKind } from './schema'
 import { isPlainObject } from '@xihan-ui/core/json'
+import { compileFormPattern } from '@xihan-ui/headless'
 import { isValueOfKind } from './bindings'
 import { FORM_SETTING_PROPERTIES, isValidKey } from './create'
 import { RUNTIME_VARIABLES } from './expression'
@@ -31,8 +32,6 @@ export interface ValidateDocumentOptions {
 }
 
 /** 正则规则的源码长度上限。 */
-const PATTERN_LENGTH_LIMIT = 1000
-const PATTERN_FLAGS = 'imsu'
 const DOCUMENT_FIELDS = ['schemaVersion', 'settings', 'children']
 const NODE_FIELDS: Readonly<Record<NodeType, readonly string[]>> = {
   field: ['type', 'id', 'kind', 'key', 'basic', 'data', 'appearance', 'validation', 'linkage'],
@@ -79,10 +78,6 @@ interface NodeContext {
 interface Located { nodeId?: string, regionId?: string, ruleId?: string }
 
 /** 正则标志只能取 i、m、s、u，且不重复。 */
-function isPatternFlags(flags: unknown): boolean {
-  return typeof flags === 'string' && [...flags].every((flag, index) => PATTERN_FLAGS.includes(flag) && flags.indexOf(flag) === index)
-}
-
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value !== ''
 }
@@ -395,17 +390,8 @@ class DocumentChecker {
 
   private pattern(rule: Record<string, unknown>, at: Located): void {
     const { pattern, flags } = rule
-    if (!isNonEmptyString(pattern) || pattern.length > PATTERN_LENGTH_LIMIT || (flags !== undefined && !isPatternFlags(flags))) {
+    if (!isNonEmptyString(pattern) || (flags !== undefined && typeof flags !== 'string') || !compileFormPattern(pattern, { flags }).ok)
       this.report('XH_FORM_INVALID_PATTERN', at)
-      return
-    }
-    try {
-      // eslint-disable-next-line no-new
-      new RegExp(pattern, flags as string | undefined)
-    }
-    catch {
-      this.report('XH_FORM_INVALID_PATTERN', at)
-    }
   }
 
   private expression(source: unknown, pending: Omit<PendingExpression, 'source'>): void {

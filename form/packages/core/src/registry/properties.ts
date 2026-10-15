@@ -8,7 +8,7 @@
 import type { JsonValue } from '@xihan-ui/core/json'
 import type { PropertyBag } from '../json'
 import type { PropertyGroup } from '../schema'
-import { isPlainObject } from '@xihan-ui/core/json'
+import { findOptionViolation } from '@xihan-ui/headless'
 import { isJsonValue } from '../json'
 
 /**
@@ -18,8 +18,9 @@ import { isJsonValue } from '../json'
  * - `boolean`：布尔。
  * - `enum`：`choices` 里的一个字符串。
  * - `string-list`：字符串数组。
- * - `options`：选项数组，元素是 `{ value: string, label: string, disabled?: boolean }`。
- * - `tree-options`：树形选项，元素在 `options` 的基础上可带 `children`。
+ * - `options`：选项数组，元素是 `{ value: string, label: string, disabled?: boolean, tone?: Tone, description?: string }`，
+ *   结构由 `@xihan-ui/headless` 的 `findOptionViolation` 判定（要求 label、不许多余的键、同一层 value 不重复、最多 32 层）。
+ * - `tree-options`：树形选项，元素在 `options` 的基础上可带 `children` 与 `hasChildren`。
  * - `value`：字段的值，形状由字段种类决定，由 schema 自校验按字段种类核对。
  * - `json`：任意 JSON 值。
  */
@@ -41,38 +42,12 @@ export type PropertySchema = Readonly<Record<PropertyGroup, readonly PropertyDes
 /** 空的属性描述表。 */
 export const EMPTY_PROPERTY_SCHEMA: PropertySchema = Object.freeze({ basic: [], data: [], appearance: [] })
 
-const OPTIONS_DEPTH_LIMIT = 32
-
 function inBounds(value: number, descriptor: PropertyDescriptor): boolean {
   return (descriptor.min === undefined || value >= descriptor.min) && (descriptor.max === undefined || value <= descriptor.max)
 }
 
-function isOption(value: unknown, tree: boolean, depth: number): boolean {
-  if (!isPlainObject(value) || typeof value.value !== 'string' || typeof value.label !== 'string')
-    return false
-  if (value.disabled !== undefined && typeof value.disabled !== 'boolean')
-    return false
-  const allowed = tree ? ['value', 'label', 'disabled', 'children'] : ['value', 'label', 'disabled']
-  if (Object.keys(value).some(key => !allowed.includes(key)))
-    return false
-  if (value.children === undefined)
-    return true
-  return tree && isOptionList(value.children, true, depth + 1)
-}
-
-function isOptionList(value: unknown, tree: boolean, depth = 0): boolean {
-  if (depth > OPTIONS_DEPTH_LIMIT || !Array.isArray(value))
-    return false
-  const seen = new Set<string>()
-  for (const item of value) {
-    if (!isOption(item, tree, depth))
-      return false
-    const key = (item as { value: string }).value
-    if (seen.has(key))
-      return false
-    seen.add(key)
-  }
-  return true
+function isOptionList(value: unknown, tree: boolean): boolean {
+  return findOptionViolation(value, { tree, requireLabel: true, strict: true }) === undefined
 }
 
 /** 属性值是否符合描述；`value` 类型只核对是不是 JSON 值。选项列表里同一层的 `value` 不得重复。 */

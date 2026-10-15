@@ -5,32 +5,25 @@
 
 // 内置容器与静态元素种类：栅格、标签页、卡片、折叠面板、字段组、表格布局、子表单、子表，以及分隔线与说明文字。
 
+import type { TableCell, TableSize } from '@xihan-ui/designer-kit'
 import type { ContainerNode } from '../schema'
 import type { ContainerKindDefinition, StaticKindDefinition, StructureProblem } from './kinds'
 import type { PropertyDescriptor } from './properties'
+import { checkTableCells } from '@xihan-ui/designer-kit'
 
 const TITLE: PropertyDescriptor = { name: 'title', type: 'string', default: '' }
 const HIDDEN: PropertyDescriptor = { name: 'hidden', type: 'boolean', default: false }
 const DISABLED: PropertyDescriptor = { name: 'disabled', type: 'boolean', default: false }
 
-/** 表格布局单元格的位置与跨度，均为整数，行列从 0 起。 */
-export interface TableCell {
-  readonly regionId: string
-  readonly row: number
-  readonly column: number
-  readonly rowSpan: number
-  readonly columnSpan: number
-}
-
 /** 读表格布局的行数与列数。 */
-export function tableSize(node: ContainerNode): { rows: number, columns: number } {
+export function tableSize(node: ContainerNode): TableSize {
   return { rows: node.appearance.rows as number, columns: node.appearance.columns as number }
 }
 
-/** 读表格布局的全部单元格。 */
+/** 读表格布局的全部单元格，`id` 是单元格区域的 id。 */
 export function tableCells(node: ContainerNode): TableCell[] {
   return node.regions.map(region => ({
-    regionId: region.id,
+    id: region.id,
     row: region.props.row as number,
     column: region.props.column as number,
     rowSpan: region.props.rowSpan as number,
@@ -38,37 +31,31 @@ export function tableCells(node: ContainerNode): TableCell[] {
   }))
 }
 
-/** 单元格必须落在表格内、互不重叠且铺满整张表格。 */
+/** 单元格必须落在表格内、互不重叠且铺满整张表格；位置或跨度不是整数的单元格由属性校验报出，这里跳过。 */
 function checkTable(node: ContainerNode): StructureProblem[] {
-  const { rows, columns } = tableSize(node)
-  if (!Number.isSafeInteger(rows) || !Number.isSafeInteger(columns))
-    return []
-  const owner = Array.from<string | null>({ length: rows * columns }).fill(null)
+  const cells = tableCells(node)
   const problems: StructureProblem[] = []
-  for (const cell of tableCells(node)) {
-    const { row, column, rowSpan, columnSpan, regionId } = cell
-    if (![row, column, rowSpan, columnSpan].every(Number.isSafeInteger))
-      continue
-    if (row < 0 || column < 0 || rowSpan < 1 || columnSpan < 1 || row + rowSpan > rows || column + columnSpan > columns) {
-      problems.push({ code: 'XH_FORM_TABLE_CELL_OUT_OF_BOUNDS', regionId })
-      continue
-    }
-    let overlapped = false
-    for (let r = row; r < row + rowSpan; r += 1) {
-      for (let c = column; c < column + columnSpan; c += 1) {
-        if (owner[r * columns + c] !== null)
-          overlapped = true
-        else
-          owner[r * columns + c] = regionId
+  for (const issue of checkTableCells(tableSize(node), cells)) {
+    switch (issue.code) {
+      case 'invalid-size':
+        return []
+      case 'invalid-cell': {
+        const cell = cells.find(item => item.id === issue.id)!
+        if ([cell.row, cell.column, cell.rowSpan, cell.columnSpan].every(Number.isSafeInteger))
+          problems.push({ code: 'XH_FORM_TABLE_CELL_OUT_OF_BOUNDS', regionId: issue.id })
+        break
       }
+      case 'out-of-bounds':
+        problems.push({ code: 'XH_FORM_TABLE_CELL_OUT_OF_BOUNDS', regionId: issue.id })
+        break
+      case 'overlap':
+        problems.push({ code: 'XH_FORM_TABLE_CELL_OVERLAP', regionId: issue.id })
+        break
+      case 'gap':
+        problems.push({ code: 'XH_FORM_TABLE_CELL_GAP', data: { row: issue.row, column: issue.column } })
+        break
     }
-    if (overlapped)
-      problems.push({ code: 'XH_FORM_TABLE_CELL_OVERLAP', regionId })
   }
-  owner.forEach((cell, index) => {
-    if (cell === null)
-      problems.push({ code: 'XH_FORM_TABLE_CELL_GAP', data: { row: Math.floor(index / columns), column: index % columns } })
-  })
   return problems
 }
 

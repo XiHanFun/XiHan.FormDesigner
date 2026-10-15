@@ -126,6 +126,15 @@ describe('属性取值校验', () => {
     expect(isValidPropertyValue(options, [{ value: 1, label: 'A' }])).toBe(false)
     expect(isValidPropertyValue(options, [{ value: 'a', label: 'A', extra: 1 }])).toBe(false)
     expect(isValidPropertyValue(options, [{ value: 'a', label: 'A', children: [] }])).toBe(false)
+    expect(isValidPropertyValue(options, [{ value: 'a' }])).toBe(false)
+  })
+
+  it('选项可带 UI 选择类组件认的语气与副文本，树形选项另可带 hasChildren', () => {
+    const options = of({ type: 'options' })
+    expect(isValidPropertyValue(options, [{ value: 'a', label: 'A', tone: 'danger', description: '已停用' }])).toBe(true)
+    expect(isValidPropertyValue(options, [{ value: 'a', label: 'A', tone: 'red' }])).toBe(false)
+    expect(isValidPropertyValue(options, [{ value: 'a', label: 'A', hasChildren: true }])).toBe(false)
+    expect(isValidPropertyValue(of({ type: 'tree-options' }), [{ value: 'a', label: 'A', hasChildren: false }])).toBe(true)
   })
 
   it('树形选项可以嵌套，各层 value 各自不重复', () => {

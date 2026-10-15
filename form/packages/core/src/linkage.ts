@@ -10,7 +10,8 @@ import type { EngineCompileResult, EngineEvaluation, ExpressionEngine } from '@x
 import type { FormIssue } from './issues'
 import type { FormDocument, FormNode, LinkageRule } from './schema'
 import { cloneJson, isPlainObject } from '@xihan-ui/core/json'
-import { evaluateSource, RUNTIME_VARIABLES } from './expression'
+import { conditionOf, evaluateSource } from '@xihan-ui/expression'
+import { RUNTIME_VARIABLES } from './expression'
 import { formIssue } from './issues'
 import { isJsonValue } from './json'
 
@@ -71,17 +72,6 @@ interface Frame {
   readonly readOnly: boolean
 }
 
-/** 条件结果：`true` 成立，`false` 与 `null` 不成立，其余为问题。 */
-export function conditionOf(outcome: EngineEvaluation): boolean | 'not-boolean' | 'failed' {
-  if (!outcome.ok)
-    return 'failed'
-  if (outcome.value === true)
-    return true
-  if (outcome.value === false || outcome.value === null)
-    return false
-  return 'not-boolean'
-}
-
 class LinkageResolver {
   readonly states = new Map<string, NodeState>()
   readonly assignments: Assignment[] = []
@@ -102,7 +92,7 @@ class LinkageResolver {
   private evaluate(source: string, scope: Record<string, unknown>, ruleId: string): EngineEvaluation {
     if (this.engine === undefined)
       throw new TypeError(`规则 ${ruleId} 带表达式，联动求值时必须提供 expressionEngine`)
-    return evaluateSource(this.engine, this.compiled, source, scope)
+    return evaluateSource(this.engine, source, scope, this.compiled)
   }
 
   private override(nodeId: string, rowPath: readonly number[]): StateOverride {

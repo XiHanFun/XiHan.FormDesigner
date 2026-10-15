@@ -11,10 +11,11 @@ import type { FormIssue, FormIssueCode } from './issues'
 import type { NodeState } from './linkage'
 import type { ContainerNode, FieldNode, FormDocument, FormNode, ValidationRule } from './schema'
 import { isPlainObject } from '@xihan-ui/core/json'
-import { graphemeLength, isEmptyFormValue } from '@xihan-ui/headless'
-import { evaluateSource, RUNTIME_VARIABLES } from './expression'
+import { conditionOf, evaluateSource } from '@xihan-ui/expression'
+import { compileFormPattern, graphemeLength, isEmptyFormValue } from '@xihan-ui/headless'
+import { RUNTIME_VARIABLES } from './expression'
 import { formIssue } from './issues'
-import { conditionOf, instanceKey } from './linkage'
+import { instanceKey } from './linkage'
 
 /** 值校验的问题：在表单问题之上带着实例路径与规则里作者写的提示。 */
 export interface ValueIssue extends FormIssue {
@@ -80,14 +81,8 @@ class ValueValidator {
   private regex(pattern: string, flags: string | undefined): RegExp | null {
     const cacheKey = `${flags ?? ''}/${pattern}`
     if (!this.patterns.has(cacheKey)) {
-      let compiled: RegExp | null
-      try {
-        compiled = new RegExp(`^(?:${pattern})$`, flags)
-      }
-      catch {
-        compiled = null
-      }
-      this.patterns.set(cacheKey, compiled)
+      const compiled = compileFormPattern(pattern, { flags, fullMatch: true })
+      this.patterns.set(cacheKey, compiled.ok ? compiled.regex : null)
     }
     return this.patterns.get(cacheKey)!
   }
@@ -144,7 +139,7 @@ class ValueValidator {
       scope[RUNTIME_VARIABLES.row] = frame.row
       scope[RUNTIME_VARIABLES.index] = frame.rowPath[frame.rowPath.length - 1]
     }
-    const outcome = evaluateSource(engine, this.compiled, rule.expression, scope)
+    const outcome = evaluateSource(engine, rule.expression, scope, this.compiled)
     const met = conditionOf(outcome)
     if (met === 'failed' && !outcome.ok)
       this.report('XH_FORM_EXPRESSION_FAILED', node, path, rule, { expressionCode: outcome.issue.code, start: outcome.issue.start, end: outcome.issue.end })
