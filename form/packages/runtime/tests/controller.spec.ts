@@ -440,6 +440,40 @@ describe('变化范围、隐藏值与改动判断', () => {
     controller.setFormData({ name: '载入' })
     expect(controller.isDirty()).toBe(true)
   })
+
+  it('setFormData 带 baseline 时，填入的值成为 reset 与 isDirty 的新基准', () => {
+    const { document, engine } = orderForm()
+    const controller = createFormController({ document, engine })
+    controller.validate()
+    expect(controller.getIssues()).not.toEqual([])
+    const record = { name: '载入', lines: [{ price: 2, qty: 3 }] }
+    controller.setFormData(record, { baseline: true })
+    expect(controller.isDirty()).toBe(false)
+    expect(controller.getIssues()).toEqual([])
+    expect(controller.getValue(['lines', 0, 'amount'])).toBe(6)
+    controller.setValue(['lines', 0, 'qty'], 4)
+    expect(controller.isDirty()).toBe(true)
+    controller.reset()
+    expect(controller.isDirty()).toBe(false)
+    expect(controller.getValue(['name'])).toBe('载入')
+    expect(controller.getValue(['lines', 0, 'qty'])).toBe(3)
+    controller.setFormData({ name: '不改基准' })
+    expect(controller.isDirty()).toBe(true)
+    controller.reset()
+    expect(controller.getValue(['name'])).toBe('载入')
+  })
+
+  it('带 baseline 填入后再改传入的对象，基准不受影响', () => {
+    const { document, engine } = orderForm()
+    const controller = createFormController({ document, engine })
+    const record = { name: '载入', lines: [{ price: 2, qty: 3 }] }
+    controller.setFormData(record, { baseline: true })
+    record.lines[0]!.qty = 9
+    record.name = '外部改动'
+    controller.reset()
+    expect(controller.getValue(['name'])).toBe('载入')
+    expect(controller.getValue(['lines', 0, 'qty'])).toBe(3)
+  })
 })
 
 describe('订阅与销毁', () => {

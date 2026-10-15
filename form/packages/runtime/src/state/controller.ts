@@ -42,7 +42,7 @@ export interface FormControllerOptions {
   readonly engine?: ExpressionEngine
   /** 宿主提供给表达式的额外变量，名字以 `$` 开头。 */
   readonly variables?: Readonly<Record<string, unknown>>
-  /** 初始数据，叠在 schema 的初始值之上；`reset` 回到这里。 */
+  /** 初始数据，叠在 schema 的初始值之上；也是 `reset` 与 `isDirty` 最初的基准。 */
   readonly values?: Readonly<Record<string, JsonValue>>
   /** 选项加载函数；有字段带选项来源时，`reloadOptions` 需要它。 */
   readonly loadOptions?: OptionLoader
@@ -80,6 +80,12 @@ export interface GetFormDataOptions {
   readonly omitHidden?: boolean
 }
 
+/** 替换表单数据的选项。 */
+export interface SetFormDataOptions {
+  /** 为 `true` 时，填入的值同时成为 `reset` 与 `isDirty` 的基准。 */
+  readonly baseline?: boolean
+}
+
 /** 新增行的选项。 */
 export interface AddRowOptions {
   /** 插入位置，缺省追加到末尾。 */
@@ -95,8 +101,11 @@ export interface FormController {
   readonly getFormData: (options?: GetFormDataOptions) => Record<string, JsonValue>
   /** 按数据路径读值的副本；不存在时为 `undefined`。 */
   readonly getValue: (path: DataPath) => JsonValue | undefined
-  /** 按 schema 替换全部绑定值：没给的回到初始值，多带的键原样保留；同时清空校验状态。 */
-  readonly setFormData: (data: Readonly<Record<string, JsonValue>>) => void
+  /**
+   * 按 schema 替换全部绑定值：没给的回到初始值，多带的键原样保留；同时清空校验状态。
+   * `baseline` 为 `true` 时，填入的值同时成为 `reset` 与 `isDirty` 的基准。
+   */
+  readonly setFormData: (data: Readonly<Record<string, JsonValue>>, options?: SetFormDataOptions) => void
   /** 写一个字段或列表容器的值；形状不符时抛错。 */
   readonly setValue: (path: DataPath, value: JsonValue) => void
   /** 节点实例的状态；字符串只取顶层实例，列表里的实例用数据路径。 */
@@ -109,7 +118,7 @@ export interface FormController {
   readonly validate: () => ValidationOutcome
   /** 校验一个字段或列表容器（含行内字段）；此后它的问题随改值重算。 */
   readonly validateField: (path: DataPath) => ValidationOutcome
-  /** 回到初始值并清空校验状态；宿主的强制设定与已加载的选项保留。 */
+  /** 回到基准值并清空校验状态；宿主的强制设定与已加载的选项保留。基准是创建时的值，或最近一次带 `baseline` 填入的值。 */
   readonly reset: () => void
   /** 当前值与 `reset` 之后的值是否不同。 */
   readonly isDirty: () => boolean
@@ -162,7 +171,7 @@ class Controller implements FormController {
   private readonly engine: ExpressionEngine | undefined
   private readonly loader: OptionLoader | undefined
   private readonly defaults: Record<string, JsonValue>
-  private readonly initial: Record<string, JsonValue>
+  private initial: Record<string, JsonValue>
   private variables: Readonly<Record<string, unknown>>
   private values: Record<string, JsonValue>
   private states: ReadonlyMap<string, NodeState> = new Map()
@@ -313,10 +322,12 @@ class Controller implements FormController {
     return value === undefined ? undefined : cloneJson(value)
   }
 
-  setFormData(data: Readonly<Record<string, JsonValue>>): void {
+  setFormData(data: Readonly<Record<string, JsonValue>>, options: SetFormDataOptions = {}): void {
     this.alive()
     const next = normalizeScope(this.document.children, data, [], this.defaults, this.registry)
     this.commit(() => {
+      if (options.baseline === true)
+        this.initial = cloneJson(next)
       this.values = next
       this.validated = false
       this.touched = []
