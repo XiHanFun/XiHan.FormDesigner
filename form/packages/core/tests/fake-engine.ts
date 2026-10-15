@@ -3,12 +3,15 @@ import type { ExpressionEngine, ExpressionOutcome, ExpressionProblem } from '../
 const NAME = /[A-Z_$][\w$]*/gi
 const KEYWORDS = new Set(['true', 'false', 'null'])
 
+/** 求值表里的一项：固定结果，或用作用域算出结果的函数。 */
+export type FakeValue = null | boolean | number | string | readonly unknown[] | { readonly [key: string]: unknown } | ((scope: Readonly<Record<string, unknown>>) => unknown)
+
 /**
  * 测试用的表达式引擎：检查时把源码里不在名单里、也不是函数名的标识符报成 `UNKNOWN`，
  * 含 `@@` 时报 `SYNTAX`；求值时从 `values` 表里按源码查结果，查不到报 `MISSING`，
  * 结果是函数时用作用域调用它。记录每次调用，便于断言。
  */
-export function createFakeEngine(values: Record<string, unknown | ((scope: Readonly<Record<string, unknown>>) => unknown)> = {}): ExpressionEngine & {
+export function createFakeEngine(values: Readonly<Record<string, FakeValue>> = {}): ExpressionEngine & {
   readonly checks: { source: string, identifiers: readonly string[] }[]
   readonly evaluations: { source: string, scope: Readonly<Record<string, unknown>> }[]
 } {
@@ -37,7 +40,7 @@ export function createFakeEngine(values: Record<string, unknown | ((scope: Reado
       if (!Object.hasOwn(values, source))
         return { ok: false, problem: { code: 'MISSING', start: 0, end: source.length } }
       const entry = values[source]
-      return { ok: true, value: typeof entry === 'function' ? (entry as (scope: Readonly<Record<string, unknown>>) => unknown)(scope) : entry }
+      return { ok: true, value: typeof entry === 'function' ? entry(scope) : entry }
     },
   }
 }
