@@ -63,6 +63,42 @@ describe('联动：状态', () => {
   })
 })
 
+describe('联动：宿主强制设定与引擎', () => {
+  it('强制设定覆盖联动结果，并向后代叠加；实例键的设定叠在节点 id 的设定之上', () => {
+    const { registry, ids } = setup()
+    const qty = linked(fieldOf(registry, ids, 'number', 'qty'), [{ id: 'l', action: 'disable', when: 'always' }])
+    const lines = withChildren(containerOf(registry, ids, 'subtable', 'lines'), 0, [qty])
+    const card = withChildren(containerOf(registry, ids, 'card'), 0, [lines])
+    const engine = createFakeEngine({ always: true })
+    const values = { lines: [{ qty: 1 }, { qty: 2 }] }
+    const overrides = new Map([
+      [qty.id, { disabled: false, readOnly: true }],
+      [instanceKey(qty.id, [1]), { disabled: true }],
+      [card.id, { hidden: true }],
+    ])
+    const result = resolveLinkage(documentOf([card]), values, { engine, overrides })
+    expect(result.states.get(card.id)).toEqual({ hidden: true, disabled: false, readOnly: false, required: false })
+    expect(result.states.get(instanceKey(qty.id, [0]))).toEqual({ hidden: true, disabled: false, readOnly: true, required: false })
+    expect(result.states.get(instanceKey(qty.id, [1]))).toEqual({ hidden: true, disabled: true, readOnly: true, required: false })
+  })
+
+  it('强制取消隐藏挡不住祖先的隐藏', () => {
+    const { registry, ids } = setup()
+    const inner = { ...fieldOf(registry, ids, 'text', 'inner'), basic: { label: '', hidden: true } }
+    const card = { ...withChildren(containerOf(registry, ids, 'card'), 0, [inner]), basic: { title: '', hidden: true } }
+    const result = resolveLinkage(documentOf([card]), { inner: '' }, { overrides: new Map([[inner.id, { hidden: false }]]) })
+    expect(result.states.get(inner.id)?.hidden).toBe(true)
+  })
+
+  it('没有带表达式的规则时可以不传引擎，有则抛 TypeError', () => {
+    const { registry, ids } = setup()
+    const plain = linked(fieldOf(registry, ids, 'text', 'a'), [{ id: 'l1', action: 'hide' }])
+    expect(resolveLinkage(documentOf([plain]), { a: '' }).states.get(plain.id)?.hidden).toBe(true)
+    const conditional = linked(fieldOf(registry, ids, 'text', 'b'), [{ id: 'l2', action: 'hide', when: 'x' }])
+    expect(() => resolveLinkage(documentOf([conditional]), { b: '' })).toThrow(TypeError)
+  })
+})
+
 describe('联动：赋值', () => {
   it('赋值写进工作副本，后面的表达式读到新值，输入不被修改', () => {
     const { registry, ids } = setup()

@@ -38,11 +38,21 @@ export interface LinkageResult {
   readonly issues: readonly FormIssue[]
 }
 
+/** 宿主对节点自身状态的强制设定：给出的项覆盖联动结果，祖先的隐藏、禁用、只读仍向下叠加。 */
+export interface StateOverride {
+  readonly hidden?: boolean
+  readonly disabled?: boolean
+  readonly readOnly?: boolean
+}
+
 /** 联动求值的选项。 */
 export interface ResolveLinkageOptions {
-  readonly engine: ExpressionEngine
+  /** 表达式引擎；有带条件或赋值的规则时必须提供。 */
+  readonly engine?: ExpressionEngine
   /** 宿主提供给表达式的额外变量，名字建议以 `$` 开头，避免与数据键冲突。 */
   readonly variables?: Readonly<Record<string, unknown>>
+  /** 宿主的强制设定，键是节点 id（作用于全部实例）或实例键（只作用于该实例，叠在节点 id 的设定之上）。 */
+  readonly overrides?: ReadonlyMap<string, StateOverride>
 }
 
 /** 节点实例的键：顶层节点是它的 id，列表里的节点在 id 后接 `#` 与逐层行号。 */
@@ -87,13 +97,28 @@ class LinkageResolver {
   readonly assignments: Assignment[] = []
   readonly issues: FormIssue[] = []
   readonly values: Record<string, JsonValue>
-  private readonly engine: ExpressionEngine
+  private readonly engine: ExpressionEngine | undefined
   private readonly variables: Readonly<Record<string, unknown>>
+  private readonly overrides: ReadonlyMap<string, StateOverride>
 
   constructor(values: Record<string, JsonValue>, options: ResolveLinkageOptions) {
     this.values = cloneJson(values) as Record<string, JsonValue>
     this.engine = options.engine
     this.variables = options.variables ?? {}
+    this.overrides = options.overrides ?? new Map()
+  }
+
+  private evaluate(source: string, scope: Record<string, unknown>, ruleId: string): ExpressionOutcome {
+    if (this.engine === undefined)
+      throw new TypeError(`规则 ${ruleId} 带表达式，联动求值时必须提供 engine`)
+    return this.engine.evaluate(source, scope)
+  }
+
+  private override(nodeId: string, rowPath: readonly number[]): StateOverride {
+    const own = this.overrides.get(nodeId)
+    if (rowPath.length === 0)
+      return own ?? {}
+    return { ...own, ...this.overrides.get(instanceKey(nodeId, rowPath)) }
   }
 
   private scopeFor(frame: Frame, node: FormNode): Record<string, unknown> {
@@ -120,7 +145,7 @@ class LinkageResolver {
   private applyRules(node: FormNode, frame: Frame, state: { hidden: boolean, disabled: boolean, required: boolean }): void {
     for (const rule of node.linkage) {
       if (rule.when !== undefined) {
-        const outcome = this.engine.evaluate(rule.when, this.scopeFor(frame, node))
+        const outcome = this.evaluate(rule.when, this.scopeFor(frame, node), rule.id)
         const met = conditionOf(outcome)
         if (met !== true) {
           if (met !== false)
@@ -157,7 +182,7 @@ class LinkageResolver {
   private assign(node: FormNode, rule: LinkageRule, frame: Frame): void {
     if (node.type !== 'field' || rule.value === undefined)
       return
-    const outcome = this.engine.evaluate(rule.value, this.scopeFor(frame, node))
+    const outcome = this.evaluate(rule.value, this.scopeFor(frame, node), rule.id)
     if (!outcome.ok) {
       this.failed(outcome, node, rule, 'value', frame.rowPath)
       return
@@ -180,10 +205,11 @@ class LinkageResolver {
         required: node.type !== 'static' && node.validation.some(rule => rule.kind === 'required'),
       }
       this.applyRules(node, frame, state)
+      const forced = this.override(node.id, frame.rowPath)
       const effective: NodeState = {
-        hidden: state.hidden || frame.hidden,
-        disabled: state.disabled || frame.disabled,
-        readOnly: node.basic.readOnly === true || frame.readOnly,
+        hidden: (forced.hidden ?? state.hidden) || frame.hidden,
+        disabled: (forced.disabled ?? state.disabled) || frame.disabled,
+        readOnly: (forced.readOnly ?? node.basic.readOnly === true) || frame.readOnly,
         required: state.required,
       }
       this.states.set(instanceKey(node.id, frame.rowPath), effective)
@@ -219,9 +245,10 @@ class LinkageResolver {
 /**
  * 按文档顺序求联动：每个节点实例从静态设定（`basic.hidden` / `disabled` / `readOnly`、有没有必填规则）出发，
  * 依次执行条件成立的规则，排在后面的覆盖前面的；赋值立即写进工作副本，后面的表达式读到的是新值。
- * 表单设置的 `disabled` / `readOnly` 与祖先容器的隐藏、禁用向下叠加。
+ * 规则执行完后叠上宿主的强制设定，再与表单设置的 `disabled` / `readOnly`、祖先容器的隐藏与禁用向下叠加。
+ * 有带表达式的规则却没有提供 engine 时抛 `TypeError`。
  */
-export function resolveLinkage(document: FormDocument, values: Readonly<Record<string, JsonValue>>, options: ResolveLinkageOptions): LinkageResult {
+export function resolveLinkage(document: FormDocument, values: Readonly<Record<string, JsonValue>>, options: ResolveLinkageOptions = {}): LinkageResult {
   const resolver = new LinkageResolver(values as Record<string, JsonValue>, options)
   resolver.visit(document.children, {
     scope: resolver.values,
