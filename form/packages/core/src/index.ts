@@ -5,10 +5,15 @@
 
 // 导出 @xihanfun/form-core 的公共接口。
 
+export { createInitialValues, createRowValues, identifiersAt, isValueOfKind, listBindings, scopeKeys } from './bindings'
+export type { DataBinding } from './bindings'
 export { createDocument, createNode, createRegion, deriveKey, FORM_SETTING_PROPERTIES, isValidKey } from './create'
 export type { CreateNodeOptions } from './create'
+export { RUNTIME_VARIABLES } from './expression'
+export type { ExpressionEngine, ExpressionOutcome, ExpressionProblem } from './expression'
 export { createSequentialIds } from './ids'
 export type { IdSource } from './ids'
+export type { FormIssue, FormIssueCode, FormIssueData } from './issues'
 export { deepFreeze, isJsonValue, isPlainObject, jsonEqual } from './json'
 export type { JsonObject, JsonPrimitive, JsonValue, PropertyBag } from './json'
 export { BUILTIN_KINDS, createBuiltinKindRegistry } from './registry/builtin'
@@ -25,3 +30,5 @@ export { FORM_SCHEMA_VERSION, PROPERTY_GROUPS } from './schema'
 export type { ContainerNode, ExpressionRule, FieldNode, FormDocument, FormNode, LengthRule, LinkageAction, LinkageRule, NodeType, PatternRule, PropertyGroup, RangeRule, Region, RequiredRule, StaticNode, ValidationKind, ValidationRule } from './schema'
 export { descendantsOf, findNode, findRegion, walkNodes } from './traverse'
 export type { FoundNode, FoundRegion, NodeLocation, NodeVisitor, VisitContext } from './traverse'
+export { validateDocument } from './validate-document'
+export type { ValidateDocumentOptions } from './validate-document'
