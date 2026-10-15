@@ -51,6 +51,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@xihan-ui/core": "catalog:",
     "@xihan-ui/expression": "catalog:",
     "@xihan-ui/headless": "catalog:"
   }

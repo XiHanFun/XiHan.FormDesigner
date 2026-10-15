@@ -5,11 +5,12 @@
 
 // 数据绑定：字段与列表容器的数据键、所在作用域、可引用的名字，以及由文档得出初始值。
 
-import type { JsonValue } from './json'
+import type { JsonValue } from '@xihan-ui/core/json'
 import type { KindRegistry, ValueKind } from './registry/kinds'
 import type { ContainerNode, FieldNode, FormDocument, FormNode } from './schema'
+import { isPlainObject } from '@xihan-ui/core/json'
 import { RUNTIME_VARIABLES } from './expression'
-import { isJsonValue, isPlainObject } from './json'
+import { isJsonValue } from './json'
 import { findNode } from './traverse'
 
 /** 一处数据绑定：字段，或带数据键的列表容器。 */

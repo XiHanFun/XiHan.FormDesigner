@@ -5,13 +5,14 @@
 
 // 联动求值：按文档顺序逐个节点实例求出显隐、禁用、必填，并执行赋值。
 
+import type { JsonValue } from '@xihan-ui/core/json'
 import type { EngineCompileResult, EngineEvaluation, ExpressionEngine } from '@xihan-ui/expression'
 import type { FormIssue } from './issues'
-import type { JsonValue } from './json'
 import type { FormDocument, FormNode, LinkageRule } from './schema'
+import { isPlainObject } from '@xihan-ui/core/json'
 import { evaluateSource, RUNTIME_VARIABLES } from './expression'
 import { formIssue } from './issues'
-import { isJsonValue, isPlainObject } from './json'
+import { isJsonValue } from './json'
 
 /** 节点实例的状态：已经叠加了祖先容器的隐藏与禁用。 */
 export interface NodeState {

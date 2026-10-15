@@ -5,12 +5,13 @@
 
 // 变化范围：两份值、两组问题、两张状态表与两张选项表之间的差异。
 
-import type { JsonValue, NodeState, ValueIssue } from '@xihan-form/core'
+import type { NodeState, ValueIssue } from '@xihan-form/core'
+import type { JsonValue } from '@xihan-ui/core/json'
 import type { DataPath } from './paths'
-import { isPlainObject, jsonEqual } from '@xihan-form/core'
+import { isPlainObject, jsonEquals } from '@xihan-ui/core/json'
 
 function collect(before: JsonValue | undefined, after: JsonValue | undefined, path: (string | number)[], out: DataPath[]): void {
-  if (jsonEqual(before, after))
+  if (jsonEquals(before, after))
     return
   if (isPlainObject(before) && isPlainObject(after)) {
     const keys = new Set([...Object.keys(before), ...Object.keys(after)])
@@ -53,7 +54,7 @@ export function changedIssuePaths(before: readonly ValueIssue[], after: readonly
   for (const key of new Set([...left.keys(), ...right.keys()])) {
     const a = left.get(key)
     const b = right.get(key)
-    if (!jsonEqual((a?.issues ?? []) as unknown as JsonValue, (b?.issues ?? []) as unknown as JsonValue))
+    if (!jsonEquals((a?.issues ?? []) as unknown as JsonValue, (b?.issues ?? []) as unknown as JsonValue))
       out.push((a ?? b)!.path)
   }
   return out
