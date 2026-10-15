@@ -58,8 +58,17 @@ interface PendingExpression {
   readonly inList: boolean
 }
 
+interface PendingDependencies {
+  readonly nodeId: string
+  readonly key: unknown
+  readonly chain: readonly (string | null)[]
+  readonly dependencies: readonly string[]
+}
+
 interface NodeContext {
   readonly scope: string | null
+  /** 从所在作用域到顶层的作用域链。 */
+  readonly chain: readonly (string | null)[]
   readonly depth: number
   readonly inList: boolean
   readonly accepts: 'any' | 'fields'
@@ -81,6 +90,7 @@ class DocumentChecker {
   private readonly ids = new Set<string>()
   private readonly scopes = new Map<string | null, Set<string>>()
   private readonly expressions: PendingExpression[] = []
+  private readonly dependencies: PendingDependencies[] = []
   private readonly registry: KindRegistry
   private readonly maxDepth: number
   private tooDeep = false
@@ -133,7 +143,38 @@ class DocumentChecker {
     }
     this.properties(document.settings, FORM_SETTING_PROPERTIES, 'settings', {})
     for (const child of document.children)
-      this.node(child, { scope: null, depth: 1, inList: false, accepts: 'any' })
+      this.node(child, { scope: null, chain: [null], depth: 1, inList: false, accepts: 'any' })
+  }
+
+  private optionDependencies(node: Record<string, unknown>, definition: KindDefinition | undefined, context: NodeContext): void {
+    if (definition === undefined || !definition.properties.data.some(property => property.name === 'optionDependencies'))
+      return
+    const data = node.data as Record<string, unknown>
+    const dependencies = data.optionDependencies
+    if (!Array.isArray(dependencies) || !dependencies.every(item => typeof item === 'string'))
+      return
+    const nodeId = node.id as string
+    if (typeof data.optionSource !== 'string' || data.optionSource === '')
+      this.report('XH_FORM_DEPENDENCY_WITHOUT_SOURCE', { nodeId })
+    this.dependencies.push({ nodeId, key: node.key, chain: context.chain, dependencies })
+  }
+
+  /** 选项依赖要在全部键登记完之后核对：由内向外沿作用域链查找，内层同名的键遮住外层。 */
+  checkDependencies(): void {
+    for (const { nodeId, key, chain, dependencies } of this.dependencies) {
+      const seen = new Set<string>()
+      for (const dependency of dependencies) {
+        if (seen.has(dependency)) {
+          this.report('XH_FORM_DUPLICATE_DEPENDENCY', { nodeId }, { key: dependency })
+          continue
+        }
+        seen.add(dependency)
+        if (dependency === key)
+          this.report('XH_FORM_SELF_DEPENDENCY', { nodeId }, { key: dependency })
+        else if (!chain.some(scope => this.scopes.get(scope)?.has(dependency) === true))
+          this.report('XH_FORM_UNKNOWN_DEPENDENCY', { nodeId }, { key: dependency })
+      }
+    }
   }
 
   rootKeys(): string[] {
@@ -208,6 +249,7 @@ class DocumentChecker {
     }
     const valueKind = this.valueKind(definition, node)
     if (type === 'field') {
+      this.optionDependencies(node, definition, context)
       this.claimKey(node.key, context.scope, at)
       const initial = (node.basic as Record<string, unknown>).initialValue
       if (initial !== undefined && valueKind !== null && isJsonValue(initial) && !isValueOfKind(valueKind, initial))
@@ -267,6 +309,7 @@ class DocumentChecker {
         this.properties(region.props, container.regionProperties, 'region', at)
       const childContext: NodeContext = {
         scope: isList ? nodeId : context.scope,
+        chain: isList ? [nodeId, ...context.chain] : context.chain,
         depth: context.depth + 1,
         inList: context.inList || isList,
         accepts: container?.accepts ?? 'any',
@@ -412,6 +455,7 @@ export function validateDocument(document: unknown, registry: KindRegistry, opti
     throw new TypeError('maxDepth 必须是正整数')
   const checker = new DocumentChecker(registry, maxDepth)
   checker.run(document)
+  checker.checkDependencies()
   const engine = options.engine
   if (engine !== undefined) {
     const base = [...checker.rootKeys(), ...(options.identifiers ?? [])]

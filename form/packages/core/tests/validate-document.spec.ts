@@ -271,6 +271,56 @@ describe('schema 自校验：联动规则', () => {
   })
 })
 
+describe('schema 自校验：选项依赖', () => {
+  function cascade() {
+    const { registry, ids } = setup()
+    const province = fieldOf(registry, ids, 'select', 'province')
+    const withDeps = (key: string, dependencies: string[], source: string | null = 'cities') => ({
+      ...fieldOf(registry, ids, 'select', key),
+      data: { options: [], multiple: false, ...(source === null ? {} : { optionSource: source }), optionDependencies: dependencies },
+    })
+    return { registry, ids, province, withDeps }
+  }
+
+  it('依赖同一作用域或外层作用域的键都合法，内层同名遮住外层', () => {
+    const { registry, ids, province, withDeps } = cascade()
+    const city = withDeps('city', ['province'])
+    const rowProvince = fieldOf(registry, ids, 'select', 'province')
+    const rowCity = withDeps('rowCity', ['province', 'city'])
+    const lines = withChildren(containerOf(registry, ids, 'subtable', 'lines'), 0, [rowProvince, rowCity])
+    expect(validateDocument(documentOf([city, province, lines]), registry)).toEqual([])
+  })
+
+  it('找不到、指向自己、重复都报出', () => {
+    const { registry, province, withDeps } = cascade()
+    const city = withDeps('city', ['nope', 'city', 'province', 'province'])
+    expect(validateDocument(documentOf([province, city]), registry)).toEqual([
+      { code: 'XH_FORM_UNKNOWN_DEPENDENCY', nodeId: city.id, data: { key: 'nope' } },
+      { code: 'XH_FORM_SELF_DEPENDENCY', nodeId: city.id, data: { key: 'city' } },
+      { code: 'XH_FORM_DUPLICATE_DEPENDENCY', nodeId: city.id, data: { key: 'province' } },
+    ])
+  })
+
+  it('外层不能依赖列表行里的键；声明了依赖却没有选项来源时报出', () => {
+    const { registry, ids, withDeps } = cascade()
+    const rowProvince = fieldOf(registry, ids, 'select', 'rowProvince')
+    const lines = withChildren(containerOf(registry, ids, 'subtable', 'lines'), 0, [rowProvince])
+    const city = withDeps('city', ['rowProvince'])
+    const orphan = withDeps('orphan', ['city'], null)
+    expect(validateDocument(documentOf([lines, city, orphan]), registry)).toEqual([
+      { code: 'XH_FORM_DEPENDENCY_WITHOUT_SOURCE', nodeId: orphan.id },
+      { code: 'XH_FORM_UNKNOWN_DEPENDENCY', nodeId: city.id, data: { key: 'rowProvince' } },
+    ])
+  })
+
+  it('依赖必须是字符串数组，只给选项类字段', () => {
+    const { registry, ids, withDeps } = cascade()
+    const bad = { ...withDeps('a', []), data: { options: [], multiple: false, optionSource: 's', optionDependencies: 'province' } }
+    const text = { ...fieldOf(registry, ids, 'text', 'b'), data: { inputType: 'text', optionDependencies: [] } }
+    expect(codes(documentOf([bad, text]), registry)).toEqual(['XH_FORM_INVALID_PROPERTY', 'XH_FORM_UNKNOWN_PROPERTY'])
+  })
+})
+
 describe('schema 自校验：表达式交给注入的引擎检查', () => {
   it('按规则所在位置传入可引用的名字', () => {
     const { registry, document, name, price, lines } = sample()

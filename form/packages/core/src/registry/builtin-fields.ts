@@ -22,6 +22,7 @@ const SIZE: PropertyDescriptor = { name: 'size', type: 'enum', choices: ['sm', '
 const OPTIONS: PropertyDescriptor = { name: 'options', type: 'options', default: [] }
 const TREE_OPTIONS: PropertyDescriptor = { name: 'options', type: 'tree-options', default: [] }
 const OPTION_SOURCE: PropertyDescriptor = { name: 'optionSource', type: 'string' }
+const OPTION_DEPENDENCIES: PropertyDescriptor = { name: 'optionDependencies', type: 'string-list' }
 const MULTIPLE: PropertyDescriptor = { name: 'multiple', type: 'boolean', default: false }
 const ORIENTATION: PropertyDescriptor = { name: 'orientation', type: 'enum', choices: ['horizontal', 'vertical'], default: 'horizontal' }
 const WITH_TIME: PropertyDescriptor = { name: 'withTime', type: 'boolean', default: false }
@@ -145,7 +146,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     category: 'choice',
     element: 'xh-select',
     placeholder: true,
-    data: [OPTIONS, OPTION_SOURCE, MULTIPLE],
+    data: [OPTIONS, OPTION_SOURCE, OPTION_DEPENDENCIES, MULTIPLE],
     validations: CHOICE_RULES,
     valueKind: singleOrList,
     emptyValue: nullOrEmptyList,
@@ -155,7 +156,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     category: 'choice',
     element: 'xh-combobox',
     placeholder: true,
-    data: [OPTIONS, OPTION_SOURCE, MULTIPLE],
+    data: [OPTIONS, OPTION_SOURCE, OPTION_DEPENDENCIES, MULTIPLE],
     validations: CHOICE_RULES,
     valueKind: singleOrList,
     emptyValue: nullOrEmptyList,
@@ -165,7 +166,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     category: 'choice',
     element: 'xh-cascader',
     placeholder: true,
-    data: [TREE_OPTIONS, OPTION_SOURCE, MULTIPLE],
+    data: [TREE_OPTIONS, OPTION_SOURCE, OPTION_DEPENDENCIES, MULTIPLE],
     validations: CHOICE_RULES,
     valueKind: data => (isMultiple(data) ? 'list' : 'string-list'),
     emptyValue: [],
@@ -175,7 +176,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     category: 'choice',
     element: 'xh-tree-select',
     placeholder: true,
-    data: [TREE_OPTIONS, OPTION_SOURCE, MULTIPLE],
+    data: [TREE_OPTIONS, OPTION_SOURCE, OPTION_DEPENDENCIES, MULTIPLE],
     validations: CHOICE_RULES,
     valueKind: singleOrList,
     emptyValue: nullOrEmptyList,
@@ -184,7 +185,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     kind: 'radio-group',
     category: 'choice',
     element: 'xh-radio-group',
-    data: [OPTIONS, OPTION_SOURCE],
+    data: [OPTIONS, OPTION_SOURCE, OPTION_DEPENDENCIES],
     appearance: [ORIENTATION],
     validations: PLAIN_RULES,
     valueKind: 'string',
@@ -194,7 +195,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     kind: 'checkbox-group',
     category: 'choice',
     element: 'xh-checkbox-group',
-    data: [OPTIONS, OPTION_SOURCE],
+    data: [OPTIONS, OPTION_SOURCE, OPTION_DEPENDENCIES],
     appearance: [ORIENTATION],
     validations: CHOICE_RULES,
     valueKind: 'string-list',
@@ -205,7 +206,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     category: 'choice',
     element: 'xh-toggle-group',
     readOnly: false,
-    data: [OPTIONS, OPTION_SOURCE, MULTIPLE],
+    data: [OPTIONS, OPTION_SOURCE, OPTION_DEPENDENCIES, MULTIPLE],
     validations: CHOICE_RULES,
     valueKind: singleOrList,
     emptyValue: nullOrEmptyList,
@@ -214,7 +215,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     kind: 'transfer',
     category: 'choice',
     element: 'xh-transfer',
-    data: [OPTIONS, OPTION_SOURCE],
+    data: [OPTIONS, OPTION_SOURCE, OPTION_DEPENDENCIES],
     validations: CHOICE_RULES,
     valueKind: 'string-list',
     emptyValue: [],
