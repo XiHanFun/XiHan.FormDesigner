@@ -340,7 +340,7 @@ describe('schema 自校验：表达式交给注入的引擎检查', () => {
       1,
       withChildren(lines, 0, [{ ...price, validation: [{ id: 'v1', kind: 'expression', expression: '$value <= $row.price' }] }]),
     )
-    expect(validateDocument(next, registry, { engine, identifiers: ['$user'] })).toEqual([])
+    expect(validateDocument(next, registry, { expressionEngine: engine, identifiers: ['$user'] })).toEqual([])
     expect(engine.checks).toEqual([
       { source: 'lines == null', identifiers: ['name', 'lines', '$user', '$value'] },
       { source: '$value <= $row.price', identifiers: ['name', 'lines', '$user', '$value', '$row', '$index'] },
@@ -350,7 +350,7 @@ describe('schema 自校验：表达式交给注入的引擎检查', () => {
   it('引擎报出的问题转成 XH_FORM_EXPRESSION_ERROR，带上引擎的问题码与区间', () => {
     const { registry, document, name } = sample()
     const next = replaceNode(document, 0, { ...name, linkage: [{ id: 'l1', action: 'assign', when: 'ok @@', value: 'missing + 1' }] })
-    expect(validateDocument(next, registry, { engine: createFakeEngine() })).toEqual([
+    expect(validateDocument(next, registry, { expressionEngine: createFakeEngine() })).toEqual([
       { code: 'XH_FORM_EXPRESSION_ERROR', nodeId: name.id, ruleId: 'l1', data: { part: 'when', expressionCode: 'XH_EXPR_UNEXPECTED_TOKEN', start: 3, end: 5 } },
       { code: 'XH_FORM_EXPRESSION_ERROR', nodeId: name.id, ruleId: 'l1', data: { part: 'when', expressionCode: 'XH_EXPR_UNKNOWN_IDENTIFIER', start: 0, end: 2 } },
       { code: 'XH_FORM_EXPRESSION_ERROR', nodeId: name.id, ruleId: 'l1', data: { part: 'value', expressionCode: 'XH_EXPR_UNKNOWN_IDENTIFIER', start: 0, end: 7 } },

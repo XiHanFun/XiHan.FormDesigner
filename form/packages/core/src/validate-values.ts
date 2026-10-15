@@ -25,7 +25,7 @@ export interface ValueIssue extends FormIssue {
 /** 值校验的选项。 */
 export interface ValidateValuesOptions {
   /** 表达式引擎；有表达式规则时必须提供。 */
-  readonly engine?: ExpressionEngine
+  readonly expressionEngine?: ExpressionEngine
   /** 联动求出的节点状态；缺省时按静态设定：`basic.hidden` / `disabled` 与有没有必填规则。 */
   readonly states?: ReadonlyMap<string, NodeState>
   /** 宿主提供给表达式的额外变量。 */
@@ -136,9 +136,9 @@ class ValueValidator {
   }
 
   private checkExpression(node: ValueNode, rule: ValidationRule & { kind: 'expression' }, value: JsonValue, frame: Frame, path: readonly (string | number)[]): void {
-    const engine = this.options.engine
+    const engine = this.options.expressionEngine
     if (engine === undefined)
-      throw new TypeError(`规则 ${rule.id} 是表达式规则，校验时必须提供 engine`)
+      throw new TypeError(`规则 ${rule.id} 是表达式规则，校验时必须提供 expressionEngine`)
     const scope: Record<string, unknown> = { ...this.root, ...this.options.variables, [RUNTIME_VARIABLES.value]: value }
     if (frame.row !== null) {
       scope[RUNTIME_VARIABLES.row] = frame.row
@@ -212,7 +212,7 @@ class ValueValidator {
 /**
  * 按声明式规则校验表单值，返回全部问题。隐藏或禁用的实例连同其后代都不校验；
  * 值为空时只看必填与 accepted（必须为 true），其余规则跳过；必填由节点状态决定，联动可以加上或去掉。
- * 正则整串匹配。有表达式规则却没有提供 engine 时抛 `TypeError`。
+ * 正则整串匹配。有表达式规则却没有提供 expressionEngine 时抛 `TypeError`。
  */
 export function validateValues(document: FormDocument, values: Readonly<Record<string, JsonValue>>, options: ValidateValuesOptions = {}): readonly ValueIssue[] {
   const validator = new ValueValidator(values, options)

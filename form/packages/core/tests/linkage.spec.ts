@@ -14,7 +14,7 @@ describe('联动：状态', () => {
     const { registry, ids } = setup()
     const a = { ...fieldOf(registry, ids, 'text', 'a'), basic: { label: '', hidden: true } }
     const b: FieldNode = { ...fieldOf(registry, ids, 'text', 'b'), validation: [{ id: 'r', kind: 'required' }] }
-    const result = resolveLinkage(documentOf([a, b]), { a: '', b: '' }, { engine: createFakeEngine() })
+    const result = resolveLinkage(documentOf([a, b]), { a: '', b: '' }, { expressionEngine: createFakeEngine() })
     expect(result.states.get(a.id)).toEqual({ hidden: true, disabled: false, readOnly: false, required: false })
     expect(result.states.get(b.id)).toEqual({ hidden: false, disabled: false, readOnly: false, required: true })
     expect(result.issues).toEqual([])
@@ -34,9 +34,9 @@ describe('联动：状态', () => {
       'locked': scope => scope.$locked ?? null,
     })
     const document = documentOf([kind, company])
-    const personal = resolveLinkage(document, { kind: 'person', company: '' }, { engine })
+    const personal = resolveLinkage(document, { kind: 'person', company: '' }, { expressionEngine: engine })
     expect(personal.states.get(company.id)).toEqual({ hidden: true, disabled: false, readOnly: false, required: false })
-    const org = resolveLinkage(document, { kind: 'org', company: '' }, { engine, variables: { $locked: true } })
+    const org = resolveLinkage(document, { kind: 'org', company: '' }, { expressionEngine: engine, variables: { $locked: true } })
     expect(org.states.get(company.id)).toEqual({ hidden: false, disabled: true, readOnly: false, required: true })
   })
 
@@ -46,9 +46,9 @@ describe('联动：状态', () => {
     const card = linked(withChildren(containerOf(registry, ids, 'card'), 0, [inner]), [{ id: 'l', action: 'hide', when: 'flag' }])
     const engine = createFakeEngine({ flag: true })
     const document = documentOf([card])
-    expect(resolveLinkage(document, { inner: '' }, { engine }).states.get(inner.id)).toMatchObject({ hidden: true })
+    expect(resolveLinkage(document, { inner: '' }, { expressionEngine: engine }).states.get(inner.id)).toMatchObject({ hidden: true })
     const locked = { ...documentOf([inner]), settings: { disabled: true, readOnly: true } }
-    expect(resolveLinkage(locked, { inner: '' }, { engine }).states.get(inner.id)).toEqual({ hidden: false, disabled: true, readOnly: true, required: false })
+    expect(resolveLinkage(locked, { inner: '' }, { expressionEngine: engine }).states.get(inner.id)).toEqual({ hidden: false, disabled: true, readOnly: true, required: false })
   })
 
   it('列表里的节点按行各有一份状态，表达式能读到 $row、$index 与 $value', () => {
@@ -56,7 +56,7 @@ describe('联动：状态', () => {
     const qty = linked(fieldOf(registry, ids, 'number', 'qty'), [{ id: 'l', action: 'disable', when: 'row-locked' }])
     const lines = withChildren(containerOf(registry, ids, 'subtable', 'lines'), 0, [qty])
     const engine = createFakeEngine({ 'row-locked': scope => (scope.$row as { locked?: boolean }).locked === true && scope.$index === 1 && scope.$value === 2 })
-    const result = resolveLinkage(documentOf([lines]), { lines: [{ qty: 1 }, { qty: 2, locked: true }] }, { engine })
+    const result = resolveLinkage(documentOf([lines]), { lines: [{ qty: 1 }, { qty: 2, locked: true }] }, { expressionEngine: engine })
     expect(result.states.get(instanceKey(qty.id, [0]))?.disabled).toBe(false)
     expect(result.states.get(instanceKey(qty.id, [1]))?.disabled).toBe(true)
     expect(instanceKey(qty.id, [1])).toBe(`${qty.id}#1`)
@@ -77,7 +77,7 @@ describe('联动：宿主强制设定与引擎', () => {
       [instanceKey(qty.id, [1]), { disabled: true }],
       [card.id, { hidden: true }],
     ])
-    const result = resolveLinkage(documentOf([card]), values, { engine, overrides })
+    const result = resolveLinkage(documentOf([card]), values, { expressionEngine: engine, overrides })
     expect(result.states.get(card.id)).toEqual({ hidden: true, disabled: false, readOnly: false, required: false })
     expect(result.states.get(instanceKey(qty.id, [0]))).toEqual({ hidden: true, disabled: false, readOnly: true, required: false })
     expect(result.states.get(instanceKey(qty.id, [1]))).toEqual({ hidden: true, disabled: true, readOnly: true, required: false })
@@ -111,7 +111,7 @@ describe('联动：经引擎编译', () => {
       compiles += 1
       return engine.compile(source)
     } }
-    const result = resolveLinkage(documentOf([lines]), { lines: [{ qty: 1 }, { qty: 2 }, { qty: 3 }] }, { engine: counting })
+    const result = resolveLinkage(documentOf([lines]), { lines: [{ qty: 1 }, { qty: 2 }, { qty: 3 }] }, { expressionEngine: counting })
     expect(compiles).toBe(2)
     expect(result.issues.map(issue => [issue.code, issue.data?.expressionCode, issue.data?.instance])).toEqual([
       ['XH_FORM_EXPRESSION_FAILED', 'XH_EXPR_UNEXPECTED_TOKEN', `${qty.id}#0`],
@@ -134,7 +134,7 @@ describe('联动：赋值', () => {
       '\'big\'': 'big',
     })
     const input = { price: 30, qty: 4, total: null, label: '' }
-    const result = resolveLinkage(documentOf([price, qty, total, label]), input, { engine })
+    const result = resolveLinkage(documentOf([price, qty, total, label]), input, { expressionEngine: engine })
     expect(result.values).toEqual({ price: 30, qty: 4, total: 120, label: 'big' })
     expect(result.assignments).toEqual([
       { nodeId: total.id, path: ['total'], value: 120 },
@@ -149,7 +149,7 @@ describe('联动：赋值', () => {
     const amount = linked(fieldOf(registry, ids, 'number', 'amount'), [{ id: 'l', action: 'assign', value: 'double' }])
     const lines = withChildren(containerOf(registry, ids, 'subtable', 'lines'), 0, [price, amount])
     const engine = createFakeEngine({ double: scope => ((scope.$row as { price: number }).price) * 2 })
-    const result = resolveLinkage(documentOf([lines]), { lines: [{ price: 1, amount: null }, { price: 5, amount: null }] }, { engine })
+    const result = resolveLinkage(documentOf([lines]), { lines: [{ price: 1, amount: null }, { price: 5, amount: null }] }, { expressionEngine: engine })
     expect(result.values).toEqual({ lines: [{ price: 1, amount: 2 }, { price: 5, amount: 10 }] })
     expect(result.assignments.map(item => item.path)).toEqual([['lines', 0, 'amount'], ['lines', 1, 'amount']])
   })
@@ -157,7 +157,7 @@ describe('联动：赋值', () => {
   it('赋值结果不是 JSON 值时报问题、不写入', () => {
     const { registry, ids } = setup()
     const node = linked(fieldOf(registry, ids, 'text', 'x'), [{ id: 'l', action: 'assign', value: 'bad' }])
-    const result = resolveLinkage(documentOf([node]), { x: 'keep' }, { engine: createFakeEngine({ bad: Number.NaN }) })
+    const result = resolveLinkage(documentOf([node]), { x: 'keep' }, { expressionEngine: createFakeEngine({ bad: Number.NaN }) })
     expect(result.values).toEqual({ x: 'keep' })
     expect(result.issues).toEqual([{ code: 'XH_FORM_VALUE_TYPE_MISMATCH', nodeId: node.id, ruleId: 'l', data: { instance: node.id } }])
   })
@@ -171,7 +171,7 @@ describe('联动：表达式的问题', () => {
       { id: 'b', action: 'hide', when: 'number' },
       { id: 'c', action: 'assign', value: 'missing' },
     ])
-    const result = resolveLinkage(documentOf([node]), { x: '' }, { engine: createFakeEngine({ number: 1 }) })
+    const result = resolveLinkage(documentOf([node]), { x: '' }, { expressionEngine: createFakeEngine({ number: 1 }) })
     expect(result.states.get(node.id)?.hidden).toBe(false)
     expect(result.issues).toEqual([
       { code: 'XH_FORM_EXPRESSION_FAILED', nodeId: node.id, ruleId: 'a', data: { part: 'when', instance: node.id, expressionCode: 'XH_EXPR_FUNCTION_FAILED', start: 0, end: 7 } },
@@ -184,7 +184,7 @@ describe('联动：表达式的问题', () => {
     const { registry, ids } = setup()
     const node = linked(fieldOf(registry, ids, 'text', 'x'), [{ id: 'a', action: 'hide', when: 'broken' }])
     const engine: ExpressionEngine = { compile: () => ({ ok: false, issues: [] }) }
-    expect(() => resolveLinkage(documentOf([node]), { x: '' }, { engine })).toThrow(TypeError)
+    expect(() => resolveLinkage(documentOf([node]), { x: '' }, { expressionEngine: engine })).toThrow(TypeError)
   })
 
   it('与初始值配合：同一份文档与值多次求值结果相同', () => {
@@ -193,8 +193,8 @@ describe('联动：表达式的问题', () => {
     const document = documentOf([a])
     const values = createInitialValues(document, registry)
     const engine = createFakeEngine({ one: 1 })
-    const first = resolveLinkage(document, values, { engine })
-    const second = resolveLinkage(document, values, { engine })
+    const first = resolveLinkage(document, values, { expressionEngine: engine })
+    const second = resolveLinkage(document, values, { expressionEngine: engine })
     expect(second.values).toEqual(first.values)
     expect([...second.states]).toEqual([...first.states])
   })

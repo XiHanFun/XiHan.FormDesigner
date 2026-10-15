@@ -40,7 +40,7 @@ export interface FormControllerOptions {
   /** 种类登记表，缺省为内置种类。 */
   readonly registry?: KindRegistry
   /** 表达式引擎；文档里有表达式时必须提供。 */
-  readonly engine?: ExpressionEngine
+  readonly expressionEngine?: ExpressionEngine
   /** 宿主提供给表达式的额外变量，名字以 `$` 开头。 */
   readonly variables?: Readonly<Record<string, unknown>>
   /** 初始数据，叠在 schema 的初始值之上；也是 `reset` 与 `isDirty` 最初的基准。 */
@@ -190,12 +190,12 @@ class Controller implements FormController {
   constructor(options: FormControllerOptions) {
     this.document = options.document
     this.registry = options.registry ?? createBuiltinKindRegistry()
-    this.engine = options.engine
+    this.engine = options.expressionEngine
     this.loader = options.loadOptions
     this.variables = { ...options.variables }
     if (this.engine === undefined && hasExpressions(this.document))
       throw new FormRuntimeError('XH_FORM_RT_NO_ENGINE')
-    const problems = validateDocument(this.document, this.registry, { engine: this.engine, identifiers: Object.keys(this.variables) })
+    const problems = validateDocument(this.document, this.registry, { expressionEngine: this.engine, identifiers: Object.keys(this.variables) })
     if (problems.length > 0)
       throw new FormRuntimeError('XH_FORM_RT_INVALID_DOCUMENT', {}, problems)
     this.defaults = createInitialValues(this.document, this.registry)
@@ -213,7 +213,7 @@ class Controller implements FormController {
   private settle(values: Record<string, JsonValue>): { values: Record<string, JsonValue>, states: ReadonlyMap<string, NodeState>, issues: readonly LinkageIssue[] } {
     let current = values
     for (let pass = 1; ; pass += 1) {
-      const result = resolveLinkage(this.document, current, { engine: this.engine, variables: this.variables, overrides: this.overrides })
+      const result = resolveLinkage(this.document, current, { expressionEngine: this.engine, variables: this.variables, overrides: this.overrides })
       const stable = jsonEquals(result.values, current)
       current = result.values
       if (stable || pass === MAX_LINKAGE_PASSES) {
@@ -232,7 +232,7 @@ class Controller implements FormController {
   }
 
   private runValidation(): readonly ValueIssue[] {
-    return validateValues(this.document, this.values, { engine: this.engine, states: this.states, variables: this.variables })
+    return validateValues(this.document, this.values, { expressionEngine: this.engine, states: this.states, variables: this.variables })
   }
 
   private visibleIssues(all: readonly ValueIssue[]): readonly ValueIssue[] {

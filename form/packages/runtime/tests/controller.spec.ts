@@ -28,7 +28,7 @@ function orderForm() {
     },
     'sum-amount': scope => (scope.lines as Row[]).reduce((sum, row) => sum + (row.amount ?? 0), 0),
   })
-  return { registry, engine, document: documentOf([name, card, lines, total]), name, kind, company, price, qty, amount, lines, total, card }
+  return { registry, expressionEngine: engine, document: documentOf([name, card, lines, total]), name, kind, company, price, qty, amount, lines, total, card }
 }
 
 function record(controller: ReturnType<typeof createFormController>): FormEventType[] {
@@ -51,22 +51,22 @@ function errorCode(run: () => unknown): string {
 
 describe('创建', () => {
   it('按 schema 初始化数据并立即执行联动', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine })
     expect(controller.getFormData()).toEqual({ name: '', kind: null, company: '', lines: [], total: 0 })
   })
 
   it('初始数据叠在 schema 初始值之上，宿主多带的键原样保留', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine, values: { id: 42, name: '张三', lines: [{ price: 2, qty: 3 }] } })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine, values: { id: 42, name: '张三', lines: [{ price: 2, qty: 3 }] } })
     expect(controller.getFormData()).toEqual({ id: 42, name: '张三', kind: null, company: '', lines: [{ price: 2, qty: 3, amount: 6 }], total: 6 })
   })
 
   it('文档没通过自校验时抛错并带上问题列表', () => {
-    const { document, engine, name } = orderForm()
+    const { document, expressionEngine: engine, name } = orderForm()
     const broken = { ...document, children: [{ ...name, key: '1bad' }, ...document.children.slice(1)] }
     try {
-      createFormController({ document: broken, engine })
+      createFormController({ document: broken, expressionEngine: engine })
       throw new Error('应当抛错')
     }
     catch (error) {
@@ -84,9 +84,9 @@ describe('创建', () => {
   })
 
   it('初始数据的形状与字段不符时抛错，带上路径', () => {
-    const { document, engine } = orderForm()
+    const { document, expressionEngine: engine } = orderForm()
     try {
-      createFormController({ document, engine, values: { lines: [{ price: '2' }] } })
+      createFormController({ document, expressionEngine: engine, values: { lines: [{ price: '2' }] } })
       throw new Error('应当抛错')
     }
     catch (error) {
@@ -98,8 +98,8 @@ describe('创建', () => {
 
 describe('取值与写值', () => {
   it('取出的是副本，改它不影响控制器', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine, values: { lines: [{ price: 1, qty: 1 }] } })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine, values: { lines: [{ price: 1, qty: 1 }] } })
     const data = controller.getFormData()
     const lines = data.lines as unknown as Row[]
     lines[0]!.price = 99
@@ -108,8 +108,8 @@ describe('取值与写值', () => {
   })
 
   it('写值后重算联动：行内公式与合计随之更新，并发出通知', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine, values: { lines: [{ price: 2, qty: 3 }, { price: 1, qty: 1 }] } })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine, values: { lines: [{ price: 2, qty: 3 }, { price: 1, qty: 1 }] } })
     const events = record(controller)
     controller.setValue(['lines', 1, 'qty'], 4)
     expect(controller.getValue(['lines', 1, 'amount'])).toBe(4)
@@ -118,8 +118,8 @@ describe('取值与写值', () => {
   })
 
   it('写值改变显隐时发出 states 通知', () => {
-    const { document, engine, company } = orderForm()
-    const controller = createFormController({ document, engine })
+    const { document, expressionEngine: engine, company } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine })
     expect(controller.getState(company.id)?.hidden).toBe(true)
     const events = record(controller)
     controller.setValue(['kind'], 'org')
@@ -128,8 +128,8 @@ describe('取值与写值', () => {
   })
 
   it('值的形状不符、路径不存在都抛错，且不改动数据', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine })
     expect(errorCode(() => controller.setValue(['name'], 1))).toBe('XH_FORM_RT_INVALID_VALUE')
     expect(errorCode(() => controller.setValue(['kind'], ['org']))).toBe('XH_FORM_RT_INVALID_VALUE')
     expect(errorCode(() => controller.setValue(['nope'], 1))).toBe('XH_FORM_RT_UNKNOWN_PATH')
@@ -139,15 +139,15 @@ describe('取值与写值', () => {
   })
 
   it('整体写入列表容器时逐行规整，缺的键取新行初始值', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine })
     controller.setValue(['lines'], [{ price: 5, qty: 2 }])
     expect(controller.getValue(['lines'])).toEqual([{ price: 5, qty: 2, amount: 10 }])
   })
 
   it('setFormData 替换全部数据并清空校验状态', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine })
     controller.validate()
     expect(controller.getIssues()).not.toEqual([])
     controller.setFormData({ name: '李四', extra: true })
@@ -166,7 +166,7 @@ describe('联动重算', () => {
       'double-base': scope => (scope.base === null ? null : (scope.base as number) * 2),
       'seed-plus-one': scope => (scope.seed === null ? null : (scope.seed as number) + 1),
     })
-    const controller = createFormController({ document: documentOf([doubled, base, seed]), engine, values: { seed: 4 } })
+    const controller = createFormController({ document: documentOf([doubled, base, seed]), expressionEngine: engine, values: { seed: 4 } })
     expect(controller.getFormData()).toEqual({ doubled: 10, base: 5, seed: 4 })
     expect(controller.getLinkageIssues()).toEqual([])
   })
@@ -176,7 +176,7 @@ describe('联动重算', () => {
     const a = field(registry, ids, 'number', 'a', { linkage: [{ id: 'la', action: 'assign', value: 'b+1' }] })
     const b = field(registry, ids, 'number', 'b', { linkage: [{ id: 'lb', action: 'assign', value: 'a+1' }] })
     const engine = createFakeEngine({ 'b+1': scope => ((scope.b as number | null) ?? 0) + 1, 'a+1': scope => ((scope.a as number | null) ?? 0) + 1 })
-    const controller = createFormController({ document: documentOf([a, b]), engine })
+    const controller = createFormController({ document: documentOf([a, b]), expressionEngine: engine })
     expect(controller.getLinkageIssues()).toEqual([{ code: 'XH_FORM_RT_LINKAGE_UNSTABLE', data: { passes: 10 } }])
   })
 
@@ -184,7 +184,7 @@ describe('联动重算', () => {
     const { registry, ids } = setup()
     const secret = field(registry, ids, 'text', 'secret', { linkage: [{ id: 'l', action: 'hide', when: 'not-admin' }] })
     const engine = createFakeEngine({ 'not-admin': scope => scope.$role !== 'admin' })
-    const controller = createFormController({ document: documentOf([secret]), engine, variables: { $role: 'guest' } })
+    const controller = createFormController({ document: documentOf([secret]), expressionEngine: engine, variables: { $role: 'guest' } })
     expect(controller.getState(secret.id)?.hidden).toBe(true)
     controller.setVariables({ $role: 'admin' })
     expect(controller.getState(secret.id)?.hidden).toBe(false)
@@ -193,8 +193,8 @@ describe('联动重算', () => {
 
 describe('校验', () => {
   it('validate 返回全部问题，隐藏的字段不校验', () => {
-    const { document, engine, name, lines } = orderForm()
-    const controller = createFormController({ document, engine })
+    const { document, expressionEngine: engine, name, lines } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine })
     const outcome = controller.validate()
     expect(outcome.valid).toBe(false)
     expect(outcome.issues).toEqual([
@@ -205,8 +205,8 @@ describe('校验', () => {
   })
 
   it('validate 之后每次改值都重算问题并通知', () => {
-    const { document, engine, company } = orderForm()
-    const controller = createFormController({ document, engine, values: { name: 'x', lines: [{ price: 1, qty: 1 }] } })
+    const { document, expressionEngine: engine, company } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine, values: { name: 'x', lines: [{ price: 1, qty: 1 }] } })
     expect(controller.validate().valid).toBe(true)
     const events = record(controller)
     controller.setValue(['kind'], 'org')
@@ -217,8 +217,8 @@ describe('校验', () => {
   })
 
   it('validateField 只校验并跟踪这一个字段', () => {
-    const { document, engine, price } = orderForm()
-    const controller = createFormController({ document, engine, values: { lines: [{ price: -1, qty: 1 }, { price: 1, qty: 1 }] } })
+    const { document, expressionEngine: engine, price } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine, values: { lines: [{ price: -1, qty: 1 }, { price: 1, qty: 1 }] } })
     const outcome = controller.validateField(['lines', 0, 'price'])
     expect(outcome.issues).toEqual([{ code: 'XH_FORM_VALUE_TOO_SMALL', nodeId: price.id, ruleId: 'v-price', path: ['lines', 0, 'price'], data: { min: 0 } }])
     expect(controller.getIssues()).toEqual(outcome.issues)
@@ -230,8 +230,8 @@ describe('校验', () => {
   })
 
   it('reset 回到初始值并清空校验状态，宿主的强制设定保留', () => {
-    const { document, engine, name } = orderForm()
-    const controller = createFormController({ document, engine, values: { name: '初始' } })
+    const { document, expressionEngine: engine, name } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine, values: { name: '初始' } })
     controller.setValue(['name'], '改过')
     controller.setDisabled(name.id, true)
     controller.validate()
@@ -246,8 +246,8 @@ describe('校验', () => {
 
 describe('宿主的强制设定', () => {
   it('按节点 id 作用于全部实例，按数据路径只作用于一个实例，null 撤销', () => {
-    const { document, engine, price, company } = orderForm()
-    const controller = createFormController({ document, engine, values: { lines: [{ price: 1, qty: 1 }, { price: 2, qty: 1 }] } })
+    const { document, expressionEngine: engine, price, company } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine, values: { lines: [{ price: 1, qty: 1 }, { price: 2, qty: 1 }] } })
     controller.setReadOnly(price.id, true)
     controller.setDisabled(['lines', 1, 'price'], true)
     expect(controller.getState(['lines', 0, 'price'])).toEqual({ hidden: false, disabled: false, readOnly: true, required: false })
@@ -259,8 +259,8 @@ describe('宿主的强制设定', () => {
   })
 
   it('隐藏或禁用容器向后代叠加，被跳过的字段不校验', () => {
-    const { document, engine, card, kind } = orderForm()
-    const controller = createFormController({ document, engine, values: { kind: 'org' } })
+    const { document, expressionEngine: engine, card, kind } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine, values: { kind: 'org' } })
     controller.validate()
     expect(controller.getIssues().some(issue => issue.path[0] === 'company')).toBe(true)
     const events = record(controller)
@@ -271,8 +271,8 @@ describe('宿主的强制设定', () => {
   })
 
   it('目标不存在时抛错', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine })
     expect(errorCode(() => controller.setHidden('nope', true))).toBe('XH_FORM_RT_UNKNOWN_NODE')
     expect(errorCode(() => controller.setHidden(['nope'], true))).toBe('XH_FORM_RT_UNKNOWN_PATH')
     expect(errorCode(() => controller.getState('nope'))).toBe('XH_FORM_RT_UNKNOWN_NODE')
@@ -282,8 +282,8 @@ describe('宿主的强制设定', () => {
 
 describe('子表单与子表的行', () => {
   it('新增行：缺省追加，可指定位置与初值，行内公式立即生效', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine })
     controller.addRow(['lines'])
     controller.addRow(['lines'], { values: { price: 3, qty: 2 } })
     controller.addRow(['lines'], { index: 0, values: { price: 1, qty: 1 } })
@@ -296,9 +296,9 @@ describe('子表单与子表的行', () => {
   })
 
   it('删除与移动行', () => {
-    const { document, engine } = orderForm()
+    const { document, expressionEngine: engine } = orderForm()
     const rows = [{ price: 1, qty: 1 }, { price: 2, qty: 1 }, { price: 3, qty: 1 }]
-    const controller = createFormController({ document, engine, values: { lines: rows } })
+    const controller = createFormController({ document, expressionEngine: engine, values: { lines: rows } })
     controller.moveRow(['lines'], 0, 2)
     expect((controller.getValue(['lines']) as unknown as Row[]).map(row => row.price)).toEqual([2, 3, 1])
     controller.removeRow(['lines'], 1)
@@ -307,8 +307,8 @@ describe('子表单与子表的行', () => {
   })
 
   it('行号越界、目标不是列表时抛错', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine, values: { lines: [{ price: 1, qty: 1 }] } })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine, values: { lines: [{ price: 1, qty: 1 }] } })
     expect(errorCode(() => controller.removeRow(['lines'], 1))).toBe('XH_FORM_RT_INDEX_OUT_OF_RANGE')
     expect(errorCode(() => controller.moveRow(['lines'], 0, -1))).toBe('XH_FORM_RT_INDEX_OUT_OF_RANGE')
     expect(errorCode(() => controller.addRow(['lines'], { index: 2 }))).toBe('XH_FORM_RT_INDEX_OUT_OF_RANGE')
@@ -317,9 +317,9 @@ describe('子表单与子表的行', () => {
   })
 
   it('行级的强制设定与校验进度跟着行走', () => {
-    const { document, engine } = orderForm()
+    const { document, expressionEngine: engine } = orderForm()
     const rows = [{ price: 1, qty: 1 }, { price: -2, qty: 1 }, { price: 3, qty: 1 }]
-    const controller = createFormController({ document, engine, values: { lines: rows } })
+    const controller = createFormController({ document, expressionEngine: engine, values: { lines: rows } })
     controller.setDisabled(['lines', 2, 'qty'], true)
     controller.validateField(['lines', 1, 'price'])
     controller.removeRow(['lines'], 0)
@@ -334,9 +334,9 @@ describe('子表单与子表的行', () => {
   })
 
   it('跨多行前移、后移时其余行的强制设定依次让位', () => {
-    const { document, engine } = orderForm()
+    const { document, expressionEngine: engine } = orderForm()
     const rows = [{ price: 1, qty: 1 }, { price: 2, qty: 1 }, { price: 3, qty: 1 }]
-    const controller = createFormController({ document, engine, values: { lines: rows } })
+    const controller = createFormController({ document, expressionEngine: engine, values: { lines: rows } })
     controller.setDisabled(['lines', 0, 'qty'], true)
     controller.setReadOnly(['lines', 1, 'qty'], true)
     const flags = (): [boolean | undefined, boolean | undefined][] => [0, 1, 2].map(index => [
@@ -378,7 +378,7 @@ describe('子表单与子表的行', () => {
     const lines = container(registry, ids, 'subtable', [qty], { key: 'lines' })
     const orders = container(registry, ids, 'subform', [lines], { key: 'orders' })
     const engine = createFakeEngine({ 'outer-first': scope => (scope.$row as { qty: number }).qty === 1 })
-    const controller = createFormController({ document: documentOf([orders]), engine, values: { orders: [{ lines: [{ qty: 1 }] }] } })
+    const controller = createFormController({ document: documentOf([orders]), expressionEngine: engine, values: { orders: [{ lines: [{ qty: 1 }] }] } })
     controller.addRow(['orders', 0, 'lines'], { values: { qty: 2 } })
     expect(controller.getState(['orders', 0, 'lines', 0, 'qty'])?.disabled).toBe(true)
     expect(controller.getState(['orders', 0, 'lines', 1, 'qty'])?.disabled).toBe(false)
@@ -389,8 +389,8 @@ describe('子表单与子表的行', () => {
 
 describe('变化范围、隐藏值与改动判断', () => {
   it('values 与 issues 通知带变化的路径，states 通知带实例键', () => {
-    const { document, engine, company, amount } = orderForm()
-    const controller = createFormController({ document, engine, values: { name: 'x', lines: [{ price: 1, qty: 1 }] } })
+    const { document, expressionEngine: engine, company, amount } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine, values: { name: 'x', lines: [{ price: 1, qty: 1 }] } })
     controller.validate()
     const events: FormEvent[] = []
     controller.subscribe(event => events.push(event))
@@ -412,8 +412,8 @@ describe('变化范围、隐藏值与改动判断', () => {
   })
 
   it('隐藏或禁用的字段跳过校验，值保留；getFormData 可以去掉隐藏实例的值', () => {
-    const { document, engine, name, card, price } = orderForm()
-    const controller = createFormController({ document, engine, values: { kind: 'org', company: '', lines: [{ price: -1, qty: 1 }, { price: -2, qty: 1 }] } })
+    const { document, expressionEngine: engine, name, card, price } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine, values: { kind: 'org', company: '', lines: [{ price: -1, qty: 1 }, { price: -2, qty: 1 }] } })
     controller.setDisabled(name.id, true)
     controller.setHidden(card.id, true)
     controller.setHidden(['lines', 1, 'price'], true)
@@ -426,8 +426,8 @@ describe('变化范围、隐藏值与改动判断', () => {
   })
 
   it('isDirty 以 reset 之后的值为准', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine, values: { name: '初始', lines: [{ price: 1, qty: 1 }] } })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine, values: { name: '初始', lines: [{ price: 1, qty: 1 }] } })
     expect(controller.isDirty()).toBe(false)
     controller.setValue(['name'], '改过')
     expect(controller.isDirty()).toBe(true)
@@ -442,8 +442,8 @@ describe('变化范围、隐藏值与改动判断', () => {
   })
 
   it('setFormData 带 baseline 时，填入的值成为 reset 与 isDirty 的新基准', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine })
     controller.validate()
     expect(controller.getIssues()).not.toEqual([])
     const record = { name: '载入', lines: [{ price: 2, qty: 3 }] }
@@ -464,8 +464,8 @@ describe('变化范围、隐藏值与改动判断', () => {
   })
 
   it('带 baseline 填入后再改传入的对象，基准不受影响', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine })
     const record = { name: '载入', lines: [{ price: 2, qty: 3 }] }
     controller.setFormData(record, { baseline: true })
     record.lines[0]!.qty = 9
@@ -478,8 +478,8 @@ describe('变化范围、隐藏值与改动判断', () => {
 
 describe('订阅与销毁', () => {
   it('取消订阅后不再收到通知；值没变时不通知', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine })
     const events: FormEventType[] = []
     const stop = controller.subscribe(event => events.push(event.type))
     controller.setValue(['name'], '')
@@ -490,8 +490,8 @@ describe('订阅与销毁', () => {
   })
 
   it('通知期间取消订阅不影响本轮其余订阅者', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine })
     const seen: string[] = []
     const stopFirst = controller.subscribe(() => {
       seen.push('first')
@@ -504,17 +504,17 @@ describe('订阅与销毁', () => {
   })
 
   it('销毁后调用任何方法都抛错', () => {
-    const { document, engine } = orderForm()
-    const controller = createFormController({ document, engine })
+    const { document, expressionEngine: engine } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine })
     controller.dispose()
     expect(errorCode(() => controller.getFormData())).toBe('XH_FORM_RT_DISPOSED')
     expect(errorCode(() => controller.setValue(['name'], 'x'))).toBe('XH_FORM_RT_DISPOSED')
   })
 
   it('多个实例互不影响', () => {
-    const { document, engine } = orderForm()
-    const a = createFormController({ document, engine })
-    const b = createFormController({ document, engine })
+    const { document, expressionEngine: engine } = orderForm()
+    const a = createFormController({ document, expressionEngine: engine })
+    const b = createFormController({ document, expressionEngine: engine })
     a.setValue(['name'], 'A')
     expect(b.getValue(['name'])).toBe('')
   })
