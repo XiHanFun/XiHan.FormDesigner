@@ -44,9 +44,9 @@ XiHan.FormDesigner is a framework-agnostic form designer delivered as native Web
 
 | Package | Description |
 | --- | --- |
-| `@xihanfun/form-core` | Model layer: form schema, validation rules, linkage rules and edit commands; pure TypeScript, no DOM |
-| `@xihanfun/form-runtime` | Runtime: form rendering, value access and validation for business pages |
-| `@xihanfun/form-designer` | Designer: visual form designer |
+| `@xihan-form/core` | Model layer: form schema, validation rules, linkage rules and edit commands; pure TypeScript, no DOM |
+| `@xihan-form/runtime` | Runtime: form rendering, value access and validation for business pages |
+| `@xihan-form/designer` | Designer: visual form designer |
 
 Dependencies point `designer → runtime → core`. Business pages only need the runtime; the designer is loaded only where templates are edited.
 

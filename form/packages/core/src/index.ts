@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 导出 @xihanfun/form-core 的公共接口。
+// 导出 @xihan-form/core 的公共接口。
 
 export { createInitialValues, createRowValues, identifiersAt, isValueOfKind, listBindings, scopeKeys } from './bindings'
 export type { DataBinding } from './bindings'

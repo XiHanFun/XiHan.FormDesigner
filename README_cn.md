@@ -44,9 +44,9 @@ XiHan.FormDesigner 是一款框架无关的表单设计器，以原生 Web Compo
 
 | 包 | 说明 |
 | --- | --- |
-| `@xihanfun/form-core` | 模型层：表单 schema、校验规则、联动规则与编辑命令，纯 TypeScript，不依赖 DOM |
-| `@xihanfun/form-runtime` | 运行时：业务页面使用的表单渲染、取值与校验 |
-| `@xihanfun/form-designer` | 设计器：可视化表单设计器 |
+| `@xihan-form/core` | 模型层：表单 schema、校验规则、联动规则与编辑命令，纯 TypeScript，不依赖 DOM |
+| `@xihan-form/runtime` | 运行时：业务页面使用的表单渲染、取值与校验 |
+| `@xihan-form/designer` | 设计器：可视化表单设计器 |
 
 依赖方向为 `designer → runtime → core`。业务页面只需要 runtime，设计器只在需要编辑模板的地方加载。
 

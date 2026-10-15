@@ -58,16 +58,16 @@ importers:
 
   packages/designer:
     dependencies:
-      '@xihanfun/form-core':
+      '@xihan-form/core':
         specifier: workspace:^
         version: link:../core
-      '@xihanfun/form-runtime':
+      '@xihan-form/runtime':
         specifier: workspace:^
         version: link:../runtime
 
   packages/runtime:
     dependencies:
-      '@xihanfun/form-core':
+      '@xihan-form/core':
         specifier: workspace:^
         version: link:../core
 
