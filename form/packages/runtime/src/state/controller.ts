@@ -6,6 +6,7 @@
 // 表单控制器：持有表单值，改值后重算联动与状态，按需校验，管理行与选项，并通知订阅者。
 
 import type { ContainerNode, ExpressionEngine, FieldNode, FormDocument, FormIssue, FormNode, JsonValue, KindRegistry, NodeState, StateOverride, ValueIssue } from '@xihan-form/core'
+import type { FormArrayMutation } from '@xihan-ui/headless'
 import type { OptionItem, OptionLoader, OptionsState } from './options'
 import type { DataPath, ResolvedPath } from './paths'
 import {
@@ -22,6 +23,7 @@ import {
   validateValues,
   walkNodes,
 } from '@xihan-form/core'
+import { rebaseFormArrayPath } from '@xihan-ui/headless'
 import { changedIssuePaths, changedKeys, changedValuePaths, sameState } from './changes'
 import { FormRuntimeError, pathText } from './errors'
 import { normalizeRow, normalizeScope, normalizeValue } from './normalize'
@@ -428,20 +430,16 @@ class Controller implements FormController {
       throw new FormRuntimeError('XH_FORM_RT_INDEX_OUT_OF_RANGE', { index: String(index), max: length - 1 })
   }
 
-  /** 行号变化后，把行级的强制设定、选项状态与校验进度移到新行号上；映射为 `null` 的行被丢弃。 */
-  private remapRows(list: ResolvedPath, listPath: DataPath, map: (index: number) => number | null): void {
+  /** 行结构变更后，把行级的强制设定、选项状态与校验进度移到新行号上；被删行的这些状态一并丢弃。 */
+  private remapRows(list: ResolvedPath, listPath: DataPath, mutation: FormArrayMutation): void {
     const inside = new Set(descendantsOf(list.node).map(node => node.id))
     inside.delete(list.node.id)
-    const depth = list.rowPath.length
     const remapKey = (key: string): string | null => {
       const { nodeId, rowPath } = parseInstanceKey(key)
-      if (!inside.has(nodeId) || rowPath.length <= depth || !list.rowPath.every((row, index) => rowPath[index] === row))
+      if (!inside.has(nodeId))
         return key
-      const next = map(rowPath[depth]!)
-      if (next === null)
-        return null
-      rowPath[depth] = next
-      return instanceKey(nodeId, rowPath)
+      const next = rebaseFormArrayPath(rowPath, list.rowPath, mutation) as readonly number[] | null
+      return next === null ? null : instanceKey(nodeId, next)
     }
     for (const store of [this.overrides, this.optionStates, this.optionRequests] as Map<string, unknown>[]) {
       const entries = [...store]
@@ -453,10 +451,8 @@ class Controller implements FormController {
       }
     }
     this.touched = this.touched.flatMap((path) => {
-      if (path.length <= listPath.length || !startsWith(path, listPath))
-        return [path]
-      const next = map(path[listPath.length] as number)
-      return next === null ? [] : [[...listPath, next, ...path.slice(listPath.length + 1)]]
+      const next = rebaseFormArrayPath(path, listPath, mutation) as DataPath | null
+      return next === null ? [] : [next]
     })
   }
 
@@ -468,7 +464,7 @@ class Controller implements FormController {
       throw new FormRuntimeError('XH_FORM_RT_INDEX_OUT_OF_RANGE', { index: String(index), max: rows.length })
     const row = normalizeRow(list, options.values ?? {}, [...listPath, index], this.registry)
     this.commit(() => {
-      this.remapRows(resolved, listPath, at => (at >= index ? at + 1 : at))
+      this.remapRows(resolved, listPath, { type: 'insert', index })
       const list = getAt(this.values, listPath) as JsonValue[]
       list.splice(index, 0, row)
     })
@@ -479,7 +475,7 @@ class Controller implements FormController {
     const { resolved, rows } = this.listAt(listPath)
     this.requireRow(index, rows.length)
     this.commit(() => {
-      this.remapRows(resolved, listPath, at => (at === index ? null : at > index ? at - 1 : at))
+      this.remapRows(resolved, listPath, { type: 'remove', index })
       const list = getAt(this.values, listPath) as JsonValue[]
       list.splice(index, 1)
     })
@@ -492,11 +488,8 @@ class Controller implements FormController {
     this.requireRow(to, rows.length)
     if (from === to)
       return
-    const order = rows.map((_, index) => index)
-    order.splice(to, 0, ...order.splice(from, 1))
-    const moved = new Map(order.map((oldIndex, newIndex) => [oldIndex, newIndex]))
     this.commit(() => {
-      this.remapRows(resolved, listPath, at => moved.get(at) ?? at)
+      this.remapRows(resolved, listPath, { type: 'move', from, to })
       const list = getAt(this.values, listPath) as JsonValue[]
       list.splice(to, 0, ...list.splice(from, 1))
     })

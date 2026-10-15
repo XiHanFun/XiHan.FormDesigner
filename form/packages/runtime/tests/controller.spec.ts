@@ -333,6 +333,45 @@ describe('子表单与子表的行', () => {
     expect(controller.getIssues()).toEqual([])
   })
 
+  it('跨多行前移、后移时其余行的强制设定依次让位', () => {
+    const { document, engine } = orderForm()
+    const rows = [{ price: 1, qty: 1 }, { price: 2, qty: 1 }, { price: 3, qty: 1 }]
+    const controller = createFormController({ document, engine, values: { lines: rows } })
+    controller.setDisabled(['lines', 0, 'qty'], true)
+    controller.setReadOnly(['lines', 1, 'qty'], true)
+    const flags = (): [boolean | undefined, boolean | undefined][] => [0, 1, 2].map(index => [
+      controller.getState(['lines', index, 'qty'])?.disabled,
+      controller.getState(['lines', index, 'qty'])?.readOnly,
+    ])
+    const prices = (): unknown[] => (controller.getValue(['lines']) as { price: number }[]).map(row => row.price)
+    controller.moveRow(['lines'], 0, 2)
+    expect(prices()).toEqual([2, 3, 1])
+    expect(flags()).toEqual([[false, true], [false, false], [true, false]])
+    controller.moveRow(['lines'], 2, 0)
+    expect(prices()).toEqual([1, 2, 3])
+    expect(flags()).toEqual([[true, false], [false, true], [false, false]])
+  })
+
+  it('外层行变动带走内层行的强制设定，内层行变动不碰其他外层行', () => {
+    const { registry, ids } = setup()
+    const qty = field(registry, ids, 'number', 'qty')
+    const lines = container(registry, ids, 'subtable', [qty], { key: 'lines' })
+    const orders = container(registry, ids, 'subform', [lines], { key: 'orders' })
+    const values = { orders: [{ lines: [{ qty: 1 }] }, { lines: [{ qty: 2 }] }] }
+    const controller = createFormController({ document: documentOf([orders]), values })
+    controller.setHidden(['orders', 1, 'lines', 0, 'qty'], true)
+    controller.removeRow(['orders'], 0)
+    expect(controller.getState(['orders', 0, 'lines', 0, 'qty'])?.hidden).toBe(true)
+    controller.addRow(['orders'], { index: 0 })
+    controller.addRow(['orders', 0, 'lines'])
+    expect(controller.getState(['orders', 0, 'lines', 0, 'qty'])?.hidden).toBe(false)
+    expect(controller.getState(['orders', 1, 'lines', 0, 'qty'])?.hidden).toBe(true)
+    controller.addRow(['orders', 1, 'lines'], { index: 0 })
+    expect(controller.getState(['orders', 1, 'lines', 0, 'qty'])?.hidden).toBe(false)
+    expect(controller.getState(['orders', 1, 'lines', 1, 'qty'])?.hidden).toBe(true)
+    expect(controller.getState(['orders', 0, 'lines', 0, 'qty'])?.hidden).toBe(false)
+  })
+
   it('嵌套列表逐层带行号', () => {
     const { registry, ids } = setup()
     const qty = field(registry, ids, 'number', 'qty', { linkage: [{ id: 'l', action: 'disable', when: 'outer-first' }] })
