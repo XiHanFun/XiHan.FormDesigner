@@ -3,9 +3,9 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 按原型新建文档、节点与区域；id 一律来自注入的 IdSource。
+// 按原型新建文档、节点与区域；id 一律来自注入的 id 分配器（@xihan-ui/designer-kit 的 IdAllocator）。
 
-import type { IdSource } from './ids'
+import type { IdAllocator } from '@xihan-ui/designer-kit'
 import type { ContainerKindDefinition, KindRegistry } from './registry/kinds'
 import type { PropertyDescriptor } from './registry/properties'
 import type { FormDocument, FormNode, PropertyBag, Region } from './schema'
@@ -45,9 +45,9 @@ export function createDocument(settings: PropertyBag = {}): FormDocument {
 }
 
 /** 按容器种类新建一个区域；`props` 覆盖区域属性的缺省值。 */
-export function createRegion(definition: ContainerKindDefinition, ids: IdSource, props: PropertyBag = {}): Region {
+export function createRegion(definition: ContainerKindDefinition, ids: IdAllocator, props: PropertyBag = {}): Region {
   return deepFreeze({
-    id: ids.nextId(),
+    id: ids.next(),
     props: { ...defaultProperties(definition.regionProperties), ...props },
     children: [],
   })
@@ -60,11 +60,11 @@ export interface CreateNodeOptions {
 }
 
 /** 按种类原型新建节点；种类没有登记时抛 `TypeError`。 */
-export function createNode(registry: KindRegistry, kind: string, ids: IdSource, options: CreateNodeOptions = {}): FormNode {
+export function createNode(registry: KindRegistry, kind: string, ids: IdAllocator, options: CreateNodeOptions = {}): FormNode {
   const definition = registry.get(kind)
   if (definition === undefined)
     throw new TypeError(`没有登记种类 ${kind}`)
-  const id = ids.nextId()
+  const id = ids.next()
   const groups = {
     basic: defaultProperties(definition.properties.basic),
     data: defaultProperties(definition.properties.data),

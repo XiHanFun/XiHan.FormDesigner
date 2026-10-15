@@ -8,6 +8,7 @@
 import type { JsonValue } from '@xihan-ui/core/json'
 import type { ContainerNode, FormDocument, FormNode, LinkageRule, PropertyBag, PropertyGroup, Region, ValidationRule } from './schema'
 import { cloneJson, deepFreeze, isJsonValue, isPlainObject, jsonEquals } from '@xihan-ui/core/json'
+import { applyInSequence } from '@xihan-ui/designer-kit'
 import { PROPERTY_GROUPS } from './schema'
 
 /** 规则所在的列表。 */
@@ -476,12 +477,5 @@ export function applyOperation(document: FormDocument, operation: FormOperation)
 
 /** 依次应用一组操作；逆操作是各操作逆操作按反序拼接。任一操作失败时抛出，输入文档不变。 */
 export function applyOperations(document: FormDocument, operations: readonly FormOperation[]): OperationResult {
-  let current = document
-  const inverses: (readonly FormOperation[])[] = []
-  for (const operation of operations) {
-    const result = applyOperation(current, operation)
-    current = result.document
-    inverses.push(result.inverse)
-  }
-  return { document: current, inverse: inverses.reverse().flat() }
+  return applyInSequence(applyOperation, document, operations)
 }

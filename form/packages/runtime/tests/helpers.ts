@@ -1,15 +1,17 @@
-import type { ContainerNode, FieldNode, FormDocument, FormNode, IdSource, KindRegistry, LinkageRule, Region, ValidationRule } from '@xihan-form/core'
-import { createBuiltinKindRegistry, createDocument, createNode, createSequentialIds } from '@xihan-form/core'
+import type { ContainerNode, FieldNode, FormDocument, FormNode, KindRegistry, LinkageRule, Region, ValidationRule } from '@xihan-form/core'
+import type { IdAllocator } from '@xihan-ui/designer-kit'
+import { createBuiltinKindRegistry, createDocument, createNode } from '@xihan-form/core'
+import { createIdAllocator } from '@xihan-ui/designer-kit'
 
 /** 每个用例一套独立的登记表与 id 来源。 */
-export function setup(): { registry: KindRegistry, ids: IdSource } {
-  return { registry: createBuiltinKindRegistry(), ids: createSequentialIds() }
+export function setup(): { registry: KindRegistry, ids: IdAllocator } {
+  return { registry: createBuiltinKindRegistry(), ids: createIdAllocator('n') }
 }
 
 /** 新建字段并指定键，可带校验与联动规则、覆盖部分属性。 */
 export function field(
   registry: KindRegistry,
-  ids: IdSource,
+  ids: IdAllocator,
   kind: string,
   key: string,
   extra: { validation?: ValidationRule[], linkage?: LinkageRule[], basic?: Record<string, unknown>, data?: Record<string, unknown> } = {},
@@ -25,7 +27,7 @@ export function field(
 }
 
 /** 新建容器，第一个区域放 `children`。 */
-export function container(registry: KindRegistry, ids: IdSource, kind: string, children: readonly FormNode[], extra: { key?: string, linkage?: LinkageRule[], basic?: Record<string, unknown>, data?: Record<string, unknown>, validation?: ValidationRule[] } = {}): ContainerNode {
+export function container(registry: KindRegistry, ids: IdAllocator, kind: string, children: readonly FormNode[], extra: { key?: string, linkage?: LinkageRule[], basic?: Record<string, unknown>, data?: Record<string, unknown>, validation?: ValidationRule[] } = {}): ContainerNode {
   const node = createNode(registry, kind, ids, extra.key === undefined ? {} : { key: extra.key }) as ContainerNode
   return {
     ...node,

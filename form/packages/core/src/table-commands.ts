@@ -5,8 +5,7 @@
 
 // 表格布局的命令：合并、拆分单元格与插入、删除行列。几何由 @xihan-ui/designer-kit 算出，这里只把结果写成编辑操作，由 applyOperations 执行。
 
-import type { TableAxis, TableCell, TableLinePlan } from '@xihan-ui/designer-kit'
-import type { IdSource } from './ids'
+import type { IdAllocator, TableAxis, TableCell, TableLinePlan } from '@xihan-ui/designer-kit'
 import type { FormOperation } from './operations'
 import type { ContainerNode, FormDocument, Region } from './schema'
 import { planCellMerge, planCellSplit, planTableLineInsert, planTableLineRemove } from '@xihan-ui/designer-kit'
@@ -26,8 +25,8 @@ function requireTable(document: FormDocument, containerId: string): ContainerNod
   return node
 }
 
-function newCell(ids: IdSource, row: number, column: number): Region {
-  return { id: ids.nextId(), props: { row, column, rowSpan: 1, columnSpan: 1 }, children: [] }
+function newCell(ids: IdAllocator, row: number, column: number): Region {
+  return { id: ids.next(), props: { row, column, rowSpan: 1, columnSpan: 1 }, children: [] }
 }
 
 /** 把一个单元格从旧几何改成新几何所需的区域属性操作，只写变了的几项。 */
@@ -64,7 +63,7 @@ export function mergeTableCells(document: FormDocument, containerId: string, reg
 }
 
 /** 拆分单元格：跨行跨列都还原成 1，空出来的位置按行优先补上新的空单元格，紧跟在原单元格之后。 */
-export function splitTableCell(document: FormDocument, containerId: string, regionId: string, ids: IdSource): FormOperation[] {
+export function splitTableCell(document: FormDocument, containerId: string, regionId: string, ids: IdAllocator): FormOperation[] {
   const table = requireTable(document, containerId)
   const index = table.regions.findIndex(region => region.id === regionId)
   if (index === -1)
@@ -96,7 +95,7 @@ function lineOperations(cells: readonly TableCell[], plan: TableLinePlan): FormO
  * 在第 `at` 行（或列）之前插入一整行（列），`at` 等于行数时追加在末尾。
  * 跨过插入位置的单元格随之加长，其后的单元格整体后移，没被覆盖的位置补上新的空单元格。
  */
-export function insertTableLine(document: FormDocument, containerId: string, axis: TableAxis, at: number, ids: IdSource): FormOperation[] {
+export function insertTableLine(document: FormDocument, containerId: string, axis: TableAxis, at: number, ids: IdAllocator): FormOperation[] {
   const table = requireTable(document, containerId)
   const size = tableSize(table)
   const count = size[COUNT_PROPERTY[axis]]

@@ -54,5 +54,8 @@
     "@xihan-ui/core": "catalog:",
     "@xihan-ui/expression": "catalog:",
     "@xihan-ui/headless": "catalog:"
+  },
+  "devDependencies": {
+    "@xihan-ui/designer-kit": "catalog:"
   }
 }
