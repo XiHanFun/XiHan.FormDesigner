@@ -5,11 +5,11 @@
 
 // 运行时状态引擎的错误：只有错误码与定位数据，不带文案。
 
-import type { FormIssue } from '@xihan-form/core'
+import type { FormSchemaIssue } from '@xihan-form/core'
 
 /**
  * 运行时错误码：
- * - `XH_FORM_RT_INVALID_DOCUMENT`：文档没通过 schema 自校验，问题列表在 `issues`。
+ * - `XH_FORM_RT_INVALID_DOCUMENT`：文档没通过 schema 自校验（有 error 级问题），全部问题在 `issues`。
  * - `XH_FORM_RT_NO_ENGINE`：文档里有表达式，却没有提供表达式引擎。
  * - `XH_FORM_RT_UNKNOWN_NODE` / `XH_FORM_RT_UNKNOWN_PATH`：节点 id 或数据路径找不到。
  * - `XH_FORM_RT_INVALID_VALUE`：值的形状与字段不符。
@@ -35,9 +35,9 @@ export type FormRuntimeErrorCode
 export class FormRuntimeError extends Error {
   readonly code: FormRuntimeErrorCode
   readonly data: Readonly<Record<string, string | number>>
-  readonly issues: readonly FormIssue[]
+  readonly issues: readonly FormSchemaIssue[]
 
-  constructor(code: FormRuntimeErrorCode, data: Record<string, string | number> = {}, issues: readonly FormIssue[] = []) {
+  constructor(code: FormRuntimeErrorCode, data: Record<string, string | number> = {}, issues: readonly FormSchemaIssue[] = []) {
     super(code)
     this.name = 'FormRuntimeError'
     this.code = code

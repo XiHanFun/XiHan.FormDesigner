@@ -84,11 +84,11 @@ describe('种类登记表', () => {
     })
     expect(table.check(node([cell('a', 0, 0, 1, 2), cell('b', 1, 0), cell('c', 1, 1)]))).toEqual([])
     expect(table.check(node([cell('a', 0, 0, 2, 2)]))).toEqual([])
-    expect(table.check(node([cell('a', 0, 0, 1, 2), cell('b', 0, 1), cell('c', 1, 0, 1, 2)]))).toEqual([{ code: 'XH_FORM_TABLE_CELL_OVERLAP', regionId: 'b' }])
-    expect(table.check(node([cell('a', 0, 0, 2, 2), cell('b', 1, 1, 1, 2)]))).toEqual([{ code: 'XH_FORM_TABLE_CELL_OUT_OF_BOUNDS', regionId: 'b' }])
+    expect(table.check(node([cell('a', 0, 0, 1, 2), cell('b', 0, 1), cell('c', 1, 0, 1, 2)]))).toEqual([{ code: 'table.cellOverlap', regionId: 'b' }])
+    expect(table.check(node([cell('a', 0, 0, 2, 2), cell('b', 1, 1, 1, 2)]))).toEqual([{ code: 'table.cellOutOfBounds', regionId: 'b' }])
     expect(table.check(node([cell('a', 0, 0), cell('b', 1, 1)]))).toEqual([
-      { code: 'XH_FORM_TABLE_CELL_GAP', data: { row: 0, column: 1 } },
-      { code: 'XH_FORM_TABLE_CELL_GAP', data: { row: 1, column: 0 } },
+      { code: 'table.cellGap', params: { row: 0, column: 1 } },
+      { code: 'table.cellGap', params: { row: 1, column: 0 } },
     ])
   })
 
