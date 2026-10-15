@@ -5,9 +5,9 @@
 
 // 选项数据：宿主的加载函数、单个实例的加载状态，以及按字段种类核对返回的选项。
 
-import type { FieldNode, KindRegistry, PropertyDescriptor } from '@xihan-form/core'
+import type { FieldNode, FormPropertyDescriptor, KindRegistry } from '@xihan-form/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
-import { isValidPropertyValue } from '@xihan-form/core'
+import { isValidPropertyValue, propertyName } from '@xihan-form/core'
 
 /** 一个选项；树形选项可带 `children`。 */
 export interface OptionItem {
@@ -38,11 +38,11 @@ export interface OptionsState {
 }
 
 /** 字段种类里描述选项的属性；不是选项类字段时返回 `undefined`。 */
-export function optionsDescriptor(node: FieldNode, registry: KindRegistry): PropertyDescriptor | undefined {
+export function optionsDescriptor(node: FieldNode, registry: KindRegistry): FormPropertyDescriptor | undefined {
   const definition = registry.get(node.kind)
   if (definition?.type !== 'field')
     return undefined
-  return definition.properties.data.find(property => property.name === 'options' && (property.type === 'options' || property.type === 'tree-options'))
+  return definition.properties.data.find(property => propertyName(property) === 'options' && (property.control.kind === 'options' || property.control.kind === 'tree-options'))
 }
 
 /** 字段的选项来源名；没有来源时返回 `undefined`。 */
@@ -52,6 +52,6 @@ export function optionSourceOf(node: FieldNode): string | undefined {
 }
 
 /** 宿主返回的选项是否符合字段种类的选项描述。 */
-export function isValidOptions(descriptor: PropertyDescriptor, items: unknown): items is readonly OptionItem[] {
+export function isValidOptions(descriptor: FormPropertyDescriptor, items: unknown): items is readonly OptionItem[] {
   return isValidPropertyValue(descriptor, items)
 }

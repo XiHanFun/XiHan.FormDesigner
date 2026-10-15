@@ -7,18 +7,23 @@
 
 import type { IdAllocator } from '@xihan-ui/designer-kit'
 import type { ContainerKindDefinition, KindRegistry } from './registry/kinds'
-import type { PropertyDescriptor } from './registry/properties'
+import type { FormPropertyDescriptor } from './registry/properties'
 import type { FormDocument, FormNode, PropertyBag, Region } from './schema'
 import { deepFreeze } from '@xihan-ui/core/json'
-import { defaultProperties } from './registry/properties'
+import { applyDefaults } from '@xihan-ui/designer-kit/properties'
 import { FORM_SCHEMA_VERSION } from './schema'
 
 /** 表单级设置的属性描述。 */
-export const FORM_SETTING_PROPERTIES: readonly PropertyDescriptor[] = Object.freeze([
-  { name: 'labelPlacement', type: 'enum', choices: ['top', 'start'], default: 'top' },
-  { name: 'size', type: 'enum', choices: ['sm', 'md', 'lg'], default: 'md' },
-  { name: 'disabled', type: 'boolean', default: false },
-  { name: 'readOnly', type: 'boolean', default: false },
+/** 按描述取出缺省值组成的属性包。 */
+function defaultsOf(descriptors: readonly FormPropertyDescriptor[]): PropertyBag {
+  return applyDefaults<PropertyBag>({}, descriptors)
+}
+
+export const FORM_SETTING_PROPERTIES: readonly FormPropertyDescriptor[] = Object.freeze([
+  { path: ['labelPlacement'], control: { kind: 'select', options: [{ value: 'top' }, { value: 'start' }] }, default: 'top' },
+  { path: ['size'], control: { kind: 'select', options: [{ value: 'sm' }, { value: 'md' }, { value: 'lg' }] }, default: 'md' },
+  { path: ['disabled'], control: { kind: 'boolean' }, default: false },
+  { path: ['readOnly'], control: { kind: 'boolean' }, default: false },
 ])
 
 const KEY_PATTERN = /^[A-Z_]\w*$/i
@@ -39,7 +44,7 @@ export function deriveKey(kind: string, id: string): string {
 export function createDocument(settings: PropertyBag = {}): FormDocument {
   return deepFreeze({
     schemaVersion: FORM_SCHEMA_VERSION,
-    settings: { ...defaultProperties(FORM_SETTING_PROPERTIES), ...settings },
+    settings: { ...defaultsOf(FORM_SETTING_PROPERTIES), ...settings },
     children: [],
   })
 }
@@ -48,7 +53,7 @@ export function createDocument(settings: PropertyBag = {}): FormDocument {
 export function createRegion(definition: ContainerKindDefinition, ids: IdAllocator, props: PropertyBag = {}): Region {
   return deepFreeze({
     id: ids.next(),
-    props: { ...defaultProperties(definition.regionProperties), ...props },
+    props: { ...defaultsOf(definition.regionProperties), ...props },
     children: [],
   })
 }
@@ -66,9 +71,9 @@ export function createNode(registry: KindRegistry, kind: string, ids: IdAllocato
     throw new TypeError(`没有登记种类 ${kind}`)
   const id = ids.next()
   const groups = {
-    basic: defaultProperties(definition.properties.basic),
-    data: defaultProperties(definition.properties.data),
-    appearance: defaultProperties(definition.properties.appearance),
+    basic: defaultsOf(definition.properties.basic),
+    data: defaultsOf(definition.properties.data),
+    appearance: defaultsOf(definition.properties.appearance),
   }
   switch (definition.type) {
     case 'field':

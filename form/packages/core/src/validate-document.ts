@@ -8,7 +8,7 @@
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { FormIssue, FormIssueCode } from './issues'
 import type { KindDefinition, KindRegistry, ValueKind } from './registry/kinds'
-import type { PropertyDescriptor } from './registry/properties'
+import type { FormPropertyDescriptor } from './registry/properties'
 import type { NodeType, ValidationKind } from './schema'
 import { isJsonValue, isPlainObject } from '@xihan-ui/core/json'
 import { compileFormPattern } from '@xihan-ui/headless'
@@ -17,7 +17,7 @@ import { FORM_SETTING_PROPERTIES, isValidKey } from './create'
 import { RUNTIME_VARIABLES } from './expression'
 import { formIssue } from './issues'
 import { LINKAGE_ACTIONS } from './registry/kinds'
-import { isValidPropertyValue } from './registry/properties'
+import { isValidPropertyValue, propertyName } from './registry/properties'
 import { FORM_SCHEMA_VERSION, PROPERTY_GROUPS } from './schema'
 
 /** schema 自校验的选项。 */
@@ -113,9 +113,9 @@ class DocumentChecker {
     }
   }
 
-  private properties(bag: Record<string, unknown>, descriptors: readonly PropertyDescriptor[], group: string, at: Located): void {
+  private properties(bag: Record<string, unknown>, descriptors: readonly FormPropertyDescriptor[], group: string, at: Located): void {
     for (const [name, value] of Object.entries(bag)) {
-      const descriptor = descriptors.find(item => item.name === name)
+      const descriptor = descriptors.find(item => propertyName(item) === name)
       if (descriptor === undefined)
         this.report('XH_FORM_UNKNOWN_PROPERTY', at, { group, name })
       else if (!isValidPropertyValue(descriptor, value))
@@ -143,7 +143,7 @@ class DocumentChecker {
   }
 
   private optionDependencies(node: Record<string, unknown>, definition: KindDefinition | undefined, context: NodeContext): void {
-    if (definition === undefined || !definition.properties.data.some(property => property.name === 'optionDependencies'))
+    if (definition === undefined || !definition.properties.data.some(property => propertyName(property) === 'optionDependencies'))
       return
     const data = node.data as Record<string, unknown>
     const dependencies = data.optionDependencies

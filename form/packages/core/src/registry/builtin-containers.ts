@@ -8,12 +8,12 @@
 import type { TableCell, TableSize } from '@xihan-ui/designer-kit'
 import type { ContainerNode } from '../schema'
 import type { ContainerKindDefinition, StaticKindDefinition, StructureProblem } from './kinds'
-import type { PropertyDescriptor } from './properties'
+import type { FormPropertyDescriptor } from './properties'
 import { checkTableCells } from '@xihan-ui/designer-kit'
 
-const TITLE: PropertyDescriptor = { name: 'title', type: 'string', default: '' }
-const HIDDEN: PropertyDescriptor = { name: 'hidden', type: 'boolean', default: false }
-const DISABLED: PropertyDescriptor = { name: 'disabled', type: 'boolean', default: false }
+const TITLE: FormPropertyDescriptor = { path: ['title'], control: { kind: 'text' }, default: '' }
+const HIDDEN: FormPropertyDescriptor = { path: ['hidden'], control: { kind: 'boolean' }, default: false }
+const DISABLED: FormPropertyDescriptor = { path: ['disabled'], control: { kind: 'boolean' }, default: false }
 
 /** 读表格布局的行数与列数。 */
 export function tableSize(node: ContainerNode): TableSize {
@@ -59,9 +59,9 @@ function checkTable(node: ContainerNode): StructureProblem[] {
   return problems
 }
 
-const LIST_DATA: readonly PropertyDescriptor[] = [
-  { name: 'initialRows', type: 'integer', min: 0, max: 100, default: 0 },
-  { name: 'movable', type: 'boolean', default: true },
+const LIST_DATA: readonly FormPropertyDescriptor[] = [
+  { path: ['initialRows'], control: { kind: 'number', integer: true, min: 0, max: 100 }, default: 0 },
+  { path: ['movable'], control: { kind: 'boolean' }, default: true },
 ]
 
 /** 内置容器种类。 */
@@ -75,11 +75,11 @@ export const BUILTIN_CONTAINERS: readonly ContainerKindDefinition[] = [
     properties: {
       basic: [HIDDEN, DISABLED],
       data: [],
-      appearance: [{ name: 'gap', type: 'enum', choices: ['xs', 'sm', 'md', 'lg', 'xl'], default: 'md' }],
+      appearance: [{ path: ['gap'], control: { kind: 'select', options: [{ value: 'xs' }, { value: 'sm' }, { value: 'md' }, { value: 'lg' }, { value: 'xl' }] }, default: 'md' }],
     },
     regionProperties: [
-      { name: 'span', type: 'integer', min: 1, max: 12, default: 6 },
-      { name: 'offset', type: 'integer', min: 0, max: 11 },
+      { path: ['span'], control: { kind: 'number', integer: true, min: 1, max: 12 }, default: 6 },
+      { path: ['offset'], control: { kind: 'number', integer: true, min: 0, max: 11 } },
     ],
     regions: { min: 1, max: 12, initial: [{ span: 6 }, { span: 6 }] },
     accepts: 'any',
@@ -118,9 +118,9 @@ export const BUILTIN_CONTAINERS: readonly ContainerKindDefinition[] = [
     properties: {
       basic: [HIDDEN, DISABLED],
       data: [],
-      appearance: [{ name: 'multiple', type: 'boolean', default: true }],
+      appearance: [{ path: ['multiple'], control: { kind: 'boolean' }, default: true }],
     },
-    regionProperties: [TITLE, { name: 'expanded', type: 'boolean', default: true }],
+    regionProperties: [TITLE, { path: ['expanded'], control: { kind: 'boolean' }, default: true }],
     regions: { min: 1, max: null, initial: [{ title: '', expanded: true }] },
     accepts: 'any',
     validations: [],
@@ -131,7 +131,7 @@ export const BUILTIN_CONTAINERS: readonly ContainerKindDefinition[] = [
     category: 'layout',
     element: 'xh-fieldset',
     scope: 'none',
-    properties: { basic: [{ name: 'legend', type: 'string', default: '' }, HIDDEN, DISABLED], data: [], appearance: [] },
+    properties: { basic: [{ path: ['legend'], control: { kind: 'text' }, default: '' }, HIDDEN, DISABLED], data: [], appearance: [] },
     regionProperties: [],
     regions: { min: 1, max: 1, initial: [{}] },
     accepts: 'any',
@@ -147,16 +147,16 @@ export const BUILTIN_CONTAINERS: readonly ContainerKindDefinition[] = [
       basic: [HIDDEN, DISABLED],
       data: [],
       appearance: [
-        { name: 'rows', type: 'integer', min: 1, max: 100, default: 2 },
-        { name: 'columns', type: 'integer', min: 1, max: 12, default: 2 },
-        { name: 'bordered', type: 'boolean', default: true },
+        { path: ['rows'], control: { kind: 'number', integer: true, min: 1, max: 100 }, default: 2 },
+        { path: ['columns'], control: { kind: 'number', integer: true, min: 1, max: 12 }, default: 2 },
+        { path: ['bordered'], control: { kind: 'boolean' }, default: true },
       ],
     },
     regionProperties: [
-      { name: 'row', type: 'integer', min: 0, max: 99, default: 0 },
-      { name: 'column', type: 'integer', min: 0, max: 11, default: 0 },
-      { name: 'rowSpan', type: 'integer', min: 1, max: 100, default: 1 },
-      { name: 'columnSpan', type: 'integer', min: 1, max: 12, default: 1 },
+      { path: ['row'], control: { kind: 'number', integer: true, min: 0, max: 99 }, default: 0 },
+      { path: ['column'], control: { kind: 'number', integer: true, min: 0, max: 11 }, default: 0 },
+      { path: ['rowSpan'], control: { kind: 'number', integer: true, min: 1, max: 100 }, default: 1 },
+      { path: ['columnSpan'], control: { kind: 'number', integer: true, min: 1, max: 12 }, default: 1 },
     ],
     regions: {
       min: 1,
@@ -205,7 +205,7 @@ export const BUILTIN_STATICS: readonly StaticKindDefinition[] = [
     kind: 'divider',
     category: 'static',
     element: 'xh-separator',
-    properties: { basic: [{ name: 'label', type: 'string' }, HIDDEN], data: [], appearance: [] },
+    properties: { basic: [{ path: ['label'], control: { kind: 'text' } }, HIDDEN], data: [], appearance: [] },
   },
   {
     type: 'static',
@@ -213,9 +213,9 @@ export const BUILTIN_STATICS: readonly StaticKindDefinition[] = [
     category: 'static',
     element: 'xh-typography',
     properties: {
-      basic: [{ name: 'content', type: 'text', default: '' }, HIDDEN],
+      basic: [{ path: ['content'], control: { kind: 'text', multiline: true }, default: '' }, HIDDEN],
       data: [],
-      appearance: [{ name: 'size', type: 'enum', choices: ['sm', 'md', 'lg'], default: 'md' }],
+      appearance: [{ path: ['size'], control: { kind: 'select', options: [{ value: 'sm' }, { value: 'md' }, { value: 'lg' }] }, default: 'md' }],
     },
   },
 ]

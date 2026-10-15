@@ -7,7 +7,7 @@
 
 import type { JsonValue } from '@xihan-ui/core/json'
 import type { ContainerNode, LinkageAction, PropertyBag, ValidationKind } from '../schema'
-import type { PropertyDescriptor, PropertySchema } from './properties'
+import type { FormPropertyDescriptor, PropertySchema } from './properties'
 
 /**
  * 字段值的形状：
@@ -51,7 +51,7 @@ export interface ContainerKindDefinition {
   /** `list`：容器带 `key`，值是行对象的列表；`none`：只管布局，对数据透明。 */
   readonly scope: 'none' | 'list'
   readonly properties: PropertySchema
-  readonly regionProperties: readonly PropertyDescriptor[]
+  readonly regionProperties: readonly FormPropertyDescriptor[]
   /** 区域个数的上下限，`max` 为 `null` 表示不限；`initial` 是新建时各区域的属性。 */
   readonly regions: {
     readonly min: number

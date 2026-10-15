@@ -8,25 +8,25 @@
 import type { JsonValue } from '@xihan-ui/core/json'
 import type { PropertyBag, ValidationKind } from '../schema'
 import type { FieldKindDefinition, ValueKind } from './kinds'
-import type { PropertyDescriptor } from './properties'
+import type { FormPropertyDescriptor } from './properties'
 
-const LABEL: PropertyDescriptor = { name: 'label', type: 'string', default: '' }
-const HINT: PropertyDescriptor = { name: 'hint', type: 'text' }
-const PLACEHOLDER: PropertyDescriptor = { name: 'placeholder', type: 'string' }
-const INITIAL_VALUE: PropertyDescriptor = { name: 'initialValue', type: 'value' }
-const HIDDEN: PropertyDescriptor = { name: 'hidden', type: 'boolean', default: false }
-const DISABLED: PropertyDescriptor = { name: 'disabled', type: 'boolean', default: false }
-const READ_ONLY: PropertyDescriptor = { name: 'readOnly', type: 'boolean', default: false }
-const LABEL_HIDDEN: PropertyDescriptor = { name: 'labelHidden', type: 'boolean', default: false }
-const SIZE: PropertyDescriptor = { name: 'size', type: 'enum', choices: ['sm', 'md', 'lg'], default: 'md' }
-const OPTIONS: PropertyDescriptor = { name: 'options', type: 'options', default: [] }
-const TREE_OPTIONS: PropertyDescriptor = { name: 'options', type: 'tree-options', default: [] }
-const OPTION_SOURCE: PropertyDescriptor = { name: 'optionSource', type: 'string' }
-const OPTION_DEPENDENCIES: PropertyDescriptor = { name: 'optionDependencies', type: 'string-list' }
-const MULTIPLE: PropertyDescriptor = { name: 'multiple', type: 'boolean', default: false }
-const ORIENTATION: PropertyDescriptor = { name: 'orientation', type: 'enum', choices: ['horizontal', 'vertical'], default: 'horizontal' }
-const WITH_TIME: PropertyDescriptor = { name: 'withTime', type: 'boolean', default: false }
-const WITH_SECONDS: PropertyDescriptor = { name: 'withSeconds', type: 'boolean', default: false }
+const LABEL: FormPropertyDescriptor = { path: ['label'], control: { kind: 'text' }, default: '' }
+const HINT: FormPropertyDescriptor = { path: ['hint'], control: { kind: 'text', multiline: true } }
+const PLACEHOLDER: FormPropertyDescriptor = { path: ['placeholder'], control: { kind: 'text' } }
+const INITIAL_VALUE: FormPropertyDescriptor = { path: ['initialValue'], control: { kind: 'json' } }
+const HIDDEN: FormPropertyDescriptor = { path: ['hidden'], control: { kind: 'boolean' }, default: false }
+const DISABLED: FormPropertyDescriptor = { path: ['disabled'], control: { kind: 'boolean' }, default: false }
+const READ_ONLY: FormPropertyDescriptor = { path: ['readOnly'], control: { kind: 'boolean' }, default: false }
+const LABEL_HIDDEN: FormPropertyDescriptor = { path: ['labelHidden'], control: { kind: 'boolean' }, default: false }
+const SIZE: FormPropertyDescriptor = { path: ['size'], control: { kind: 'select', options: [{ value: 'sm' }, { value: 'md' }, { value: 'lg' }] }, default: 'md' }
+const OPTIONS: FormPropertyDescriptor = { path: ['options'], control: { kind: 'options' }, default: [] }
+const TREE_OPTIONS: FormPropertyDescriptor = { path: ['options'], control: { kind: 'tree-options' }, default: [] }
+const OPTION_SOURCE: FormPropertyDescriptor = { path: ['optionSource'], control: { kind: 'text' } }
+const OPTION_DEPENDENCIES: FormPropertyDescriptor = { path: ['optionDependencies'], control: { kind: 'tags' } }
+const MULTIPLE: FormPropertyDescriptor = { path: ['multiple'], control: { kind: 'boolean' }, default: false }
+const ORIENTATION: FormPropertyDescriptor = { path: ['orientation'], control: { kind: 'select', options: [{ value: 'horizontal' }, { value: 'vertical' }] }, default: 'horizontal' }
+const WITH_TIME: FormPropertyDescriptor = { path: ['withTime'], control: { kind: 'boolean' }, default: false }
+const WITH_SECONDS: FormPropertyDescriptor = { path: ['withSeconds'], control: { kind: 'boolean' }, default: false }
 
 const TEXT_RULES: readonly ValidationKind[] = ['required', 'length', 'pattern', 'expression']
 const NUMBER_RULES: readonly ValidationKind[] = ['required', 'range', 'expression']
@@ -40,8 +40,8 @@ interface FieldSpec {
   readonly element: string
   readonly placeholder?: boolean
   readonly readOnly?: boolean
-  readonly data?: readonly PropertyDescriptor[]
-  readonly appearance?: readonly PropertyDescriptor[]
+  readonly data?: readonly FormPropertyDescriptor[]
+  readonly appearance?: readonly FormPropertyDescriptor[]
   readonly validations: readonly ValidationKind[]
   readonly valueKind: ValueKind | ((data: PropertyBag) => ValueKind)
   readonly emptyValue: JsonValue | ((data: PropertyBag) => JsonValue)
@@ -90,7 +90,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     category: 'input',
     element: 'xh-text-field',
     placeholder: true,
-    data: [{ name: 'inputType', type: 'enum', choices: ['text', 'email', 'tel', 'url'], default: 'text' }],
+    data: [{ path: ['inputType'], control: { kind: 'select', options: [{ value: 'text' }, { value: 'email' }, { value: 'tel' }, { value: 'url' }] }, default: 'text' }],
     validations: TEXT_RULES,
     valueKind: 'string',
     emptyValue: '',
@@ -101,8 +101,8 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     element: 'xh-text-field',
     placeholder: true,
     appearance: [
-      { name: 'minRows', type: 'integer', min: 1, max: 50, default: 3 },
-      { name: 'maxRows', type: 'integer', min: 1, max: 50 },
+      { path: ['minRows'], control: { kind: 'number', integer: true, min: 1, max: 50 }, default: 3 },
+      { path: ['maxRows'], control: { kind: 'number', integer: true, min: 1, max: 50 } },
     ],
     validations: TEXT_RULES,
     valueKind: 'string',
@@ -122,8 +122,8 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     category: 'input',
     element: 'xh-number-field',
     data: [
-      { name: 'step', type: 'number', default: 1 },
-      { name: 'precision', type: 'integer', min: 0, max: 20 },
+      { path: ['step'], control: { kind: 'number' }, default: 1 },
+      { path: ['precision'], control: { kind: 'number', integer: true, min: 0, max: 20 } },
     ],
     validations: NUMBER_RULES,
     valueKind: 'number',
@@ -135,8 +135,8 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     element: 'xh-pin-input',
     placeholder: true,
     data: [
-      { name: 'length', type: 'integer', min: 1, max: 12, default: 6 },
-      { name: 'mask', type: 'boolean', default: false },
+      { path: ['length'], control: { kind: 'number', integer: true, min: 1, max: 12 }, default: 6 },
+      { path: ['mask'], control: { kind: 'boolean' }, default: false },
     ],
     validations: TEXT_RULES,
     valueKind: 'string',
@@ -280,10 +280,10 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     category: 'advanced',
     element: 'xh-slider',
     data: [
-      { name: 'min', type: 'number', default: 0 },
-      { name: 'max', type: 'number', default: 100 },
-      { name: 'step', type: 'number', default: 1 },
-      { name: 'range', type: 'boolean', default: false },
+      { path: ['min'], control: { kind: 'number' }, default: 0 },
+      { path: ['max'], control: { kind: 'number' }, default: 100 },
+      { path: ['step'], control: { kind: 'number' }, default: 1 },
+      { path: ['range'], control: { kind: 'boolean' }, default: false },
     ],
     validations: NUMBER_RULES,
     valueKind: data => (data.range === true ? 'number-list' : 'number'),
@@ -294,8 +294,8 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     category: 'advanced',
     element: 'xh-rating',
     data: [
-      { name: 'count', type: 'integer', min: 1, max: 10, default: 5 },
-      { name: 'allowHalf', type: 'boolean', default: false },
+      { path: ['count'], control: { kind: 'number', integer: true, min: 1, max: 10 }, default: 5 },
+      { path: ['allowHalf'], control: { kind: 'boolean' }, default: false },
     ],
     validations: NUMBER_RULES,
     valueKind: 'number',
@@ -305,7 +305,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     kind: 'color',
     category: 'advanced',
     element: 'xh-color-picker',
-    data: [{ name: 'format', type: 'enum', choices: ['hex', 'rgba', 'hsla', 'oklch'], default: 'hex' }],
+    data: [{ path: ['format'], control: { kind: 'select', options: [{ value: 'hex' }, { value: 'rgba' }, { value: 'hsla' }, { value: 'oklch' }] }, default: 'hex' }],
     validations: PLAIN_RULES,
     valueKind: 'string',
     emptyValue: null,
@@ -315,7 +315,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     category: 'advanced',
     element: 'xh-tags-input',
     placeholder: true,
-    data: [{ name: 'max', type: 'integer', min: 1, max: 1000 }],
+    data: [{ path: ['max'], control: { kind: 'number', integer: true, min: 1, max: 1000 } }],
     validations: CHOICE_RULES,
     valueKind: 'string-list',
     emptyValue: [],
@@ -326,9 +326,9 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     element: 'xh-file-upload',
     readOnly: false,
     data: [
-      { name: 'accept', type: 'string' },
-      { name: 'maxFiles', type: 'integer', min: 1, max: 100 },
-      { name: 'uploadTarget', type: 'string' },
+      { path: ['accept'], control: { kind: 'text' } },
+      { path: ['maxFiles'], control: { kind: 'number', integer: true, min: 1, max: 100 } },
+      { path: ['uploadTarget'], control: { kind: 'text' } },
     ],
     validations: CHOICE_RULES,
     valueKind: 'list',
