@@ -23,10 +23,10 @@ import {
   validateValues,
   walkNodes,
 } from '@xihan-form/core'
-import { changedJsonPaths, cloneJson, getJsonAt, isJsonPathPrefix, isPlainObject, jsonEquals, JsonPathError, setJsonAt } from '@xihan-ui/core/json'
+import { changedJsonPaths, cloneJson, formatJsonPath, getJsonAt, isJsonPathPrefix, isPlainObject, jsonEquals, JsonPathError, setJsonAt } from '@xihan-ui/core/json'
 import { rebaseFormArrayPath } from '@xihan-ui/headless'
 import { changedIssuePaths, changedKeys, sameState } from './changes'
-import { FormRuntimeError, pathText } from './errors'
+import { FormRuntimeError } from './errors'
 import { normalizeRow, normalizeScope, normalizeValue } from './normalize'
 import { isValidOptions, optionsDescriptor, optionSourceOf } from './options'
 import { isListContainer, resolvePath, rowChildren, scopeBindings } from './paths'
@@ -274,7 +274,7 @@ class Controller implements FormController {
   private resolve(path: JsonPath): ResolvedPath {
     const resolved = Array.isArray(path) ? resolvePath(this.document.children, path) : undefined
     if (resolved === undefined)
-      throw new FormRuntimeError('XH_FORM_RT_UNKNOWN_PATH', { path: Array.isArray(path) ? pathText(path) : String(path) })
+      throw new FormRuntimeError('XH_FORM_RT_UNKNOWN_PATH', { path: Array.isArray(path) ? formatJsonPath(path) : String(path) })
     return resolved
   }
 
@@ -297,7 +297,7 @@ class Controller implements FormController {
     }
     catch (error) {
       if (error instanceof JsonPathError)
-        throw new FormRuntimeError('XH_FORM_RT_UNKNOWN_PATH', { path: pathText(path) })
+        throw new FormRuntimeError('XH_FORM_RT_UNKNOWN_PATH', { path: formatJsonPath(path) })
       throw error
     }
   }
@@ -447,10 +447,10 @@ class Controller implements FormController {
     const resolved = this.resolve(listPath)
     const list = resolved.node
     if (!isListContainer(list))
-      throw new FormRuntimeError('XH_FORM_RT_NOT_A_LIST', { path: pathText(listPath) })
+      throw new FormRuntimeError('XH_FORM_RT_NOT_A_LIST', { path: formatJsonPath(listPath) })
     const rows = this.read(listPath)
     if (!Array.isArray(rows))
-      throw new FormRuntimeError('XH_FORM_RT_UNKNOWN_PATH', { path: pathText(listPath) })
+      throw new FormRuntimeError('XH_FORM_RT_UNKNOWN_PATH', { path: formatJsonPath(listPath) })
     return { resolved, list, rows }
   }
 

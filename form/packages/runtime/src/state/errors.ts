@@ -45,8 +45,3 @@ export class FormRuntimeError extends Error {
     this.issues = Object.freeze([...issues])
   }
 }
-
-/** 把数据路径写成便于定位的文本，如 `lines[1].price`。 */
-export function pathText(path: readonly (string | number)[]): string {
-  return path.map((segment, index) => (typeof segment === 'number' ? `[${segment}]` : index === 0 ? segment : `.${segment}`)).join('')
-}

@@ -9,12 +9,12 @@ import type { ContainerNode, FormNode, KindRegistry } from '@xihan-form/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { BoundNode } from './paths'
 import { createRowValues, isValueOfKind } from '@xihan-form/core'
-import { cloneJson, findJsonViolation, isPlainObject } from '@xihan-ui/core/json'
-import { FormRuntimeError, pathText } from './errors'
+import { cloneJson, findJsonViolation, formatJsonPath, isPlainObject } from '@xihan-ui/core/json'
+import { FormRuntimeError } from './errors'
 import { isListContainer, rowChildren, scopeBindings } from './paths'
 
 function invalid(path: JsonPath): never {
-  throw new FormRuntimeError('XH_FORM_RT_INVALID_VALUE', { path: pathText(path) })
+  throw new FormRuntimeError('XH_FORM_RT_INVALID_VALUE', { path: formatJsonPath(path) })
 }
 
 function requireJson(value: unknown, path: JsonPath): asserts value is JsonValue {
