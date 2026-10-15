@@ -5,9 +5,11 @@
 
 // 编辑操作：对文档做最小粒度的不可变修改，并给出能精确撤销的逆操作。
 
-import type { JsonValue, PropertyBag } from './json'
+import type { JsonValue } from '@xihan-ui/core/json'
+import type { PropertyBag } from './json'
 import type { ContainerNode, FormDocument, FormNode, LinkageRule, PropertyGroup, Region, ValidationRule } from './schema'
-import { deepFreeze, isJsonValue, isPlainObject, jsonEqual } from './json'
+import { isPlainObject, jsonEquals } from '@xihan-ui/core/json'
+import { deepFreeze, isJsonValue } from './json'
 import { PROPERTY_GROUPS } from './schema'
 
 /** 规则所在的列表。 */
@@ -352,7 +354,7 @@ export function applyOperation(document: FormDocument, operation: FormOperation)
       const name = requireName(operation.name)
       const value = requireValue(operation.value)
       const previous = readBag(node[group], name)
-      if (jsonEqual(previous, value))
+      if (jsonEquals(previous, value))
         return unchanged(document)
       return {
         document: updateNode(document, node.id, current => Object.freeze({ ...current, [group]: setBag(current[group], name, value) })),
@@ -364,7 +366,7 @@ export function applyOperation(document: FormDocument, operation: FormOperation)
       const name = requireName(operation.name)
       const value = requireValue(operation.value)
       const previous = readBag(region.props, name)
-      if (jsonEqual(previous, value))
+      if (jsonEquals(previous, value))
         return unchanged(document)
       return {
         document: updateRegion(document, region.id, current => Object.freeze({ ...current, props: setBag(current.props, name, value) })),
@@ -375,7 +377,7 @@ export function applyOperation(document: FormDocument, operation: FormOperation)
       const name = requireName(operation.name)
       const value = requireValue(operation.value)
       const previous = readBag(document.settings, name)
-      if (jsonEqual(previous, value))
+      if (jsonEquals(previous, value))
         return unchanged(document)
       return {
         document: Object.freeze({ ...document, settings: setBag(document.settings, name, value) }),
@@ -420,7 +422,7 @@ export function applyOperation(document: FormDocument, operation: FormOperation)
       const rule = clonePayload(operation.rule)
       const index = requireRuleIndex(rules, rule.id)
       const previous = rules[index]!
-      if (jsonEqual(previous as never, rule as never))
+      if (jsonEquals(previous as never, rule as never))
         return unchanged(document)
       return {
         document: updateNode(document, node.id, current => withRules(current, operation.list, rules.map((item, at) => (at === index ? rule : item)))),

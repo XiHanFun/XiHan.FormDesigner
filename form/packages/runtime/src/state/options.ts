@@ -5,7 +5,8 @@
 
 // 选项数据：宿主的加载函数、单个实例的加载状态，以及按字段种类核对返回的选项。
 
-import type { FieldNode, JsonValue, KindRegistry, PropertyDescriptor } from '@xihan-form/core'
+import type { FieldNode, KindRegistry, PropertyDescriptor } from '@xihan-form/core'
+import type { JsonValue } from '@xihan-ui/core/json'
 import type { DataPath } from './paths'
 import { isValidPropertyValue } from '@xihan-form/core'
 

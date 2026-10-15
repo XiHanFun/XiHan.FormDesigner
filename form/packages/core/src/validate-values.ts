@@ -5,15 +5,15 @@
 
 // 值校验：按声明式规则逐个字段实例核对表单值，隐藏或禁用的实例不校验。
 
+import type { JsonValue } from '@xihan-ui/core/json'
 import type { EngineCompileResult, ExpressionEngine } from '@xihan-ui/expression'
 import type { FormIssue, FormIssueCode } from './issues'
-import type { JsonValue } from './json'
 import type { NodeState } from './linkage'
 import type { ContainerNode, FieldNode, FormDocument, FormNode, ValidationRule } from './schema'
+import { isPlainObject } from '@xihan-ui/core/json'
 import { graphemeLength, isEmptyFormValue } from '@xihan-ui/headless'
 import { evaluateSource, RUNTIME_VARIABLES } from './expression'
 import { formIssue } from './issues'
-import { isPlainObject } from './json'
 import { conditionOf, instanceKey } from './linkage'
 
 /** 值校验的问题：在表单问题之上带着实例路径与规则里作者写的提示。 */

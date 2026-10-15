@@ -5,7 +5,8 @@
 
 // 表单控制器：持有表单值，改值后重算联动与状态，按需校验，管理行与选项，并通知订阅者。
 
-import type { ContainerNode, FieldNode, FormDocument, FormIssue, FormNode, JsonValue, KindRegistry, NodeState, StateOverride, ValueIssue } from '@xihan-form/core'
+import type { ContainerNode, FieldNode, FormDocument, FormIssue, FormNode, KindRegistry, NodeState, StateOverride, ValueIssue } from '@xihan-form/core'
+import type { JsonValue } from '@xihan-ui/core/json'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { FormArrayMutation } from '@xihan-ui/headless'
 import type { OptionItem, OptionLoader, OptionsState } from './options'
@@ -16,20 +17,19 @@ import {
   descendantsOf,
   findNode,
   instanceKey,
-  isPlainObject,
-  jsonEqual,
   listBindings,
   resolveLinkage,
   validateDocument,
   validateValues,
   walkNodes,
 } from '@xihan-form/core'
+import { cloneJson, isPlainObject, jsonEquals } from '@xihan-ui/core/json'
 import { rebaseFormArrayPath } from '@xihan-ui/headless'
 import { changedIssuePaths, changedKeys, changedValuePaths, sameState } from './changes'
 import { FormRuntimeError, pathText } from './errors'
 import { normalizeRow, normalizeScope, normalizeValue } from './normalize'
 import { isValidOptions, optionsDescriptor, optionSourceOf } from './options'
-import { cloneJson, getAt, isListContainer, resolvePath, rowChildren, scopeBindings, setAt } from './paths'
+import { getAt, isListContainer, resolvePath, rowChildren, scopeBindings, setAt } from './paths'
 
 /** 联动重算的轮数上限。 */
 const MAX_LINKAGE_PASSES = 10
@@ -214,7 +214,7 @@ class Controller implements FormController {
     let current = values
     for (let pass = 1; ; pass += 1) {
       const result = resolveLinkage(this.document, current, { engine: this.engine, variables: this.variables, overrides: this.overrides })
-      const stable = jsonEqual(result.values, current)
+      const stable = jsonEquals(result.values, current)
       current = result.values
       if (stable || pass === MAX_LINKAGE_PASSES) {
         const issues = stable ? result.issues : [...result.issues, { code: 'XH_FORM_RT_LINKAGE_UNSTABLE', data: { passes: pass } } as const]
@@ -374,7 +374,7 @@ class Controller implements FormController {
     this.alive()
     this.resolve(path)
     const all = this.runValidation()
-    if (!this.touched.some(item => jsonEqual(item as JsonValue, path as JsonValue)))
+    if (!this.touched.some(item => jsonEquals(item as JsonValue, path as JsonValue)))
       this.touched.push([...path])
     const before = this.issues
     this.issues = this.visibleIssues(all)
@@ -395,7 +395,7 @@ class Controller implements FormController {
 
   isDirty(): boolean {
     this.alive()
-    return !jsonEqual(this.settle(cloneJson(this.initial)).values, this.values)
+    return !jsonEquals(this.settle(cloneJson(this.initial)).values, this.values)
   }
 
   private setOverride(target: FormTarget, field: OverrideField, value: boolean | null): void {

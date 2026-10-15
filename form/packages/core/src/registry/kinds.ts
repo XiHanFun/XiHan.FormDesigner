@@ -5,7 +5,8 @@
 
 // 节点种类登记表：每种字段、容器、静态元素一份原型，驱动物料面板、属性面板与遍历。
 
-import type { JsonValue, PropertyBag } from '../json'
+import type { JsonValue } from '@xihan-ui/core/json'
+import type { PropertyBag } from '../json'
 import type { ContainerNode, LinkageAction, ValidationKind } from '../schema'
 import type { PropertyDescriptor, PropertySchema } from './properties'
 

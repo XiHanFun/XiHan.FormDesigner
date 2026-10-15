@@ -5,8 +5,9 @@
 
 // 数据路径：作用域里的绑定、按路径找节点实例、按路径读写值。
 
-import type { ContainerNode, FieldNode, FormNode, JsonValue } from '@xihan-form/core'
-import { isPlainObject } from '@xihan-form/core'
+import type { ContainerNode, FieldNode, FormNode } from '@xihan-form/core'
+import type { JsonValue } from '@xihan-ui/core/json'
+import { isPlainObject } from '@xihan-ui/core/json'
 import { FormRuntimeError, pathText } from './errors'
 
 /** 数据路径：键与行号交替，如 `['lines', 1, 'price']`。 */
@@ -64,18 +65,6 @@ export function resolvePath(children: readonly FormNode[], path: DataPath): Reso
     index += 1
   }
   return undefined
-}
-
-/** 深拷贝 JSON 值。 */
-export function cloneJson<T extends JsonValue>(value: T): T {
-  if (value === null || typeof value !== 'object')
-    return value
-  if (Array.isArray(value))
-    return value.map(item => cloneJson(item)) as unknown as T
-  const out: Record<string, JsonValue> = {}
-  for (const [key, item] of Object.entries(value))
-    out[key] = cloneJson(item)
-  return out as T
 }
 
 /** 按路径读值；途中缺失返回 `undefined`。 */

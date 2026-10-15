@@ -9,9 +9,7 @@ import {
   findNode,
   findRegion,
   FORM_SCHEMA_VERSION,
-  isJsonValue,
   isValidKey,
-  jsonEqual,
   tableCells,
   walkNodes,
 } from '../src'
@@ -164,27 +162,7 @@ describe('遍历', () => {
   })
 })
 
-describe('json 工具', () => {
-  it('isJsonValue 拒绝非有限数、undefined、类实例与过深的嵌套', () => {
-    expect(isJsonValue({ a: [1, 'x', null, true, { b: {} }] })).toBe(true)
-    expect(isJsonValue(Number.NaN)).toBe(false)
-    expect(isJsonValue({ a: undefined })).toBe(false)
-    expect(isJsonValue(new Date())).toBe(false)
-    expect(isJsonValue(Object.create(null) as object)).toBe(true)
-    let deep: unknown = 1
-    for (let index = 0; index < 70; index += 1)
-      deep = [deep]
-    expect(isJsonValue(deep)).toBe(false)
-  })
-
-  it('jsonEqual 深比较，与键顺序无关', () => {
-    expect(jsonEqual({ a: 1, b: [1, { c: 2 }] }, { b: [1, { c: 2 }], a: 1 })).toBe(true)
-    expect(jsonEqual({ a: 1 }, { a: 1, b: 2 })).toBe(false)
-    expect(jsonEqual([1, 2], [2, 1])).toBe(false)
-    expect(jsonEqual(null, undefined)).toBe(false)
-    expect(jsonEqual([], {})).toBe(false)
-  })
-
+describe('深冻结与 JSON 往返', () => {
   it('deepFreeze 冻结整棵对象树', () => {
     const value = deepFreeze({ a: { b: [1] } })
     expect(Object.isFrozen(value.a.b)).toBe(true)
