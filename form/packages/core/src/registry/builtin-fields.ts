@@ -6,8 +6,7 @@
 // 内置字段种类：每种对应一个 XiHan.UI 字段元素。
 
 import type { JsonValue } from '@xihan-ui/core/json'
-import type { PropertyBag } from '../json'
-import type { ValidationKind } from '../schema'
+import type { PropertyBag, ValidationKind } from '../schema'
 import type { FieldKindDefinition, ValueKind } from './kinds'
 import type { PropertyDescriptor } from './properties'
 

@@ -6,10 +6,8 @@
 // 编辑操作：对文档做最小粒度的不可变修改，并给出能精确撤销的逆操作。
 
 import type { JsonValue } from '@xihan-ui/core/json'
-import type { PropertyBag } from './json'
-import type { ContainerNode, FormDocument, FormNode, LinkageRule, PropertyGroup, Region, ValidationRule } from './schema'
-import { cloneJson, isPlainObject, jsonEquals } from '@xihan-ui/core/json'
-import { deepFreeze, isJsonValue } from './json'
+import type { ContainerNode, FormDocument, FormNode, LinkageRule, PropertyBag, PropertyGroup, Region, ValidationRule } from './schema'
+import { cloneJson, deepFreeze, isJsonValue, isPlainObject, jsonEquals } from '@xihan-ui/core/json'
 import { PROPERTY_GROUPS } from './schema'
 
 /** 规则所在的列表。 */

@@ -8,9 +8,8 @@
 import type { JsonValue } from '@xihan-ui/core/json'
 import type { KindRegistry, ValueKind } from './registry/kinds'
 import type { ContainerNode, FieldNode, FormDocument, FormNode } from './schema'
-import { cloneJson, isPlainObject } from '@xihan-ui/core/json'
+import { cloneJson, isJsonValue, isPlainObject } from '@xihan-ui/core/json'
 import { RUNTIME_VARIABLES } from './expression'
-import { isJsonValue } from './json'
 import { findNode } from './traverse'
 
 /** 一处数据绑定：字段，或带数据键的列表容器。 */

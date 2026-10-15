@@ -6,8 +6,7 @@
 // 选项数据：宿主的加载函数、单个实例的加载状态，以及按字段种类核对返回的选项。
 
 import type { FieldNode, KindRegistry, PropertyDescriptor } from '@xihan-form/core'
-import type { JsonValue } from '@xihan-ui/core/json'
-import type { DataPath } from './paths'
+import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import { isValidPropertyValue } from '@xihan-form/core'
 
 /** 一个选项；树形选项可带 `children`。 */
@@ -24,7 +23,7 @@ export interface OptionRequest {
   readonly source: string
   readonly nodeId: string
   /** 字段实例的数据路径。 */
-  readonly path: DataPath
+  readonly path: JsonPath
   /** 当前表单值的副本。 */
   readonly values: Readonly<Record<string, JsonValue>>
 }

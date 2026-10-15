@@ -6,11 +6,11 @@
 // 表单控制器：持有表单值，改值后重算联动与状态，按需校验，管理行与选项，并通知订阅者。
 
 import type { ContainerNode, FieldNode, FormDocument, FormIssue, FormNode, KindRegistry, NodeState, StateOverride, ValueIssue } from '@xihan-form/core'
-import type { JsonValue } from '@xihan-ui/core/json'
+import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { FormArrayMutation } from '@xihan-ui/headless'
 import type { OptionItem, OptionLoader, OptionsState } from './options'
-import type { DataPath, ResolvedPath } from './paths'
+import type { ResolvedPath } from './paths'
 import {
   createBuiltinKindRegistry,
   createInitialValues,
@@ -23,13 +23,13 @@ import {
   validateValues,
   walkNodes,
 } from '@xihan-form/core'
-import { cloneJson, isPlainObject, jsonEquals } from '@xihan-ui/core/json'
+import { changedJsonPaths, cloneJson, getJsonAt, isJsonPathPrefix, isPlainObject, jsonEquals, JsonPathError, setJsonAt } from '@xihan-ui/core/json'
 import { rebaseFormArrayPath } from '@xihan-ui/headless'
-import { changedIssuePaths, changedKeys, changedValuePaths, sameState } from './changes'
+import { changedIssuePaths, changedKeys, sameState } from './changes'
 import { FormRuntimeError, pathText } from './errors'
 import { normalizeRow, normalizeScope, normalizeValue } from './normalize'
 import { isValidOptions, optionsDescriptor, optionSourceOf } from './options'
-import { getAt, isListContainer, resolvePath, rowChildren, scopeBindings, setAt } from './paths'
+import { isListContainer, resolvePath, rowChildren, scopeBindings } from './paths'
 
 /** 联动重算的轮数上限。 */
 const MAX_LINKAGE_PASSES = 10
@@ -50,7 +50,7 @@ export interface FormControllerOptions {
 }
 
 /** 寻址：字符串是节点 id，数组是数据路径。 */
-export type FormTarget = string | DataPath
+export type FormTarget = string | JsonPath
 
 /** 联动问题：表达式求值的问题，或联动多轮重算后仍不稳定。 */
 export type LinkageIssue = FormIssue | { readonly code: 'XH_FORM_RT_LINKAGE_UNSTABLE', readonly data: { readonly passes: number } }
@@ -67,8 +67,8 @@ export interface ValidationOutcome {
  * - `states` / `options`：受影响的实例键（顶层节点就是节点 id，列表里的节点是 `id#行号`）。
  */
 export type FormEvent
-  = | { readonly type: 'values', readonly paths: readonly DataPath[] }
-    | { readonly type: 'issues', readonly paths: readonly DataPath[] }
+  = | { readonly type: 'values', readonly paths: readonly JsonPath[] }
+    | { readonly type: 'issues', readonly paths: readonly JsonPath[] }
     | { readonly type: 'states', readonly keys: readonly string[] }
     | { readonly type: 'options', readonly keys: readonly string[] }
 
@@ -101,14 +101,14 @@ export interface FormController {
   /** 当前表单值的副本，已含联动赋值。 */
   readonly getFormData: (options?: GetFormDataOptions) => Record<string, JsonValue>
   /** 按数据路径读值的副本；不存在时为 `undefined`。 */
-  readonly getValue: (path: DataPath) => JsonValue | undefined
+  readonly getValue: (path: JsonPath) => JsonValue | undefined
   /**
    * 按 schema 替换全部绑定值：没给的回到初始值，多带的键原样保留；同时清空校验状态。
    * `baseline` 为 `true` 时，填入的值同时成为 `reset` 与 `isDirty` 的基准。
    */
   readonly setFormData: (data: Readonly<Record<string, JsonValue>>, options?: SetFormDataOptions) => void
   /** 写一个字段或列表容器的值；形状不符时抛错。 */
-  readonly setValue: (path: DataPath, value: JsonValue) => void
+  readonly setValue: (path: JsonPath, value: JsonValue) => void
   /** 节点实例的状态；字符串只取顶层实例，列表里的实例用数据路径。 */
   readonly getState: (target: FormTarget) => NodeState | undefined
   /** 当前展示的校验问题。 */
@@ -118,7 +118,7 @@ export interface FormController {
   /** 校验全部字段，隐藏或禁用的实例跳过、值保留；此后每次改值都会重算问题。 */
   readonly validate: () => ValidationOutcome
   /** 校验一个字段或列表容器（含行内字段）；此后它的问题随改值重算。 */
-  readonly validateField: (path: DataPath) => ValidationOutcome
+  readonly validateField: (path: JsonPath) => ValidationOutcome
   /** 回到基准值并清空校验状态；宿主的强制设定与已加载的选项保留。基准是创建时的值，或最近一次带 `baseline` 填入的值。 */
   readonly reset: () => void
   /** 当前值与 `reset` 之后的值是否不同。 */
@@ -128,9 +128,9 @@ export interface FormController {
   readonly setDisabled: (target: FormTarget, disabled: boolean | null) => void
   readonly setReadOnly: (target: FormTarget, readOnly: boolean | null) => void
   /** 列表容器的行：新增、删除、移动。行级的强制设定、选项与校验进度跟着行走。 */
-  readonly addRow: (listPath: DataPath, options?: AddRowOptions) => void
-  readonly removeRow: (listPath: DataPath, index: number) => void
-  readonly moveRow: (listPath: DataPath, from: number, to: number) => void
+  readonly addRow: (listPath: JsonPath, options?: AddRowOptions) => void
+  readonly removeRow: (listPath: JsonPath, index: number) => void
+  readonly moveRow: (listPath: JsonPath, from: number, to: number) => void
   /** 重新加载选项：不给目标时加载全部带选项来源的字段实例。 */
   readonly reloadOptions: (target?: FormTarget) => Promise<void>
   /** 字段实例的选项：带选项来源时是加载状态，否则是 schema 里的静态选项。 */
@@ -157,10 +157,6 @@ function hasExpressions(document: FormDocument): boolean {
   return found
 }
 
-function startsWith(path: DataPath, prefix: DataPath): boolean {
-  return prefix.length <= path.length && prefix.every((segment, index) => path[index] === segment)
-}
-
 function parseInstanceKey(key: string): { nodeId: string, rowPath: number[] } {
   const hash = key.indexOf('#')
   return hash === -1 ? { nodeId: key, rowPath: [] } : { nodeId: key.slice(0, hash), rowPath: key.slice(hash + 1).split('.').map(Number) }
@@ -179,7 +175,7 @@ class Controller implements FormController {
   private linkageIssues: readonly LinkageIssue[] = []
   private issues: readonly ValueIssue[] = []
   private validated = false
-  private touched: DataPath[] = []
+  private touched: JsonPath[] = []
   private readonly overrides = new Map<string, StateOverride>()
   private readonly optionStates = new Map<string, OptionsState>()
   private readonly optionRequests = new Map<string, number>()
@@ -238,7 +234,7 @@ class Controller implements FormController {
   private visibleIssues(all: readonly ValueIssue[]): readonly ValueIssue[] {
     if (this.validated)
       return all
-    return all.filter(issue => this.touched.some(path => startsWith(issue.path, path)))
+    return all.filter(issue => this.touched.some(path => isJsonPathPrefix(issue.path, path)))
   }
 
   private emit(events: readonly FormEvent[]): void {
@@ -257,11 +253,10 @@ class Controller implements FormController {
   /** 执行一次修改并重算，再按变化范围发出通知。 */
   private commit(mutate: () => void): void {
     const before = { values: this.values, states: this.states, issues: this.issues, options: new Map(this.optionStates) }
-    this.values = cloneJson(this.values)
     mutate()
     this.refresh()
     const events: FormEvent[] = []
-    const values = changedValuePaths(before.values, this.values)
+    const values = changedJsonPaths(before.values, this.values)
     if (values.length > 0)
       events.push({ type: 'values', paths: values })
     const states = changedKeys(before.states, this.states, sameState)
@@ -276,11 +271,35 @@ class Controller implements FormController {
     this.emit(events)
   }
 
-  private resolve(path: DataPath): ResolvedPath {
+  private resolve(path: JsonPath): ResolvedPath {
     const resolved = Array.isArray(path) ? resolvePath(this.document.children, path) : undefined
     if (resolved === undefined)
       throw new FormRuntimeError('XH_FORM_RT_UNKNOWN_PATH', { path: Array.isArray(path) ? pathText(path) : String(path) })
     return resolved
+  }
+
+  /** 按路径读值；路径不合法或途中缺失时为 `undefined`。 */
+  private read(path: JsonPath): JsonValue | undefined {
+    try {
+      return getJsonAt(this.values, path)
+    }
+    catch (error) {
+      if (error instanceof JsonPathError)
+        return undefined
+      throw error
+    }
+  }
+
+  /** 按路径不可变地写值；途中的行或对象不存在时抛 `XH_FORM_RT_UNKNOWN_PATH`。 */
+  private write(path: JsonPath, value: JsonValue): void {
+    try {
+      this.values = setJsonAt(this.values, path, value).root
+    }
+    catch (error) {
+      if (error instanceof JsonPathError)
+        throw new FormRuntimeError('XH_FORM_RT_UNKNOWN_PATH', { path: pathText(path) })
+      throw error
+    }
   }
 
   private targetKey(target: FormTarget): string {
@@ -317,9 +336,9 @@ class Controller implements FormController {
     }
   }
 
-  getValue(path: DataPath): JsonValue | undefined {
+  getValue(path: JsonPath): JsonValue | undefined {
     this.alive()
-    const value = getAt(this.values, path)
+    const value = this.read(path)
     return value === undefined ? undefined : cloneJson(value)
   }
 
@@ -336,13 +355,11 @@ class Controller implements FormController {
     })
   }
 
-  setValue(path: DataPath, value: JsonValue): void {
+  setValue(path: JsonPath, value: JsonValue): void {
     this.alive()
     const { node } = this.resolve(path)
     const next = normalizeValue(node, value, path, this.registry)
-    if (getAt(this.values, path.slice(0, -1)) === undefined && path.length > 1)
-      throw new FormRuntimeError('XH_FORM_RT_UNKNOWN_PATH', { path: pathText(path) })
-    this.commit(() => setAt(this.values, path, next))
+    this.commit(() => this.write(path, next))
   }
 
   getState(target: FormTarget): NodeState | undefined {
@@ -370,7 +387,7 @@ class Controller implements FormController {
     return { valid: all.length === 0, issues: all }
   }
 
-  validateField(path: DataPath): ValidationOutcome {
+  validateField(path: JsonPath): ValidationOutcome {
     this.alive()
     this.resolve(path)
     const all = this.runValidation()
@@ -379,7 +396,7 @@ class Controller implements FormController {
     const before = this.issues
     this.issues = this.visibleIssues(all)
     this.emitIssues(before)
-    const own = all.filter(issue => startsWith(issue.path, path))
+    const own = all.filter(issue => isJsonPathPrefix(issue.path, path))
     return { valid: own.length === 0, issues: own }
   }
 
@@ -426,12 +443,12 @@ class Controller implements FormController {
     this.setOverride(target, 'readOnly', readOnly)
   }
 
-  private listAt(listPath: DataPath): { resolved: ResolvedPath, list: ContainerNode, rows: readonly JsonValue[] } {
+  private listAt(listPath: JsonPath): { resolved: ResolvedPath, list: ContainerNode, rows: readonly JsonValue[] } {
     const resolved = this.resolve(listPath)
     const list = resolved.node
     if (!isListContainer(list))
       throw new FormRuntimeError('XH_FORM_RT_NOT_A_LIST', { path: pathText(listPath) })
-    const rows = getAt(this.values, listPath)
+    const rows = this.read(listPath)
     if (!Array.isArray(rows))
       throw new FormRuntimeError('XH_FORM_RT_UNKNOWN_PATH', { path: pathText(listPath) })
     return { resolved, list, rows }
@@ -443,7 +460,7 @@ class Controller implements FormController {
   }
 
   /** 行结构变更后，把行级的强制设定、选项状态与校验进度移到新行号上；被删行的这些状态一并丢弃。 */
-  private remapRows(list: ResolvedPath, listPath: DataPath, mutation: FormArrayMutation): void {
+  private remapRows(list: ResolvedPath, listPath: JsonPath, mutation: FormArrayMutation): void {
     const inside = new Set(descendantsOf(list.node).map(node => node.id))
     inside.delete(list.node.id)
     const remapKey = (key: string): string | null => {
@@ -463,12 +480,12 @@ class Controller implements FormController {
       }
     }
     this.touched = this.touched.flatMap((path) => {
-      const next = rebaseFormArrayPath(path, listPath, mutation) as DataPath | null
+      const next = rebaseFormArrayPath(path, listPath, mutation) as JsonPath | null
       return next === null ? [] : [next]
     })
   }
 
-  addRow(listPath: DataPath, options: AddRowOptions = {}): void {
+  addRow(listPath: JsonPath, options: AddRowOptions = {}): void {
     this.alive()
     const { resolved, list, rows } = this.listAt(listPath)
     const index = options.index ?? rows.length
@@ -477,23 +494,23 @@ class Controller implements FormController {
     const row = normalizeRow(list, options.values ?? {}, [...listPath, index], this.registry)
     this.commit(() => {
       this.remapRows(resolved, listPath, { type: 'insert', index })
-      const list = getAt(this.values, listPath) as JsonValue[]
-      list.splice(index, 0, row)
+      const list = this.read(listPath) as readonly JsonValue[]
+      this.write(listPath, [...list.slice(0, index), row, ...list.slice(index)])
     })
   }
 
-  removeRow(listPath: DataPath, index: number): void {
+  removeRow(listPath: JsonPath, index: number): void {
     this.alive()
     const { resolved, rows } = this.listAt(listPath)
     this.requireRow(index, rows.length)
     this.commit(() => {
       this.remapRows(resolved, listPath, { type: 'remove', index })
-      const list = getAt(this.values, listPath) as JsonValue[]
-      list.splice(index, 1)
+      const list = this.read(listPath) as readonly JsonValue[]
+      this.write(listPath, list.filter((_, at) => at !== index))
     })
   }
 
-  moveRow(listPath: DataPath, from: number, to: number): void {
+  moveRow(listPath: JsonPath, from: number, to: number): void {
     this.alive()
     const { resolved, rows } = this.listAt(listPath)
     this.requireRow(from, rows.length)
@@ -502,8 +519,9 @@ class Controller implements FormController {
       return
     this.commit(() => {
       this.remapRows(resolved, listPath, { type: 'move', from, to })
-      const list = getAt(this.values, listPath) as JsonValue[]
+      const list = [...this.read(listPath) as readonly JsonValue[]]
       list.splice(to, 0, ...list.splice(from, 1))
+      this.write(listPath, list)
     })
   }
 
@@ -524,7 +542,7 @@ class Controller implements FormController {
     return { status: 'ready', items: (node.data.options ?? []) as unknown as readonly OptionItem[] }
   }
 
-  private instancePath(node: FieldNode, rowPath: readonly number[]): DataPath {
+  private instancePath(node: FieldNode, rowPath: readonly number[]): JsonPath {
     const binding = listBindings(this.document).find(item => item.node.id === node.id)!
     const path: (string | number)[] = []
     binding.path.forEach((key, index) => {

@@ -9,11 +9,10 @@ import type { JsonValue } from '@xihan-ui/core/json'
 import type { EngineCompileResult, EngineEvaluation, ExpressionEngine } from '@xihan-ui/expression'
 import type { FormIssue } from './issues'
 import type { FormDocument, FormNode, LinkageRule } from './schema'
-import { cloneJson, isPlainObject } from '@xihan-ui/core/json'
+import { cloneJson, isJsonValue, isPlainObject } from '@xihan-ui/core/json'
 import { conditionOf, evaluateSource } from '@xihan-ui/expression'
 import { RUNTIME_VARIABLES } from './expression'
 import { formIssue } from './issues'
-import { isJsonValue } from './json'
 
 /** 节点实例的状态：已经叠加了祖先容器的隐藏与禁用。 */
 export interface NodeState {
