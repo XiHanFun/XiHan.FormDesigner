@@ -9,7 +9,7 @@ import type { JsonValue } from '@xihan-ui/core/json'
 import type { EngineCompileResult, EngineEvaluation, ExpressionEngine } from '@xihan-ui/expression'
 import type { FormIssue } from './issues'
 import type { FormDocument, FormNode, LinkageRule } from './schema'
-import { isPlainObject } from '@xihan-ui/core/json'
+import { cloneJson, isPlainObject } from '@xihan-ui/core/json'
 import { evaluateSource, RUNTIME_VARIABLES } from './expression'
 import { formIssue } from './issues'
 import { isJsonValue } from './json'
@@ -69,17 +69,6 @@ interface Frame {
   readonly hidden: boolean
   readonly disabled: boolean
   readonly readOnly: boolean
-}
-
-function cloneJson(value: JsonValue): JsonValue {
-  if (value === null || typeof value !== 'object')
-    return value
-  if (Array.isArray(value))
-    return value.map(cloneJson)
-  const out: Record<string, JsonValue> = {}
-  for (const [key, item] of Object.entries(value))
-    out[key] = cloneJson(item)
-  return out
 }
 
 /** 条件结果：`true` 成立，`false` 与 `null` 不成立，其余为问题。 */

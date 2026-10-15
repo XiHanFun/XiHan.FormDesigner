@@ -8,7 +8,7 @@
 import type { JsonValue } from '@xihan-ui/core/json'
 import type { PropertyBag } from './json'
 import type { ContainerNode, FormDocument, FormNode, LinkageRule, PropertyGroup, Region, ValidationRule } from './schema'
-import { isPlainObject, jsonEquals } from '@xihan-ui/core/json'
+import { cloneJson, isPlainObject, jsonEquals } from '@xihan-ui/core/json'
 import { deepFreeze, isJsonValue } from './json'
 import { PROPERTY_GROUPS } from './schema'
 
@@ -180,7 +180,7 @@ function requireFreshIds(document: FormDocument, payload: unknown): void {
 function clonePayload<T>(value: T): T {
   if (!isJsonValue(value) || !isPlainObject(value) || typeof value.id !== 'string' || value.id === '')
     fail('XH_FORM_OP_INVALID_PAYLOAD')
-  return deepFreeze(JSON.parse(JSON.stringify(value)) as T)
+  return deepFreeze(cloneJson(value) as T)
 }
 
 /** 在节点树里替换一个节点；找不到返回 `null`。 */
@@ -277,7 +277,7 @@ function requireName(name: unknown): string {
 function requireValue(value: unknown): JsonValue | undefined {
   if (value !== undefined && !isJsonValue(value))
     fail('XH_FORM_OP_INVALID_PAYLOAD')
-  return value === undefined ? undefined : deepFreeze(JSON.parse(JSON.stringify(value)) as JsonValue)
+  return value === undefined ? undefined : deepFreeze(cloneJson(value))
 }
 
 function propertyOperation<T extends Record<string, unknown>>(base: T, previous: JsonValue | undefined): T & { value?: JsonValue } {
