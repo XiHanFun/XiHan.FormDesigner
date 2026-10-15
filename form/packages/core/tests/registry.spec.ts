@@ -1,17 +1,18 @@
-import type { ContainerKindDefinition, PropertyDescriptor } from '../src'
+import type { ContainerKindDefinition, FormPropertyControl, FormPropertyDescriptor } from '../src'
+import { applyDefaults, resolvePropertyEditor } from '@xihan-ui/designer-kit/properties'
 import { describe, expect, it } from 'vitest'
 import {
   BUILTIN_CONTAINERS,
   BUILTIN_FIELDS,
   BUILTIN_KINDS,
+  checkFormPropertyValue,
   createBuiltinKindRegistry,
-  createEditorRegistry,
   createKindRegistry,
-  DEFAULT_EDITORS,
-  defaultProperties,
   EMPTY_PROPERTY_SCHEMA,
+  FORM_PROPERTY_EDITORS,
   isValidPropertyValue,
   LINKAGE_ACTIONS,
+  propertyName,
 } from '../src'
 
 describe('种类登记表', () => {
@@ -29,11 +30,11 @@ describe('种类登记表', () => {
   it('每个内置字段都对应一个 XiHan.UI 元素，并声明值形状与空值', () => {
     for (const definition of BUILTIN_FIELDS) {
       expect(definition.element).toMatch(/^xh-[a-z-]+$/)
-      const data = defaultProperties(definition.properties.data)
+      const data = applyDefaults({}, definition.properties.data)
       expect(['string', 'number', 'boolean', 'string-list', 'number-list', 'list', 'object']).toContain(definition.valueKind(data))
       expect(definition.validations).toContain('required')
       expect(definition.validations).toContain('expression')
-      expect(definition.properties.basic.map(property => property.name)).toEqual(expect.arrayContaining(['label', 'initialValue', 'hidden', 'disabled']))
+      expect(definition.properties.basic.map(propertyName)).toEqual(expect.arrayContaining(['label', 'initialValue', 'hidden', 'disabled']))
     }
   })
 
@@ -99,27 +100,36 @@ describe('种类登记表', () => {
 })
 
 describe('属性取值校验', () => {
-  const of = (descriptor: Omit<PropertyDescriptor, 'name'>): PropertyDescriptor => ({ name: 'p', ...descriptor })
+  const of = (control: FormPropertyControl): FormPropertyDescriptor => ({ path: ['p'], control })
 
   it.each([
-    [of({ type: 'string' }), 'a', 1],
-    [of({ type: 'text' }), 'a\nb', null],
-    [of({ type: 'number', min: 0, max: 10 }), 2.5, 11],
-    [of({ type: 'number' }), -1, Number.NaN],
-    [of({ type: 'integer', min: 1 }), 3, 1.5],
-    [of({ type: 'integer', min: 1 }), 1, 0],
-    [of({ type: 'boolean' }), false, 'false'],
-    [of({ type: 'enum', choices: ['a', 'b'] }), 'b', 'c'],
-    [of({ type: 'string-list' }), ['a'], ['a', 1]],
-    [of({ type: 'json' }), { a: [1, null] }, { a: Number.POSITIVE_INFINITY }],
-    [of({ type: 'value' }), 'x', undefined],
+    [of({ kind: 'text' }), 'a', 1],
+    [of({ kind: 'text', multiline: true }), 'a\nb', null],
+    [of({ kind: 'number', min: 0, max: 10 }), 2.5, 11],
+    [of({ kind: 'number' }), -1, Number.NaN],
+    [of({ kind: 'number', integer: true, min: 1 }), 3, 1.5],
+    [of({ kind: 'number', integer: true, min: 1 }), 1, 0],
+    [of({ kind: 'boolean' }), false, 'false'],
+    [of({ kind: 'select', options: [{ value: 'a' }, { value: 'b' }] }), 'b', 'c'],
+    [of({ kind: 'tags' }), ['a'], ['a', 1]],
+    [of({ kind: 'json' }), { a: [1, null] }, { a: Number.POSITIVE_INFINITY }],
+    [of({ kind: 'json' }), 'x', undefined],
   ])('%j 接受 %j、拒绝 %j', (descriptor, good, bad) => {
     expect(isValidPropertyValue(descriptor, good)).toBe(true)
     expect(isValidPropertyValue(descriptor, bad)).toBe(false)
   })
 
+  it('问题码：内建编辑方式取 designer-kit 的码，选项结构不符为 invalid-value，不是 JSON 值为 invalid-type', () => {
+    expect(checkFormPropertyValue({ kind: 'number', integer: true }, 1.5)).toBe('not-integer')
+    expect(checkFormPropertyValue({ kind: 'number', max: 1 }, 2)).toBe('out-of-range')
+    expect(checkFormPropertyValue({ kind: 'select', options: [{ value: 'a' }] }, 'b')).toBe('invalid-option')
+    expect(checkFormPropertyValue({ kind: 'options' }, [{ value: 'a' }])).toBe('invalid-value')
+    expect(checkFormPropertyValue({ kind: 'json' }, () => 1)).toBe('invalid-type')
+    expect(checkFormPropertyValue({ kind: 'text' }, 'a')).toBeUndefined()
+  })
+
   it('选项：value 与 label 是字符串，同层 value 不重复，平铺选项不带 children', () => {
-    const options = of({ type: 'options' })
+    const options = of({ kind: 'options' })
     expect(isValidPropertyValue(options, [{ value: 'a', label: 'A' }, { value: 'b', label: 'B', disabled: true }])).toBe(true)
     expect(isValidPropertyValue(options, [{ value: 'a', label: 'A' }, { value: 'a', label: 'B' }])).toBe(false)
     expect(isValidPropertyValue(options, [{ value: 1, label: 'A' }])).toBe(false)
@@ -129,15 +139,15 @@ describe('属性取值校验', () => {
   })
 
   it('选项可带 UI 选择类组件认的语气与副文本，树形选项另可带 hasChildren', () => {
-    const options = of({ type: 'options' })
+    const options = of({ kind: 'options' })
     expect(isValidPropertyValue(options, [{ value: 'a', label: 'A', tone: 'danger', description: '已停用' }])).toBe(true)
     expect(isValidPropertyValue(options, [{ value: 'a', label: 'A', tone: 'red' }])).toBe(false)
     expect(isValidPropertyValue(options, [{ value: 'a', label: 'A', hasChildren: true }])).toBe(false)
-    expect(isValidPropertyValue(of({ type: 'tree-options' }), [{ value: 'a', label: 'A', hasChildren: false }])).toBe(true)
+    expect(isValidPropertyValue(of({ kind: 'tree-options' }), [{ value: 'a', label: 'A', hasChildren: false }])).toBe(true)
   })
 
   it('树形选项可以嵌套，各层 value 各自不重复', () => {
-    const tree = of({ type: 'tree-options' })
+    const tree = of({ kind: 'tree-options' })
     const value = [{ value: 'zj', label: '浙江', children: [{ value: 'hz', label: '杭州' }, { value: 'nb', label: '宁波' }] }]
     expect(isValidPropertyValue(tree, value)).toBe(true)
     expect(isValidPropertyValue(tree, [{ value: 'zj', label: '浙江', children: [{ value: 'hz', label: 'A' }, { value: 'hz', label: 'B' }] }])).toBe(false)
@@ -146,35 +156,26 @@ describe('属性取值校验', () => {
       deep = [{ value: 'x', label: 'x', children: deep }]
     expect(isValidPropertyValue(tree, deep)).toBe(false)
   })
-
-  it('defaultProperties 只取带缺省值的属性', () => {
-    expect(defaultProperties([{ name: 'a', type: 'string', default: '' }, { name: 'b', type: 'string' }])).toEqual({ a: '' })
-  })
 })
 
-describe('属性编辑器登记表', () => {
-  const label: PropertyDescriptor = { name: 'label', type: 'string' }
-  const options: PropertyDescriptor = { name: 'options', type: 'options' }
+describe('属性编辑器查找表', () => {
+  const label: FormPropertyDescriptor = { path: ['label'], control: { kind: 'text' } }
+  const options: FormPropertyDescriptor = { path: ['options'], control: { kind: 'options' } }
+  const initialValue: FormPropertyDescriptor = { path: ['initialValue'], control: { kind: 'json' } }
+  const precision: FormPropertyDescriptor = { path: ['precision'], control: { kind: 'number', integer: true } }
+  const hint: FormPropertyDescriptor = { path: ['hint'], control: { kind: 'text', multiline: true } }
 
-  it('缺省按取值类型取编辑器', () => {
-    const editors = createEditorRegistry()
-    expect(editors.resolve('text', label)).toBe(DEFAULT_EDITORS.string)
-    expect(editors.resolve('select', options)).toBe('options')
+  it('缺省按编辑方式取编辑器，字段初始值按路径用 value 编辑器', () => {
+    expect(resolvePropertyEditor(FORM_PROPERTY_EDITORS, 'text', label)).toBe('text')
+    expect(resolvePropertyEditor(FORM_PROPERTY_EDITORS, 'select', options)).toBe('options')
+    expect(resolvePropertyEditor(FORM_PROPERTY_EDITORS, 'number', precision)).toBe('number')
+    expect(resolvePropertyEditor(FORM_PROPERTY_EDITORS, 'text', initialValue)).toBe('value')
   })
 
-  it('种类 + 属性名优先于属性名，属性名优先于取值类型', () => {
-    const editors = createEditorRegistry({
-      byType: { string: 'plain' },
-      byName: { label: 'rich-label' },
-      byKind: { select: { label: 'select-label' } },
-    })
-    expect(editors.resolve('select', label)).toBe('select-label')
-    expect(editors.resolve('text', label)).toBe('rich-label')
-    expect(editors.resolve('text', { name: 'hint', type: 'string' })).toBe('plain')
-  })
-
-  it('不同的登记表互不影响', () => {
-    createEditorRegistry({ byName: { label: 'x' } })
-    expect(createEditorRegistry().resolve('text', label)).toBe('text')
+  it('宿主在表单的表上覆盖：种类 + 路径优先于路径，路径优先于编辑方式', () => {
+    const table = { ...FORM_PROPERTY_EDITORS, byPath: { ...FORM_PROPERTY_EDITORS.byPath, label: 'rich-label' }, byTarget: { select: { label: 'select-label' } } }
+    expect(resolvePropertyEditor(table, 'select', label)).toBe('select-label')
+    expect(resolvePropertyEditor(table, 'text', label)).toBe('rich-label')
+    expect(resolvePropertyEditor(table, 'text', hint)).toBe('text')
   })
 })
