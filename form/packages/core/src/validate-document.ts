@@ -467,7 +467,8 @@ export function validateDocument(document: unknown, registry: KindRegistry, opti
         names.add(RUNTIME_VARIABLES.row)
         names.add(RUNTIME_VARIABLES.index)
       }
-      for (const problem of engine.check(item.source, [...names])) {
+      const result = engine.compile(item.source, { identifiers: [...names] })
+      for (const problem of result.ok ? [] : result.issues) {
         checker.issues.push(formIssue('XH_FORM_EXPRESSION_ERROR', { nodeId: item.nodeId, ruleId: item.ruleId }, {
           part: item.part,
           expressionCode: problem.code,

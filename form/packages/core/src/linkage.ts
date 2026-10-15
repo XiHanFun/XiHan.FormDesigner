@@ -5,11 +5,11 @@
 
 // 联动求值：按文档顺序逐个节点实例求出显隐、禁用、必填，并执行赋值。
 
-import type { ExpressionEngine, ExpressionOutcome } from './expression'
+import type { EngineCompileResult, EngineEvaluation, ExpressionEngine } from './expression'
 import type { FormIssue } from './issues'
 import type { JsonValue } from './json'
 import type { FormDocument, FormNode, LinkageRule } from './schema'
-import { RUNTIME_VARIABLES } from './expression'
+import { evaluateSource, RUNTIME_VARIABLES } from './expression'
 import { formIssue } from './issues'
 import { isJsonValue, isPlainObject } from './json'
 
@@ -82,7 +82,7 @@ function cloneJson(value: JsonValue): JsonValue {
 }
 
 /** 条件结果：`true` 成立，`false` 与 `null` 不成立，其余为问题。 */
-export function conditionOf(outcome: ExpressionOutcome): boolean | 'not-boolean' | 'failed' {
+export function conditionOf(outcome: EngineEvaluation): boolean | 'not-boolean' | 'failed' {
   if (!outcome.ok)
     return 'failed'
   if (outcome.value === true)
@@ -100,6 +100,7 @@ class LinkageResolver {
   private readonly engine: ExpressionEngine | undefined
   private readonly variables: Readonly<Record<string, unknown>>
   private readonly overrides: ReadonlyMap<string, StateOverride>
+  private readonly compiled = new Map<string, EngineCompileResult>()
 
   constructor(values: Record<string, JsonValue>, options: ResolveLinkageOptions) {
     this.values = cloneJson(values) as Record<string, JsonValue>
@@ -108,10 +109,10 @@ class LinkageResolver {
     this.overrides = options.overrides ?? new Map()
   }
 
-  private evaluate(source: string, scope: Record<string, unknown>, ruleId: string): ExpressionOutcome {
+  private evaluate(source: string, scope: Record<string, unknown>, ruleId: string): EngineEvaluation {
     if (this.engine === undefined)
       throw new TypeError(`规则 ${ruleId} 带表达式，联动求值时必须提供 engine`)
-    return this.engine.evaluate(source, scope)
+    return evaluateSource(this.engine, this.compiled, source, scope)
   }
 
   private override(nodeId: string, rowPath: readonly number[]): StateOverride {
@@ -132,12 +133,12 @@ class LinkageResolver {
     return scope
   }
 
-  private failed(outcome: ExpressionOutcome, node: FormNode, rule: LinkageRule, part: 'when' | 'value', rowPath: readonly number[]): void {
+  private failed(outcome: EngineEvaluation, node: FormNode, rule: LinkageRule, part: 'when' | 'value', rowPath: readonly number[]): void {
     const data: Record<string, string | number> = { part, instance: instanceKey(node.id, rowPath) }
     if (!outcome.ok) {
-      data.expressionCode = outcome.problem.code
-      data.start = outcome.problem.start
-      data.end = outcome.problem.end
+      data.expressionCode = outcome.issue.code
+      data.start = outcome.issue.start
+      data.end = outcome.issue.end
     }
     this.issues.push(formIssue(outcome.ok ? 'XH_FORM_CONDITION_NOT_BOOLEAN' : 'XH_FORM_EXPRESSION_FAILED', { nodeId: node.id, ruleId: rule.id }, data))
   }
