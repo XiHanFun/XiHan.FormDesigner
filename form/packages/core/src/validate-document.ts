@@ -23,7 +23,7 @@ import { FORM_SCHEMA_VERSION, PROPERTY_GROUPS } from './schema'
 /** schema 自校验的选项。 */
 export interface ValidateDocumentOptions {
   /** 表达式引擎；提供时逐条检查规则里的表达式。 */
-  readonly engine?: ExpressionEngine
+  readonly expressionEngine?: ExpressionEngine
   /** 宿主提供给表达式的额外顶层名字。 */
   readonly identifiers?: readonly string[]
   /** 节点嵌套层数上限，缺省 32。 */
@@ -461,7 +461,7 @@ export function validateDocument(document: unknown, registry: KindRegistry, opti
   const checker = new DocumentChecker(registry, maxDepth)
   checker.run(document)
   checker.checkDependencies()
-  const engine = options.engine
+  const engine = options.expressionEngine
   if (engine !== undefined) {
     const base = [...checker.rootKeys(), ...(options.identifiers ?? [])]
     for (const item of checker.pending()) {

@@ -123,12 +123,12 @@ describe('值校验：表达式规则', () => {
     const end = ruled(fieldOf(registry, ids, 'date', 'end'), [{ id: 'e', kind: 'expression', expression: 'end-after-start', message: '结束不能早于开始' }])
     const engine = createFakeEngine({ 'end-after-start': scope => (scope.$value as string) >= (scope.start as string) })
     const document = documentOf([start, end])
-    expect(validateValues(document, { start: '2026-10-16', end: '2026-10-01' }, { engine })).toEqual([
+    expect(validateValues(document, { start: '2026-10-16', end: '2026-10-01' }, { expressionEngine: engine })).toEqual([
       { code: 'XH_FORM_VALUE_EXPRESSION_FALSE', nodeId: end.id, ruleId: 'e', path: ['end'], message: '结束不能早于开始' },
     ])
-    expect(validateValues(document, { start: '2026-10-01', end: '2026-10-16' }, { engine })).toEqual([])
+    expect(validateValues(document, { start: '2026-10-01', end: '2026-10-16' }, { expressionEngine: engine })).toEqual([])
     const odd = ruled(fieldOf(registry, ids, 'text', 'x'), [{ id: 'a', kind: 'expression', expression: 'null' }, { id: 'b', kind: 'expression', expression: 'number' }, { id: 'c', kind: 'expression', expression: 'missing' }])
-    expect(validateValues(documentOf([odd]), { x: 'v' }, { engine: createFakeEngine({ null: null, number: 1 }) })).toEqual([
+    expect(validateValues(documentOf([odd]), { x: 'v' }, { expressionEngine: createFakeEngine({ null: null, number: 1 }) })).toEqual([
       { code: 'XH_FORM_CONDITION_NOT_BOOLEAN', nodeId: odd.id, ruleId: 'b', path: ['x'] },
       { code: 'XH_FORM_EXPRESSION_FAILED', nodeId: odd.id, ruleId: 'c', path: ['x'], data: { expressionCode: 'XH_EXPR_FUNCTION_FAILED', start: 0, end: 7 } },
     ])
@@ -145,7 +145,7 @@ describe('值校验：表达式规则', () => {
     const qty = ruled(fieldOf(registry, ids, 'number', 'qty'), [{ id: 'e', kind: 'expression', expression: 'within-stock' }])
     const lines = withChildren(containerOf(registry, ids, 'subtable', 'lines'), 0, [qty])
     const engine = createFakeEngine({ 'within-stock': scope => (scope.$value as number) <= (scope.$stock as number[])[scope.$index as number]! })
-    expect(validateValues(documentOf([lines]), { lines: [{ qty: 1 }, { qty: 9 }] }, { engine, variables: { $stock: [5, 5] } })).toEqual([
+    expect(validateValues(documentOf([lines]), { lines: [{ qty: 1 }, { qty: 9 }] }, { expressionEngine: engine, variables: { $stock: [5, 5] } })).toEqual([
       { code: 'XH_FORM_VALUE_EXPRESSION_FALSE', nodeId: qty.id, ruleId: 'e', path: ['lines', 1, 'qty'] },
     ])
   })
@@ -171,11 +171,11 @@ describe('值校验：状态与列表', () => {
     const engine = createFakeEngine({ 'is-org': scope => scope.kind === 'org', 'is-person': scope => scope.kind === 'person' })
     const document = documentOf([kind, company])
     const org = { kind: 'org', company: '' }
-    expect(validateValues(document, org, { states: resolveLinkage(document, org, { engine }).states })).toEqual([
+    expect(validateValues(document, org, { states: resolveLinkage(document, org, { expressionEngine: engine }).states })).toEqual([
       { code: 'XH_FORM_VALUE_REQUIRED', nodeId: company.id, path: ['company'] },
     ])
     const person = { kind: 'person', company: '' }
-    expect(codes(document, person, { states: resolveLinkage(document, person, { engine }).states })).toEqual([])
+    expect(codes(document, person, { states: resolveLinkage(document, person, { expressionEngine: engine }).states })).toEqual([])
   })
 
   it('列表容器的必填与行数，行内字段按行报出路径', () => {

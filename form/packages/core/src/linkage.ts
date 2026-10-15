@@ -49,7 +49,7 @@ export interface StateOverride {
 /** 联动求值的选项。 */
 export interface ResolveLinkageOptions {
   /** 表达式引擎；有带条件或赋值的规则时必须提供。 */
-  readonly engine?: ExpressionEngine
+  readonly expressionEngine?: ExpressionEngine
   /** 宿主提供给表达式的额外变量，名字建议以 `$` 开头，避免与数据键冲突。 */
   readonly variables?: Readonly<Record<string, unknown>>
   /** 宿主的强制设定，键是节点 id（作用于全部实例）或实例键（只作用于该实例，叠在节点 id 的设定之上）。 */
@@ -94,14 +94,14 @@ class LinkageResolver {
 
   constructor(values: Record<string, JsonValue>, options: ResolveLinkageOptions) {
     this.values = cloneJson(values) as Record<string, JsonValue>
-    this.engine = options.engine
+    this.engine = options.expressionEngine
     this.variables = options.variables ?? {}
     this.overrides = options.overrides ?? new Map()
   }
 
   private evaluate(source: string, scope: Record<string, unknown>, ruleId: string): EngineEvaluation {
     if (this.engine === undefined)
-      throw new TypeError(`规则 ${ruleId} 带表达式，联动求值时必须提供 engine`)
+      throw new TypeError(`规则 ${ruleId} 带表达式，联动求值时必须提供 expressionEngine`)
     return evaluateSource(this.engine, this.compiled, source, scope)
   }
 
@@ -237,7 +237,7 @@ class LinkageResolver {
  * 按文档顺序求联动：每个节点实例从静态设定（`basic.hidden` / `disabled` / `readOnly`、有没有必填规则）出发，
  * 依次执行条件成立的规则，排在后面的覆盖前面的；赋值立即写进工作副本，后面的表达式读到的是新值。
  * 规则执行完后叠上宿主的强制设定，再与表单设置的 `disabled` / `readOnly`、祖先容器的隐藏与禁用向下叠加。
- * 有带表达式的规则却没有提供 engine 时抛 `TypeError`。
+ * 有带表达式的规则却没有提供 expressionEngine 时抛 `TypeError`。
  */
 export function resolveLinkage(document: FormDocument, values: Readonly<Record<string, JsonValue>>, options: ResolveLinkageOptions = {}): LinkageResult {
   const resolver = new LinkageResolver(values as Record<string, JsonValue>, options)
