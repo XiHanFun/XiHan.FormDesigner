@@ -341,9 +341,9 @@ describe('schema 自校验：表达式交给注入的引擎检查', () => {
     const { registry, document, name } = sample()
     const next = replaceNode(document, 0, { ...name, linkage: [{ id: 'l1', action: 'assign', when: 'ok @@', value: 'missing + 1' }] })
     expect(validateDocument(next, registry, { engine: createFakeEngine() })).toEqual([
-      { code: 'XH_FORM_EXPRESSION_ERROR', nodeId: name.id, ruleId: 'l1', data: { part: 'when', expressionCode: 'SYNTAX', start: 3, end: 5 } },
-      { code: 'XH_FORM_EXPRESSION_ERROR', nodeId: name.id, ruleId: 'l1', data: { part: 'when', expressionCode: 'UNKNOWN', start: 0, end: 2 } },
-      { code: 'XH_FORM_EXPRESSION_ERROR', nodeId: name.id, ruleId: 'l1', data: { part: 'value', expressionCode: 'UNKNOWN', start: 0, end: 7 } },
+      { code: 'XH_FORM_EXPRESSION_ERROR', nodeId: name.id, ruleId: 'l1', data: { part: 'when', expressionCode: 'XH_EXPR_UNEXPECTED_TOKEN', start: 3, end: 5 } },
+      { code: 'XH_FORM_EXPRESSION_ERROR', nodeId: name.id, ruleId: 'l1', data: { part: 'when', expressionCode: 'XH_EXPR_UNKNOWN_IDENTIFIER', start: 0, end: 2 } },
+      { code: 'XH_FORM_EXPRESSION_ERROR', nodeId: name.id, ruleId: 'l1', data: { part: 'value', expressionCode: 'XH_EXPR_UNKNOWN_IDENTIFIER', start: 0, end: 7 } },
     ])
   })
 

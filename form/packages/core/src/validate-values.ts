@@ -5,7 +5,7 @@
 
 // 值校验：按声明式规则逐个字段实例核对表单值，隐藏或禁用的实例不校验。
 
-import type { EngineCompileResult, ExpressionEngine } from './expression'
+import type { EngineCompileResult, ExpressionEngine } from '@xihan-ui/expression'
 import type { FormIssue, FormIssueCode } from './issues'
 import type { JsonValue } from './json'
 import type { NodeState } from './linkage'

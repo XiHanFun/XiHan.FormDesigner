@@ -1,3 +1,4 @@
+import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { FieldNode, FormNode, LinkageRule } from '../src'
 import { describe, expect, it } from 'vitest'
 import { createInitialValues, instanceKey, resolveLinkage } from '../src'
@@ -113,9 +114,9 @@ describe('联动：经引擎编译', () => {
     const result = resolveLinkage(documentOf([lines]), { lines: [{ qty: 1 }, { qty: 2 }, { qty: 3 }] }, { engine: counting })
     expect(compiles).toBe(2)
     expect(result.issues.map(issue => [issue.code, issue.data?.expressionCode, issue.data?.instance])).toEqual([
-      ['XH_FORM_EXPRESSION_FAILED', 'SYNTAX', `${qty.id}#0`],
-      ['XH_FORM_EXPRESSION_FAILED', 'SYNTAX', `${qty.id}#1`],
-      ['XH_FORM_EXPRESSION_FAILED', 'SYNTAX', `${qty.id}#2`],
+      ['XH_FORM_EXPRESSION_FAILED', 'XH_EXPR_UNEXPECTED_TOKEN', `${qty.id}#0`],
+      ['XH_FORM_EXPRESSION_FAILED', 'XH_EXPR_UNEXPECTED_TOKEN', `${qty.id}#1`],
+      ['XH_FORM_EXPRESSION_FAILED', 'XH_EXPR_UNEXPECTED_TOKEN', `${qty.id}#2`],
     ])
   })
 })
@@ -173,10 +174,17 @@ describe('联动：表达式的问题', () => {
     const result = resolveLinkage(documentOf([node]), { x: '' }, { engine: createFakeEngine({ number: 1 }) })
     expect(result.states.get(node.id)?.hidden).toBe(false)
     expect(result.issues).toEqual([
-      { code: 'XH_FORM_EXPRESSION_FAILED', nodeId: node.id, ruleId: 'a', data: { part: 'when', instance: node.id, expressionCode: 'MISSING', start: 0, end: 7 } },
+      { code: 'XH_FORM_EXPRESSION_FAILED', nodeId: node.id, ruleId: 'a', data: { part: 'when', instance: node.id, expressionCode: 'XH_EXPR_FUNCTION_FAILED', start: 0, end: 7 } },
       { code: 'XH_FORM_CONDITION_NOT_BOOLEAN', nodeId: node.id, ruleId: 'b', data: { part: 'when', instance: node.id } },
-      { code: 'XH_FORM_EXPRESSION_FAILED', nodeId: node.id, ruleId: 'c', data: { part: 'value', instance: node.id, expressionCode: 'MISSING', start: 0, end: 7 } },
+      { code: 'XH_FORM_EXPRESSION_FAILED', nodeId: node.id, ruleId: 'c', data: { part: 'value', instance: node.id, expressionCode: 'XH_EXPR_FUNCTION_FAILED', start: 0, end: 7 } },
     ])
+  })
+
+  it('引擎编译失败却没给出问题时抛 TypeError', () => {
+    const { registry, ids } = setup()
+    const node = linked(fieldOf(registry, ids, 'text', 'x'), [{ id: 'a', action: 'hide', when: 'broken' }])
+    const engine: ExpressionEngine = { compile: () => ({ ok: false, issues: [] }) }
+    expect(() => resolveLinkage(documentOf([node]), { x: '' }, { engine })).toThrow(TypeError)
   })
 
   it('与初始值配合：同一份文档与值多次求值结果相同', () => {

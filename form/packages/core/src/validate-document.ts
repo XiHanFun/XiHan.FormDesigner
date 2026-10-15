@@ -5,7 +5,7 @@
 
 // schema 自校验：对任意输入逐项核对文档结构、种类、属性、数据键、区域与规则，只返回问题码。
 
-import type { ExpressionEngine } from './expression'
+import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { FormIssue, FormIssueCode } from './issues'
 import type { KindDefinition, KindRegistry, ValueKind } from './registry/kinds'
 import type { PropertyDescriptor } from './registry/properties'
