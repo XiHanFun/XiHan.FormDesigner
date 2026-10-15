@@ -6,6 +6,8 @@
 // 节点种类登记表：每种字段、容器、静态元素一份原型，驱动物料面板、属性面板与遍历。
 
 import type { JsonValue } from '@xihan-ui/core/json'
+import type { IssueParamValue } from '@xihan-ui/designer-kit/schema'
+import type { FormSchemaIssueCode } from '../issues'
 import type { ContainerNode, LinkageAction, PropertyBag, ValidationKind } from '../schema'
 import type { FormPropertyDescriptor, PropertySchema } from './properties'
 
@@ -18,11 +20,11 @@ import type { FormPropertyDescriptor, PropertySchema } from './properties'
  */
 export type ValueKind = 'string' | 'number' | 'boolean' | 'string-list' | 'number-list' | 'list' | 'object'
 
-/** 容器的结构问题，由容器种类自行检查，问题码不带文案。 */
+/** 容器的结构问题，由容器种类自行检查，问题码不带文案：给出 regionId 时落在该区域上，否则落在容器本身。 */
 export interface StructureProblem {
-  readonly code: string
+  readonly code: FormSchemaIssueCode
   readonly regionId?: string
-  readonly data?: Readonly<Record<string, string | number>>
+  readonly params?: Readonly<Record<string, IssueParamValue>>
 }
 
 /** 字段种类。 */

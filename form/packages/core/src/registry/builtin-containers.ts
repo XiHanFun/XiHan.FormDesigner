@@ -42,17 +42,17 @@ function checkTable(node: ContainerNode): StructureProblem[] {
       case 'invalid-cell': {
         const cell = cells.find(item => item.id === issue.id)!
         if ([cell.row, cell.column, cell.rowSpan, cell.columnSpan].every(Number.isSafeInteger))
-          problems.push({ code: 'XH_FORM_TABLE_CELL_OUT_OF_BOUNDS', regionId: issue.id })
+          problems.push({ code: 'table.cellOutOfBounds', regionId: issue.id })
         break
       }
       case 'out-of-bounds':
-        problems.push({ code: 'XH_FORM_TABLE_CELL_OUT_OF_BOUNDS', regionId: issue.id })
+        problems.push({ code: 'table.cellOutOfBounds', regionId: issue.id })
         break
       case 'overlap':
-        problems.push({ code: 'XH_FORM_TABLE_CELL_OVERLAP', regionId: issue.id })
+        problems.push({ code: 'table.cellOverlap', regionId: issue.id })
         break
       case 'gap':
-        problems.push({ code: 'XH_FORM_TABLE_CELL_GAP', data: { row: issue.row, column: issue.column } })
+        problems.push({ code: 'table.cellGap', params: { row: issue.row, column: issue.column } })
         break
     }
   }

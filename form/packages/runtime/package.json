@@ -52,10 +52,8 @@
   "dependencies": {
     "@xihan-form/core": "workspace:^",
     "@xihan-ui/core": "catalog:",
+    "@xihan-ui/designer-kit": "catalog:",
     "@xihan-ui/expression": "catalog:",
     "@xihan-ui/headless": "catalog:"
-  },
-  "devDependencies": {
-    "@xihan-ui/designer-kit": "catalog:"
   }
 }

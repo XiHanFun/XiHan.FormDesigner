@@ -5,7 +5,7 @@
 
 // 表单的属性描述：沿用 @xihan-ui/designer-kit/properties 的描述模型，加上表单专用的两种编辑方式（选项列表与选项树）。
 
-import type { PropertyControl, PropertyDescriptor, PropertyEditorTable } from '@xihan-ui/designer-kit/properties'
+import type { PropertyControl, PropertyDescriptor, PropertyEditorTable, PropertyValueIssueCode } from '@xihan-ui/designer-kit/properties'
 import type { PropertyGroup } from '../schema'
 import { isJsonValue } from '@xihan-ui/core/json'
 import { checkPropertyValue } from '@xihan-ui/designer-kit/properties'
@@ -37,7 +37,7 @@ export function propertyName(descriptor: FormPropertyDescriptor): string {
  * 检查属性值是否符合编辑方式；符合时为 `undefined`，否则给出问题码。
  * 内建编辑方式交给 designer-kit 的 `checkPropertyValue`；选项与选项树结构不符时为 `invalid-value`；不是 JSON 值时为 `invalid-type`。
  */
-export function checkFormPropertyValue(control: FormPropertyControl, value: unknown): string | undefined {
+export function checkFormPropertyValue(control: FormPropertyControl, value: unknown): PropertyValueIssueCode | 'invalid-value' | undefined {
   if (!isJsonValue(value))
     return 'invalid-type'
   switch (control.kind) {

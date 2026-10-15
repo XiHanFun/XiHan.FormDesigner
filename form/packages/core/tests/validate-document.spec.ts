@@ -23,34 +23,54 @@ function replaceNode(document: FormDocument, index: number, node: unknown): Form
   return { ...document, children: document.children.map((child, at) => (at === index ? node : child)) as FormNode[] }
 }
 
+interface Target { kind: 'node' | 'region' | 'rule', id: string }
+const node = (id: string): Target => ({ kind: 'node', id })
+const region = (id: string): Target => ({ kind: 'region', id })
+const rule = (id: string): Target => ({ kind: 'rule', id })
+
+/** 期望的一条问题：缺省严重程度为 error，没有 target、params 时不带这两个键。 */
+function issue(code: string, path: (string | number)[], target?: Target, params?: Record<string, unknown>): Record<string, unknown> {
+  return { code, path, ...(target ? { target } : {}), severity: 'error', ...(params ? { params } : {}) }
+}
+
 describe('schema 自校验：文档与节点结构', () => {
   it('新建出来的文档没有问题', () => {
     const { registry, document } = sample()
     expect(validateDocument(document, registry)).toEqual([])
   })
 
-  it('文档不是对象、版本不对、缺字段', () => {
+  it('文档不是对象、版本不对、缺字段、有多余字段', () => {
     const { registry } = setup()
-    expect(codes(null, registry)).toEqual(['XH_FORM_INVALID_DOCUMENT'])
-    expect(validateDocument({ schemaVersion: 2, settings: {}, children: [] }, registry)).toEqual([{ code: 'XH_FORM_SCHEMA_VERSION', data: { version: '2' } }])
-    expect(codes({ schemaVersion: 1, settings: {} }, registry)).toEqual(['XH_FORM_INVALID_DOCUMENT'])
-    expect(codes({ schemaVersion: 1, settings: { size: 'xl', foo: 1 }, children: [], extra: true }, registry))
-      .toEqual(['XH_FORM_UNKNOWN_NODE_FIELD', 'XH_FORM_INVALID_PROPERTY', 'XH_FORM_UNKNOWN_PROPERTY'])
+    expect(validateDocument(null, registry)).toEqual([issue('invalid-type', [], undefined, { expected: 'object' })])
+    expect(validateDocument(undefined, registry)).toEqual([issue('invalid-type', [], undefined, { expected: 'object' })])
+    expect(validateDocument({ schemaVersion: 2, settings: {}, children: [] }, registry)).toEqual([issue('document.unsupportedVersion', ['schemaVersion'], undefined, { version: '2' })])
+    expect(validateDocument({ schemaVersion: 1, settings: {} }, registry)).toEqual([issue('required', ['children'])])
+    expect(validateDocument({ schemaVersion: 1, settings: { size: 'xl', foo: 1 }, children: [], extra: true }, registry)).toEqual([
+      issue('unknown-key', ['extra']),
+      issue('invalid-option', ['settings', 'size']),
+      issue('unknown-key', ['settings', 'foo']),
+    ])
   })
 
-  it('节点缺 id、类型不对、分组不是对象', () => {
+  it('节点不是对象、缺 id、类型不对、分组或规则表的类型不对', () => {
     const { registry, document, name } = sample()
-    expect(codes(replaceNode(document, 0, 'x'), registry)).toEqual(['XH_FORM_INVALID_NODE'])
-    expect(codes(replaceNode(document, 0, { ...name, id: '' }), registry)).toEqual(['XH_FORM_INVALID_NODE'])
-    expect(codes(replaceNode(document, 0, { ...name, type: 'script' }), registry)).toEqual(['XH_FORM_INVALID_NODE'])
-    expect(codes(replaceNode(document, 0, { ...name, basic: [] }), registry)).toEqual(['XH_FORM_INVALID_NODE'])
-    expect(codes(replaceNode(document, 0, { ...name, validation: {} }), registry)).toEqual(['XH_FORM_INVALID_NODE'])
+    expect(validateDocument(replaceNode(document, 0, 'x'), registry)).toEqual([issue('invalid-type', ['children', 0], undefined, { expected: 'object' })])
+    expect(validateDocument(replaceNode(document, 0, { ...name, id: '' }), registry)).toEqual([issue('empty', ['children', 0, 'id'])])
+    expect(validateDocument(replaceNode(document, 0, { ...name, type: 'script' }), registry)).toEqual([
+      issue('invalid-option', ['children', 0, 'type'], node(name.id), { choices: ['field', 'container', 'static'] }),
+    ])
+    expect(codes(replaceNode(document, 0, { ...name, basic: [] }), registry)).toEqual(['invalid-type'])
+    expect(validateDocument(replaceNode(document, 0, { ...name, validation: {} }), registry)).toEqual([
+      issue('invalid-type', ['children', 0, 'validation'], node(name.id), { expected: 'array' }),
+    ])
+    const { kind: _kind, ...withoutKind } = name
+    expect(validateDocument(replaceNode(document, 0, withoutKind), registry)).toEqual([issue('required', ['children', 0, 'kind'], node(name.id))])
   })
 
   it('节点上未定义的字段一律报出，模板里不能夹带别的东西', () => {
     const { registry, document, name } = sample()
     expect(validateDocument(replaceNode(document, 0, { ...name, onClick: 'alert(1)' }), registry)).toEqual([
-      { code: 'XH_FORM_UNKNOWN_NODE_FIELD', nodeId: name.id, data: { name: 'onClick' } },
+      issue('unknown-key', ['children', 0, 'onClick'], node(name.id)),
     ])
   })
 
@@ -58,39 +78,54 @@ describe('schema 自校验：文档与节点结构', () => {
     const { registry, document, name, lines } = sample()
     const twin = { ...name, key: 'other' }
     expect(validateDocument(documentOf([...document.children, twin]), registry)).toEqual([
-      { code: 'XH_FORM_DUPLICATE_ID', nodeId: name.id, data: { id: name.id } },
+      issue('duplicate-id', ['children', 4, 'id'], node(name.id), { id: name.id }),
     ])
-    const clash: FieldNode = { ...name, validation: [{ id: lines.regions[0]!.id, kind: 'required' }] }
-    expect(codes(replaceNode(document, 0, clash), registry)).toEqual(['XH_FORM_DUPLICATE_ID'])
+    const regionId = lines.regions[0]!.id
+    const clash: FieldNode = { ...name, validation: [{ id: regionId, kind: 'required' }] }
+    expect(validateDocument(replaceNode(document, 0, clash), registry)).toEqual([
+      issue('duplicate-id', ['children', 1, 'regions', 0, 'id'], region(regionId), { id: regionId }),
+    ])
   })
 
   it('种类没有登记、类型与登记不符', () => {
     const { registry, document, name } = sample()
     expect(validateDocument(replaceNode(document, 0, { ...name, kind: 'nope' }), registry)).toEqual([
-      { code: 'XH_FORM_UNKNOWN_KIND', nodeId: name.id, data: { kind: 'nope' } },
+      issue('node.unknownKind', ['children', 0, 'kind'], node(name.id), { kind: 'nope' }),
     ])
-    expect(codes(replaceNode(document, 0, { ...name, kind: 'grid' }), registry)).toEqual(['XH_FORM_KIND_TYPE_MISMATCH'])
+    expect(validateDocument(replaceNode(document, 0, { ...name, kind: 'grid' }), registry)).toEqual([
+      issue('node.kindTypeMismatch', ['children', 0, 'type'], node(name.id), { kind: 'grid', type: 'field' }),
+    ])
   })
 
   it('嵌套层数上限', () => {
     const { registry, ids } = setup()
-    let node: FormNode = fieldOf(registry, ids, 'text', 'deep')
+    let deep: FormNode = fieldOf(registry, ids, 'text', 'deep')
     for (let index = 0; index < 40; index += 1)
-      node = withChildren(containerOf(registry, ids, 'card'), 0, [node])
-    expect(codes(documentOf([node]), registry)).toEqual(['XH_FORM_TOO_DEEP'])
-    expect(codes(documentOf([node]), registry, { maxDepth: 50 })).toEqual([])
+      deep = withChildren(containerOf(registry, ids, 'card'), 0, [deep])
+    const issues = validateDocument(documentOf([deep]), registry)
+    expect(issues.map(item => [item.code, item.params])).toEqual([['document.tooDeep', { max: 32 }]])
+    expect(issues[0]!.path).toHaveLength(2 + 32 * 4)
+    expect(codes(documentOf([deep]), registry, { maxDepth: 50 })).toEqual([])
     expect(() => validateDocument(documentOf([]), registry, { maxDepth: 0 })).toThrow(TypeError)
+  })
+
+  it('严重程度可以按问题码改，off 去掉该码', () => {
+    const { registry, document, name } = sample()
+    const broken = replaceNode(document, 0, { ...name, onClick: 'x', kind: 'nope' })
+    expect(validateDocument(broken, registry, { severity: { 'unknown-key': 'warning', 'node.unknownKind': 'off' } })).toEqual([
+      { ...issue('unknown-key', ['children', 0, 'onClick'], node(name.id)), severity: 'warning' },
+    ])
   })
 })
 
 describe('schema 自校验：属性与数据键', () => {
   it('属性名没有描述、取值不符合描述', () => {
     const { registry, document, name } = sample()
-    const node = { ...name, basic: { ...name.basic, label: 1, colour: 'red' }, appearance: { size: 'huge' } }
-    expect(validateDocument(replaceNode(document, 0, node), registry)).toEqual([
-      { code: 'XH_FORM_INVALID_PROPERTY', nodeId: name.id, data: { group: 'basic', name: 'label' } },
-      { code: 'XH_FORM_UNKNOWN_PROPERTY', nodeId: name.id, data: { group: 'basic', name: 'colour' } },
-      { code: 'XH_FORM_INVALID_PROPERTY', nodeId: name.id, data: { group: 'appearance', name: 'size' } },
+    const changed = { ...name, basic: { ...name.basic, label: 1, colour: 'red' }, appearance: { size: 'huge' } }
+    expect(validateDocument(replaceNode(document, 0, changed), registry)).toEqual([
+      issue('invalid-type', ['children', 0, 'basic', 'label'], node(name.id)),
+      issue('unknown-key', ['children', 0, 'basic', 'colour'], node(name.id)),
+      issue('invalid-option', ['children', 0, 'appearance', 'size'], node(name.id)),
     ])
   })
 
@@ -98,16 +133,20 @@ describe('schema 自校验：属性与数据键', () => {
     const { registry, ids } = setup()
     const single = { ...fieldOf(registry, ids, 'select', 'a'), basic: { label: '', initialValue: ['x'] } }
     const multiple = { ...fieldOf(registry, ids, 'select', 'b'), basic: { label: '', initialValue: ['x'] }, data: { options: [], multiple: true } }
-    expect(validateDocument(documentOf([single, multiple]), registry)).toEqual([{ code: 'XH_FORM_INVALID_INITIAL_VALUE', nodeId: single.id }])
+    expect(validateDocument(documentOf([single, multiple]), registry)).toEqual([
+      issue('invalid-value', ['children', 0, 'basic', 'initialValue'], node(single.id), { valueKind: 'string' }),
+    ])
   })
 
   it('数据键缺失、不合法、在同一作用域重复；不同作用域可以同名', () => {
     const { registry, ids, document, name, lines } = sample()
-    expect(codes(replaceNode(document, 0, { ...name, key: undefined }), registry)).toEqual(['XH_FORM_MISSING_KEY'])
+    expect(validateDocument(replaceNode(document, 0, { ...name, key: undefined }), registry)).toEqual([issue('required', ['children', 0, 'key'], node(name.id))])
     expect(validateDocument(replaceNode(document, 0, { ...name, key: '1st' }), registry)).toEqual([
-      { code: 'XH_FORM_INVALID_KEY', nodeId: name.id, data: { key: '1st' } },
+      issue('invalid-value', ['children', 0, 'key'], node(name.id), { key: '1st' }),
     ])
-    expect(codes(replaceNode(document, 0, { ...name, key: 'lines' }), registry)).toEqual(['XH_FORM_DUPLICATE_KEY'])
+    expect(validateDocument(replaceNode(document, 0, { ...name, key: 'lines' }), registry)).toEqual([
+      issue('duplicate-key', ['children', 1, 'key'], node(lines.id), { key: 'lines' }),
+    ])
     const inner = fieldOf(registry, ids, 'text', 'name')
     const nested = withChildren(lines, 0, [...lines.regions[0]!.children, inner])
     expect(codes(replaceNode(document, 1, nested), registry)).toEqual([])
@@ -116,8 +155,8 @@ describe('schema 自校验：属性与数据键', () => {
   it('列表容器必须带键，布局容器不能带键', () => {
     const { registry, document, lines, table } = sample()
     const { key: _key, ...withoutKey } = lines
-    expect(codes(replaceNode(document, 1, withoutKey), registry)).toEqual(['XH_FORM_MISSING_KEY'])
-    expect(codes(replaceNode(document, 2, { ...table, key: 'x' }), registry)).toEqual(['XH_FORM_UNEXPECTED_KEY'])
+    expect(validateDocument(replaceNode(document, 1, withoutKey), registry)).toEqual([issue('required', ['children', 1, 'key'], node(lines.id))])
+    expect(validateDocument(replaceNode(document, 2, { ...table, key: 'x' }), registry)).toEqual([issue('unknown-key', ['children', 2, 'key'], node(table.id))])
   })
 })
 
@@ -127,22 +166,24 @@ describe('schema 自校验：区域', () => {
     const card = containerOf(registry, ids, 'card')
     const twoRegions: ContainerNode = { ...card, regions: [card.regions[0]!, { id: 'r2', props: {}, children: [] }] }
     expect(validateDocument(documentOf([twoRegions]), registry)).toEqual([
-      { code: 'XH_FORM_REGION_COUNT', nodeId: card.id, data: { min: 1, actual: 2, max: 1 } },
+      issue('out-of-range', ['children', 0, 'regions'], node(card.id), { min: 1, max: 1, actual: 2 }),
     ])
     const tabs = containerOf(registry, ids, 'tabs')
     expect(validateDocument(documentOf([{ ...tabs, regions: [] }]), registry)).toEqual([
-      { code: 'XH_FORM_REGION_COUNT', nodeId: tabs.id, data: { min: 1, actual: 0 } },
+      issue('out-of-range', ['children', 0, 'regions'], node(tabs.id), { min: 1, actual: 0 }),
     ])
   })
 
   it('区域结构不对、区域属性不符合描述', () => {
     const { registry, ids } = setup()
     const grid = containerOf(registry, ids, 'grid')
-    const broken: ContainerNode = { ...grid, regions: [{ ...grid.regions[0]!, props: { span: 13, width: 1 } }, { id: 'x' } as never] }
+    const first = grid.regions[0]!
+    const broken: ContainerNode = { ...grid, regions: [{ ...first, props: { span: 13, width: 1 } }, { id: 'x' } as never] }
     expect(validateDocument(documentOf([broken]), registry)).toEqual([
-      { code: 'XH_FORM_INVALID_PROPERTY', nodeId: grid.id, regionId: grid.regions[0]!.id, data: { group: 'region', name: 'span' } },
-      { code: 'XH_FORM_UNKNOWN_PROPERTY', nodeId: grid.id, regionId: grid.regions[0]!.id, data: { group: 'region', name: 'width' } },
-      { code: 'XH_FORM_INVALID_REGION', nodeId: grid.id },
+      issue('out-of-range', ['children', 0, 'regions', 0, 'props', 'span'], region(first.id)),
+      issue('unknown-key', ['children', 0, 'regions', 0, 'props', 'width'], region(first.id)),
+      issue('required', ['children', 0, 'regions', 1, 'props'], node(grid.id)),
+      issue('required', ['children', 0, 'regions', 1, 'children'], node(grid.id)),
     ])
   })
 
@@ -151,25 +192,28 @@ describe('schema 自校验：区域', () => {
     const card = containerOf(registry, ids, 'card')
     const nested = withChildren(lines, 0, [card])
     expect(validateDocument(replaceNode(document, 1, nested), registry)).toEqual([
-      { code: 'XH_FORM_CHILD_NOT_ALLOWED', nodeId: card.id, data: { kind: 'card' } },
+      issue('region.childNotAllowed', ['children', 1, 'regions', 0, 'children', 0], node(card.id), { kind: 'card' }),
     ])
   })
 
-  it('表格布局的单元格铺排问题带着区域 id', () => {
+  it('表格布局的单元格铺排问题：越界与重叠落在区域上，留空落在表格上', () => {
     const { registry, document, table } = sample()
     const [a, b, c, d] = table.regions
     const merged: ContainerNode = { ...table, regions: [{ ...a!, props: { ...a!.props, columnSpan: 2 } }, b!, c!, d!] }
     expect(validateDocument(replaceNode(document, 2, merged), registry)).toEqual([
-      { code: 'XH_FORM_TABLE_CELL_OVERLAP', nodeId: table.id, regionId: b!.id },
+      issue('table.cellOverlap', ['children', 2, 'regions', 1], region(b!.id)),
     ])
     const holes: ContainerNode = { ...table, regions: [a!, d!] }
-    expect(codes(replaceNode(document, 2, holes), registry)).toEqual(['XH_FORM_TABLE_CELL_GAP', 'XH_FORM_TABLE_CELL_GAP'])
+    expect(validateDocument(replaceNode(document, 2, holes), registry)).toEqual([
+      issue('table.cellGap', ['children', 2, 'regions'], node(table.id), { row: 0, column: 1 }),
+      issue('table.cellGap', ['children', 2, 'regions'], node(table.id), { row: 1, column: 0 }),
+    ])
   })
 })
 
 describe('schema 自校验：校验规则', () => {
-  function withRules(node: FieldNode | ContainerNode, validation: unknown[]): FieldNode | ContainerNode {
-    return { ...node, validation: validation as ValidationRule[] }
+  function withRules(target: FieldNode | ContainerNode, validation: unknown[]): FieldNode | ContainerNode {
+    return { ...target, validation: validation as ValidationRule[] }
   }
 
   it('合法的规则没有问题', () => {
@@ -184,21 +228,26 @@ describe('schema 自校验：校验规则', () => {
     expect(validateDocument(next, registry)).toEqual([])
   })
 
-  it('规则结构不对、种类未知、有多余字段', () => {
+  it('规则结构不对、种类未知、有多余字段、提示不是字符串', () => {
     const { registry, document, name } = sample()
-    expect(codes(replaceNode(document, 0, withRules(name, ['x', { id: 'a', kind: 'regex' }, { id: 'b', kind: 'required', when: 'x' }, { id: 'c', kind: 'required', message: 1 }])), registry))
-      .toEqual(['XH_FORM_INVALID_RULE', 'XH_FORM_INVALID_RULE', 'XH_FORM_UNKNOWN_NODE_FIELD', 'XH_FORM_INVALID_RULE'])
+    const rules = ['x', { id: 'a', kind: 'regex' }, { id: 'b', kind: 'required', when: 'x' }, { id: 'c', kind: 'required', message: 1 }]
+    expect(validateDocument(replaceNode(document, 0, withRules(name, rules)), registry)).toEqual([
+      issue('invalid-type', ['children', 0, 'validation', 0], node(name.id), { expected: 'object' }),
+      issue('invalid-option', ['children', 0, 'validation', 1, 'kind'], rule('a'), { choices: ['required', 'accepted', 'length', 'range', 'pattern', 'expression'] }),
+      issue('unknown-key', ['children', 0, 'validation', 2, 'when'], rule('b')),
+      issue('invalid-type', ['children', 0, 'validation', 3, 'message'], rule('c'), { expected: 'string' }),
+    ])
   })
 
   it('规则不适用于字段的值形状或种类', () => {
     const { registry, ids, document, name, lines, table } = sample()
     const age = fieldOf(registry, ids, 'number', 'age')
     expect(validateDocument(replaceNode(document, 0, withRules(name, [{ id: 'r', kind: 'range', min: 1 }])), registry)).toEqual([
-      { code: 'XH_FORM_RULE_NOT_APPLICABLE', nodeId: name.id, ruleId: 'r', data: { kind: 'range' } },
+      issue('rule.notApplicable', ['children', 0, 'validation', 0, 'kind'], rule('r'), { kind: 'range' }),
     ])
-    expect(codes(documentOf([withRules(age, [{ id: 'p', kind: 'pattern', pattern: 'x' }])]), registry)).toEqual(['XH_FORM_RULE_NOT_APPLICABLE'])
-    expect(codes(replaceNode(document, 1, withRules(lines, [{ id: 'p', kind: 'pattern', pattern: 'x' }])), registry)).toEqual(['XH_FORM_RULE_NOT_APPLICABLE'])
-    expect(codes(replaceNode(document, 2, withRules(table, [{ id: 'q', kind: 'required' }])), registry)).toEqual(['XH_FORM_RULE_NOT_APPLICABLE'])
+    expect(codes(documentOf([withRules(age, [{ id: 'p', kind: 'pattern', pattern: 'x' }])]), registry)).toEqual(['rule.notApplicable'])
+    expect(codes(replaceNode(document, 1, withRules(lines, [{ id: 'p', kind: 'pattern', pattern: 'x' }])), registry)).toEqual(['rule.notApplicable'])
+    expect(codes(replaceNode(document, 2, withRules(table, [{ id: 'q', kind: 'required' }])), registry)).toEqual(['rule.notApplicable'])
   })
 
   it('必须为 true 只适用于勾选框与开关，规则只带 id、kind、message', () => {
@@ -206,48 +255,55 @@ describe('schema 自校验：校验规则', () => {
     const agree = fieldOf(registry, ids, 'checkbox', 'agree')
     const on = fieldOf(registry, ids, 'switch', 'on')
     expect(codes(documentOf([withRules(agree, [{ id: 'a', kind: 'accepted', message: '请先同意' }]), withRules(on, [{ id: 'b', kind: 'accepted' }])]), registry)).toEqual([])
-    expect(codes(replaceNode(document, 0, withRules(name, [{ id: 'a', kind: 'accepted' }])), registry)).toEqual(['XH_FORM_RULE_NOT_APPLICABLE'])
-    expect(codes(replaceNode(document, 1, withRules(lines, [{ id: 'a', kind: 'accepted' }])), registry)).toEqual(['XH_FORM_RULE_NOT_APPLICABLE'])
-    expect(codes(documentOf([withRules(agree, [{ id: 'a', kind: 'accepted', min: 1 }])]), registry)).toEqual(['XH_FORM_UNKNOWN_NODE_FIELD'])
+    expect(codes(replaceNode(document, 0, withRules(name, [{ id: 'a', kind: 'accepted' }])), registry)).toEqual(['rule.notApplicable'])
+    expect(codes(replaceNode(document, 1, withRules(lines, [{ id: 'a', kind: 'accepted' }])), registry)).toEqual(['rule.notApplicable'])
+    expect(codes(documentOf([withRules(agree, [{ id: 'a', kind: 'accepted', min: 1 }])]), registry)).toEqual(['unknown-key'])
   })
 
   it('长度与范围的上下限', () => {
     const { registry, ids, document, name } = sample()
     const age = fieldOf(registry, ids, 'number', 'age')
-    expect(codes(replaceNode(document, 0, withRules(name, [{ id: 'a', kind: 'length' }])), registry)).toEqual(['XH_FORM_INVALID_RANGE'])
-    expect(codes(replaceNode(document, 0, withRules(name, [{ id: 'a', kind: 'length', min: -1 }])), registry)).toEqual(['XH_FORM_INVALID_RANGE'])
-    expect(codes(replaceNode(document, 0, withRules(name, [{ id: 'a', kind: 'length', min: 1.5 }])), registry)).toEqual(['XH_FORM_INVALID_RANGE'])
-    expect(codes(replaceNode(document, 0, withRules(name, [{ id: 'a', kind: 'length', min: 5, max: 2 }])), registry)).toEqual(['XH_FORM_INVALID_RANGE'])
+    const lengthIssues = (bounds: Record<string, unknown>): string[] => codes(replaceNode(document, 0, withRules(name, [{ id: 'a', kind: 'length', ...bounds }])), registry)
+    expect(lengthIssues({})).toEqual(['rule.boundsMissing'])
+    expect(lengthIssues({ min: -1 })).toEqual(['out-of-range'])
+    expect(lengthIssues({ min: 1.5 })).toEqual(['not-integer'])
+    expect(validateDocument(replaceNode(document, 0, withRules(name, [{ id: 'a', kind: 'length', min: 5, max: 2 }])), registry)).toEqual([
+      issue('rule.invalidRange', ['children', 0, 'validation', 0, 'min'], rule('a'), { min: 5, max: 2 }),
+    ])
     expect(codes(documentOf([withRules(age, [{ id: 'b', kind: 'range', min: -1.5, max: 0 }])]), registry)).toEqual([])
-    expect(codes(documentOf([withRules(age, [{ id: 'b', kind: 'range', min: 'x' }])]), registry)).toEqual(['XH_FORM_INVALID_RANGE'])
+    expect(codes(documentOf([withRules(age, [{ id: 'b', kind: 'range', min: 'x' }])]), registry)).toEqual(['invalid-type'])
   })
 
   it.each([
-    [{ pattern: '(' }],
-    [{ pattern: '' }],
-    [{ pattern: 'a', flags: 'g' }],
-    [{ pattern: 'a', flags: 'y' }],
-    [{ pattern: 'a', flags: 'ii' }],
-    [{ pattern: 'a', flags: 1 }],
-    [{ pattern: 'a'.repeat(1001) }],
-    [{ pattern: 1 }],
-  ])('正则 %j 不合法', (fields) => {
+    [{ pattern: '(' }, 'rule.invalidPattern', 'pattern', 'invalid-pattern'],
+    [{ pattern: 'a'.repeat(1001) }, 'rule.invalidPattern', 'pattern', 'too-long'],
+    [{ pattern: 'a', flags: 'g' }, 'rule.invalidPattern', 'flags', 'invalid-flags'],
+    [{ pattern: 'a', flags: 'y' }, 'rule.invalidPattern', 'flags', 'invalid-flags'],
+    [{ pattern: 'a', flags: 'ii' }, 'rule.invalidPattern', 'flags', 'invalid-flags'],
+    [{ pattern: '' }, 'empty', 'pattern', undefined],
+    [{ pattern: 'a', flags: 1 }, 'invalid-type', 'flags', undefined],
+    [{ pattern: 1 }, 'invalid-type', 'pattern', undefined],
+    [{}, 'required', 'pattern', undefined],
+  ])('正则 %j 报 %s', (fields, code, key, reason) => {
     const { registry, document, name } = sample()
-    expect(codes(replaceNode(document, 0, withRules(name, [{ id: 'p', kind: 'pattern', ...fields }])), registry)).toEqual(['XH_FORM_INVALID_PATTERN'])
+    const [found] = validateDocument(replaceNode(document, 0, withRules(name, [{ id: 'p', kind: 'pattern', ...fields }])), registry)
+    expect([found!.code, found!.path, found!.target]).toEqual([code, ['children', 0, 'validation', 0, key], rule('p')])
+    expect(found!.params?.reason).toBe(reason)
   })
 
   it('表达式为空或不是字符串', () => {
     const { registry, document, name } = sample()
     expect(validateDocument(replaceNode(document, 0, withRules(name, [{ id: 'e', kind: 'expression', expression: '  ' }])), registry)).toEqual([
-      { code: 'XH_FORM_EMPTY_EXPRESSION', nodeId: name.id, ruleId: 'e', data: { part: 'expression' } },
+      issue('empty', ['children', 0, 'validation', 0, 'expression'], rule('e')),
     ])
-    expect(codes(replaceNode(document, 0, withRules(name, [{ id: 'e', kind: 'expression', expression: 1 }])), registry)).toEqual(['XH_FORM_INVALID_RULE'])
+    expect(codes(replaceNode(document, 0, withRules(name, [{ id: 'e', kind: 'expression', expression: 1 }])), registry)).toEqual(['invalid-type'])
+    expect(codes(replaceNode(document, 0, withRules(name, [{ id: 'e', kind: 'expression' }])), registry)).toEqual(['required'])
   })
 })
 
 describe('schema 自校验：联动规则', () => {
-  function withLinkage(node: FormNode, linkage: unknown[]): FormNode {
-    return { ...node, linkage: linkage as LinkageRule[] }
+  function withLinkage(target: FormNode, linkage: unknown[]): FormNode {
+    return { ...target, linkage: linkage as LinkageRule[] }
   }
 
   it('合法的联动规则没有问题', () => {
@@ -262,22 +318,24 @@ describe('schema 自校验：联动规则', () => {
 
   it('动作未知、动作不适用于节点类型', () => {
     const { registry, document, name, table } = sample()
-    expect(codes(replaceNode(document, 0, withLinkage(name, [{ id: 'l', action: 'explode' }])), registry)).toEqual(['XH_FORM_INVALID_RULE'])
+    expect(codes(replaceNode(document, 0, withLinkage(name, [{ id: 'l', action: 'explode' }])), registry)).toEqual(['invalid-option'])
     expect(validateDocument(replaceNode(document, 2, withLinkage(table, [{ id: 'l', action: 'assign', value: '1' }])), registry)).toEqual([
-      { code: 'XH_FORM_ACTION_NOT_APPLICABLE', nodeId: table.id, ruleId: 'l', data: { action: 'assign' } },
+      issue('linkage.actionNotApplicable', ['children', 2, 'linkage', 0, 'action'], rule('l'), { action: 'assign' }),
     ])
     const divider = document.children[3]!
-    expect(codes(replaceNode(document, 3, withLinkage(divider, [{ id: 'l', action: 'disable' }])), registry)).toEqual(['XH_FORM_ACTION_NOT_APPLICABLE'])
+    expect(codes(replaceNode(document, 3, withLinkage(divider, [{ id: 'l', action: 'disable' }])), registry)).toEqual(['linkage.actionNotApplicable'])
   })
 
   it('赋值必须带 value，其它动作不能带 value，条件不能为空', () => {
     const { registry, document, name } = sample()
     expect(validateDocument(replaceNode(document, 0, withLinkage(name, [{ id: 'l', action: 'assign' }])), registry)).toEqual([
-      { code: 'XH_FORM_EMPTY_EXPRESSION', nodeId: name.id, ruleId: 'l', data: { part: 'value' } },
+      issue('required', ['children', 0, 'linkage', 0, 'value'], rule('l')),
     ])
-    expect(codes(replaceNode(document, 0, withLinkage(name, [{ id: 'l', action: 'hide', value: '1' }])), registry)).toEqual(['XH_FORM_INVALID_RULE'])
-    expect(codes(replaceNode(document, 0, withLinkage(name, [{ id: 'l', action: 'hide', when: '' }])), registry)).toEqual(['XH_FORM_EMPTY_EXPRESSION'])
-    expect(codes(replaceNode(document, 0, withLinkage(name, [{ id: 'l', action: 'hide', extra: 1 }])), registry)).toEqual(['XH_FORM_UNKNOWN_NODE_FIELD'])
+    expect(validateDocument(replaceNode(document, 0, withLinkage(name, [{ id: 'l', action: 'hide', value: '1' }])), registry)).toEqual([
+      issue('unknown-key', ['children', 0, 'linkage', 0, 'value'], rule('l')),
+    ])
+    expect(codes(replaceNode(document, 0, withLinkage(name, [{ id: 'l', action: 'hide', when: '' }])), registry)).toEqual(['empty'])
+    expect(codes(replaceNode(document, 0, withLinkage(name, [{ id: 'l', action: 'hide', extra: 1 }])), registry)).toEqual(['unknown-key'])
   })
 })
 
@@ -301,13 +359,14 @@ describe('schema 自校验：选项依赖', () => {
     expect(validateDocument(documentOf([city, province, lines]), registry)).toEqual([])
   })
 
-  it('找不到、指向自己、重复都报出', () => {
+  it('找不到、指向自己、重复都报在那一项上', () => {
     const { registry, province, withDeps } = cascade()
     const city = withDeps('city', ['nope', 'city', 'province', 'province'])
+    const at = (index: number): (string | number)[] => ['children', 1, 'data', 'optionDependencies', index]
     expect(validateDocument(documentOf([province, city]), registry)).toEqual([
-      { code: 'XH_FORM_UNKNOWN_DEPENDENCY', nodeId: city.id, data: { key: 'nope' } },
-      { code: 'XH_FORM_SELF_DEPENDENCY', nodeId: city.id, data: { key: 'city' } },
-      { code: 'XH_FORM_DUPLICATE_DEPENDENCY', nodeId: city.id, data: { key: 'province' } },
+      issue('field.unknownDependency', at(0), node(city.id), { key: 'nope' }),
+      issue('field.selfDependency', at(1), node(city.id), { key: 'city' }),
+      issue('duplicate-key', at(3), node(city.id), { key: 'province' }),
     ])
   })
 
@@ -318,8 +377,8 @@ describe('schema 自校验：选项依赖', () => {
     const city = withDeps('city', ['rowProvince'])
     const orphan = withDeps('orphan', ['city'], null)
     expect(validateDocument(documentOf([lines, city, orphan]), registry)).toEqual([
-      { code: 'XH_FORM_DEPENDENCY_WITHOUT_SOURCE', nodeId: orphan.id },
-      { code: 'XH_FORM_UNKNOWN_DEPENDENCY', nodeId: city.id, data: { key: 'rowProvince' } },
+      issue('field.dependencyWithoutSource', ['children', 2, 'data', 'optionSource'], node(orphan.id)),
+      issue('field.unknownDependency', ['children', 1, 'data', 'optionDependencies', 0], node(city.id), { key: 'rowProvince' }),
     ])
   })
 
@@ -327,7 +386,10 @@ describe('schema 自校验：选项依赖', () => {
     const { registry, ids, withDeps } = cascade()
     const bad = { ...withDeps('a', []), data: { options: [], multiple: false, optionSource: 's', optionDependencies: 'province' } }
     const text = { ...fieldOf(registry, ids, 'text', 'b'), data: { inputType: 'text', optionDependencies: [] } }
-    expect(codes(documentOf([bad, text]), registry)).toEqual(['XH_FORM_INVALID_PROPERTY', 'XH_FORM_UNKNOWN_PROPERTY'])
+    expect(validateDocument(documentOf([bad, text]), registry)).toEqual([
+      issue('invalid-type', ['children', 0, 'data', 'optionDependencies'], node(bad.id)),
+      issue('unknown-key', ['children', 1, 'data', 'optionDependencies'], node(text.id)),
+    ])
   })
 })
 
@@ -347,13 +409,15 @@ describe('schema 自校验：表达式交给注入的引擎检查', () => {
     ])
   })
 
-  it('引擎报出的问题转成 XH_FORM_EXPRESSION_ERROR，带上引擎的问题码与区间', () => {
+  it('引擎报出的问题转成 expression.invalid，路径指到表达式所在的键，参数带上引擎的问题码与区间', () => {
     const { registry, document, name } = sample()
     const next = replaceNode(document, 0, { ...name, linkage: [{ id: 'l1', action: 'assign', when: 'ok @@', value: 'missing + 1' }] })
+    const when = ['children', 0, 'linkage', 0, 'when']
+    const value = ['children', 0, 'linkage', 0, 'value']
     expect(validateDocument(next, registry, { expressionEngine: createFakeEngine() })).toEqual([
-      { code: 'XH_FORM_EXPRESSION_ERROR', nodeId: name.id, ruleId: 'l1', data: { part: 'when', expressionCode: 'XH_EXPR_UNEXPECTED_TOKEN', start: 3, end: 5 } },
-      { code: 'XH_FORM_EXPRESSION_ERROR', nodeId: name.id, ruleId: 'l1', data: { part: 'when', expressionCode: 'XH_EXPR_UNKNOWN_IDENTIFIER', start: 0, end: 2 } },
-      { code: 'XH_FORM_EXPRESSION_ERROR', nodeId: name.id, ruleId: 'l1', data: { part: 'value', expressionCode: 'XH_EXPR_UNKNOWN_IDENTIFIER', start: 0, end: 7 } },
+      issue('expression.invalid', when, rule('l1'), { expressionCode: 'XH_EXPR_UNEXPECTED_TOKEN', start: 3, end: 5 }),
+      issue('expression.invalid', when, rule('l1'), { expressionCode: 'XH_EXPR_UNKNOWN_IDENTIFIER', start: 0, end: 2 }),
+      issue('expression.invalid', value, rule('l1'), { expressionCode: 'XH_EXPR_UNKNOWN_IDENTIFIER', start: 0, end: 7 }),
     ])
   })
 

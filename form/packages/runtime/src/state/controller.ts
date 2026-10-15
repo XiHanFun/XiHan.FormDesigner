@@ -24,6 +24,7 @@ import {
   walkNodes,
 } from '@xihan-form/core'
 import { changedJsonPaths, cloneJson, formatJsonPath, getJsonAt, isJsonPathPrefix, isPlainObject, jsonEquals, JsonPathError, setJsonAt } from '@xihan-ui/core/json'
+import { hasErrors } from '@xihan-ui/designer-kit/schema'
 import { rebaseFormArrayPath } from '@xihan-ui/headless'
 import { changedIssuePaths, changedKeys, sameState } from './changes'
 import { FormRuntimeError } from './errors'
@@ -192,7 +193,7 @@ class Controller implements FormController {
     if (this.engine === undefined && hasExpressions(this.document))
       throw new FormRuntimeError('XH_FORM_RT_NO_ENGINE')
     const problems = validateDocument(this.document, this.registry, { expressionEngine: this.engine, identifiers: Object.keys(this.variables) })
-    if (problems.length > 0)
+    if (hasErrors(problems))
       throw new FormRuntimeError('XH_FORM_RT_INVALID_DOCUMENT', {}, problems)
     this.defaults = createInitialValues(this.document, this.registry)
     this.initial = normalizeScope(this.document.children, options.values ?? {}, [], this.defaults, this.registry)
@@ -627,7 +628,7 @@ class Controller implements FormController {
 }
 
 /**
- * 创建表单控制器。创建时先做 schema 自校验，有问题就抛 `XH_FORM_RT_INVALID_DOCUMENT`（问题列表在 `issues`）；
+ * 创建表单控制器。创建时先做 schema 自校验，有 error 级问题就抛 `XH_FORM_RT_INVALID_DOCUMENT`（问题列表在 `issues`）；
  * 文档里有表达式却没有引擎时抛 `XH_FORM_RT_NO_ENGINE`。不碰 DOM，不写全局状态，多个实例互不影响。
  */
 export function createFormController(options: FormControllerOptions): FormController {

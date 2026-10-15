@@ -3,66 +3,58 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 表单问题：schema 自校验与值校验共用，只有问题码与定位，不带文案。
+// 表单问题，只有问题码与定位，不带文案：模板结构问题取 designer-kit/schema 的 SchemaIssue，值校验与联动的问题沿用 FormIssue。
+
+import type { CommonIssueCode, SchemaIssue } from '@xihan-ui/designer-kit/schema'
 
 /**
- * schema 自校验的问题码：
- * - `XH_FORM_INVALID_DOCUMENT`：文档不是对象，或缺 `settings` / `children`。
- * - `XH_FORM_SCHEMA_VERSION`：结构版本不受支持。
- * - `XH_FORM_INVALID_NODE`：节点缺字段或字段类型不对。
- * - `XH_FORM_UNKNOWN_NODE_FIELD`：节点、区域或规则上有未定义的字段。
- * - `XH_FORM_DUPLICATE_ID`：节点、区域、规则的 id 重复。
- * - `XH_FORM_UNKNOWN_KIND` / `XH_FORM_KIND_TYPE_MISMATCH`：种类没有登记 / 登记的类型与节点类型不符。
- * - `XH_FORM_UNKNOWN_PROPERTY` / `XH_FORM_INVALID_PROPERTY`：属性没有描述 / 取值不符合描述。
- * - `XH_FORM_INVALID_INITIAL_VALUE`：初始值与字段的值形状不符。
- * - `XH_FORM_INVALID_KEY` / `XH_FORM_MISSING_KEY` / `XH_FORM_UNEXPECTED_KEY` / `XH_FORM_DUPLICATE_KEY`：数据键。
- * - `XH_FORM_INVALID_REGION` / `XH_FORM_REGION_COUNT` / `XH_FORM_CHILD_NOT_ALLOWED`：区域。
- * - `XH_FORM_TABLE_CELL_OUT_OF_BOUNDS` / `XH_FORM_TABLE_CELL_OVERLAP` / `XH_FORM_TABLE_CELL_GAP`：表格布局。
- * - `XH_FORM_INVALID_RULE` / `XH_FORM_RULE_NOT_APPLICABLE` / `XH_FORM_ACTION_NOT_APPLICABLE`：规则结构与适用性。
- * - `XH_FORM_INVALID_RANGE` / `XH_FORM_INVALID_PATTERN` / `XH_FORM_EMPTY_EXPRESSION` / `XH_FORM_EXPRESSION_ERROR`：规则取值。
- * - `XH_FORM_DEPENDENCY_WITHOUT_SOURCE`：声明了选项依赖却没有选项来源。
- * - `XH_FORM_UNKNOWN_DEPENDENCY` / `XH_FORM_SELF_DEPENDENCY` / `XH_FORM_DUPLICATE_DEPENDENCY`：选项依赖的键在所在作用域及其外层都找不到 / 指向字段自己 / 重复。
- * - `XH_FORM_TOO_DEEP`：嵌套层数超过上限。
- *
+ * 模板结构问题里表单专属的问题码（通用问题码见 designer-kit/schema 的 CommonIssueCode）：
+ * - `document.unsupportedVersion`：结构版本不受支持；`document.tooDeep`：嵌套层数超过上限。
+ * - `node.unknownKind` / `node.kindTypeMismatch`：种类没有登记 / 登记的类型与节点类型不符。
+ * - `region.childNotAllowed`：区域不收这种节点（如子表只收字段）。
+ * - `table.cellOutOfBounds` / `table.cellOverlap` / `table.cellGap`：表格布局的单元格越界、重叠、留空。
+ * - `rule.notApplicable`：校验规则不适用于字段的种类或值形状；`rule.boundsMissing`：长度或范围规则上下限都没给；
+ *   `rule.invalidRange`：下限大于上限；`rule.invalidPattern`：正则编译不过，参数 reason 给出原因。
+ * - `linkage.actionNotApplicable`：联动动作不适用于节点类型。
+ * - `expression.invalid`：表达式引擎报出问题，参数带上引擎的问题码与源码区间。
+ * - `field.dependencyWithoutSource`：声明了选项依赖却没有选项来源；`field.unknownDependency`：依赖的键在所在作用域及其外层都找不到；
+ *   `field.selfDependency`：依赖指向字段自己。
+ */
+export type FormSchemaProductCode
+  = | 'document.unsupportedVersion'
+    | 'document.tooDeep'
+    | 'node.unknownKind'
+    | 'node.kindTypeMismatch'
+    | 'region.childNotAllowed'
+    | 'table.cellOutOfBounds'
+    | 'table.cellOverlap'
+    | 'table.cellGap'
+    | 'rule.notApplicable'
+    | 'rule.boundsMissing'
+    | 'rule.invalidRange'
+    | 'rule.invalidPattern'
+    | 'linkage.actionNotApplicable'
+    | 'expression.invalid'
+    | 'field.dependencyWithoutSource'
+    | 'field.unknownDependency'
+    | 'field.selfDependency'
+
+/** 模板结构问题的问题码：通用问题码加表单专属问题码。 */
+export type FormSchemaIssueCode = CommonIssueCode | FormSchemaProductCode
+
+/** 一条模板结构问题：路径从文档根算起，节点、区域、规则用 target 标出（kind 为 node、region、rule）。 */
+export type FormSchemaIssue = SchemaIssue<FormSchemaIssueCode>
+
+/**
  * 值校验与联动的问题码：
  * - `XH_FORM_VALUE_REQUIRED`、`XH_FORM_VALUE_NOT_ACCEPTED`、`XH_FORM_VALUE_TOO_SHORT`、`XH_FORM_VALUE_TOO_LONG`、
  *   `XH_FORM_VALUE_TOO_SMALL`、`XH_FORM_VALUE_TOO_LARGE`、`XH_FORM_VALUE_PATTERN_MISMATCH`、`XH_FORM_VALUE_EXPRESSION_FALSE`：值不满足规则。
  * - `XH_FORM_VALUE_TYPE_MISMATCH`：值的形状与字段不符，规则无法判定。
+ * - `XH_FORM_INVALID_PATTERN`：校验时正则编译不过。
  * - `XH_FORM_EXPRESSION_FAILED`：求值失败；`XH_FORM_CONDITION_NOT_BOOLEAN`：条件结果不是布尔或 null。
  */
 export type FormIssueCode
-  = | 'XH_FORM_INVALID_DOCUMENT'
-    | 'XH_FORM_SCHEMA_VERSION'
-    | 'XH_FORM_INVALID_NODE'
-    | 'XH_FORM_UNKNOWN_NODE_FIELD'
-    | 'XH_FORM_DUPLICATE_ID'
-    | 'XH_FORM_UNKNOWN_KIND'
-    | 'XH_FORM_KIND_TYPE_MISMATCH'
-    | 'XH_FORM_UNKNOWN_PROPERTY'
-    | 'XH_FORM_INVALID_PROPERTY'
-    | 'XH_FORM_INVALID_INITIAL_VALUE'
-    | 'XH_FORM_INVALID_KEY'
-    | 'XH_FORM_MISSING_KEY'
-    | 'XH_FORM_UNEXPECTED_KEY'
-    | 'XH_FORM_DUPLICATE_KEY'
-    | 'XH_FORM_INVALID_REGION'
-    | 'XH_FORM_REGION_COUNT'
-    | 'XH_FORM_CHILD_NOT_ALLOWED'
-    | 'XH_FORM_TABLE_CELL_OUT_OF_BOUNDS'
-    | 'XH_FORM_TABLE_CELL_OVERLAP'
-    | 'XH_FORM_TABLE_CELL_GAP'
-    | 'XH_FORM_INVALID_RULE'
-    | 'XH_FORM_RULE_NOT_APPLICABLE'
-    | 'XH_FORM_ACTION_NOT_APPLICABLE'
-    | 'XH_FORM_INVALID_RANGE'
-    | 'XH_FORM_INVALID_PATTERN'
-    | 'XH_FORM_EMPTY_EXPRESSION'
-    | 'XH_FORM_EXPRESSION_ERROR'
-    | 'XH_FORM_TOO_DEEP'
-    | 'XH_FORM_DEPENDENCY_WITHOUT_SOURCE'
-    | 'XH_FORM_UNKNOWN_DEPENDENCY'
-    | 'XH_FORM_SELF_DEPENDENCY'
-    | 'XH_FORM_DUPLICATE_DEPENDENCY'
+  = | 'XH_FORM_INVALID_PATTERN'
     | 'XH_FORM_VALUE_REQUIRED'
     | 'XH_FORM_VALUE_NOT_ACCEPTED'
     | 'XH_FORM_VALUE_TOO_SHORT'
@@ -78,7 +70,7 @@ export type FormIssueCode
 /** 问题附带的定位数据：名字、数量、区间，不放文案。 */
 export type FormIssueData = Readonly<Record<string, string | number>>
 
-/** 一条表单问题。 */
+/** 一条值校验或联动问题。 */
 export interface FormIssue {
   readonly code: FormIssueCode
   readonly nodeId?: string

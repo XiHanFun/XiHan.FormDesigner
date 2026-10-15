@@ -72,7 +72,9 @@ describe('创建', () => {
     catch (error) {
       expect(error).toBeInstanceOf(FormRuntimeError)
       expect((error as FormRuntimeError).code).toBe('XH_FORM_RT_INVALID_DOCUMENT')
-      expect((error as FormRuntimeError).issues.map(issue => issue.code)).toEqual(['XH_FORM_INVALID_KEY'])
+      expect((error as FormRuntimeError).issues).toEqual([
+        { code: 'invalid-value', path: ['children', 0, 'key'], target: { kind: 'node', id: name.id }, severity: 'error', params: { key: '1bad' } },
+      ])
     }
   })
 
