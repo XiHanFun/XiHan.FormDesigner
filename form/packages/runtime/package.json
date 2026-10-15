@@ -1,0 +1,55 @@
+{
+  "name": "@xihanfun/form-runtime",
+  "type": "module",
+  "version": "0.0.0",
+  "description": "XiHan Form Designer runtime — Web Components for rendering, reading and validating forms.",
+  "author": {
+    "name": "XiHanFun",
+    "url": "https://github.com/XiHanFun"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/XiHanFun/XiHan.FormDesigner#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/XiHanFun/XiHan.FormDesigner.git",
+    "directory": "form/packages/runtime"
+  },
+  "bugs": {
+    "url": "https://github.com/XiHanFun/XiHan.FormDesigner/issues"
+  },
+  "keywords": [
+    "form",
+    "form-designer",
+    "form-builder",
+    "form-renderer",
+    "web-components",
+    "xihanfun"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@xihanfun/form-core": "workspace:^"
+  }
+}
