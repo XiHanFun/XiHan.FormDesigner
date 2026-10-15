@@ -5,12 +5,12 @@
 
 // 值校验：按声明式规则逐个字段实例核对表单值，隐藏或禁用的实例不校验。
 
-import type { ExpressionEngine } from './expression'
+import type { EngineCompileResult, ExpressionEngine } from './expression'
 import type { FormIssue, FormIssueCode } from './issues'
 import type { JsonValue } from './json'
 import type { NodeState } from './linkage'
 import type { ContainerNode, FieldNode, FormDocument, FormNode, ValidationRule } from './schema'
-import { RUNTIME_VARIABLES } from './expression'
+import { evaluateSource, RUNTIME_VARIABLES } from './expression'
 import { formIssue } from './issues'
 import { isPlainObject } from './json'
 import { conditionOf, instanceKey } from './linkage'
@@ -65,6 +65,7 @@ class ValueValidator {
   private readonly root: Readonly<Record<string, JsonValue>>
   private readonly options: ValidateValuesOptions
   private readonly patterns = new Map<string, RegExp | null>()
+  private readonly compiled = new Map<string, EngineCompileResult>()
 
   constructor(root: Readonly<Record<string, JsonValue>>, options: ValidateValuesOptions) {
     this.root = root
@@ -150,10 +151,10 @@ class ValueValidator {
       scope[RUNTIME_VARIABLES.row] = frame.row
       scope[RUNTIME_VARIABLES.index] = frame.rowPath[frame.rowPath.length - 1]
     }
-    const outcome = engine.evaluate(rule.expression, scope)
+    const outcome = evaluateSource(engine, this.compiled, rule.expression, scope)
     const met = conditionOf(outcome)
     if (met === 'failed' && !outcome.ok)
-      this.report('XH_FORM_EXPRESSION_FAILED', node, path, rule, { expressionCode: outcome.problem.code, start: outcome.problem.start, end: outcome.problem.end })
+      this.report('XH_FORM_EXPRESSION_FAILED', node, path, rule, { expressionCode: outcome.issue.code, start: outcome.issue.start, end: outcome.issue.end })
     else if (met === 'not-boolean')
       this.report('XH_FORM_CONDITION_NOT_BOOLEAN', node, path, rule)
     else if (outcome.ok && outcome.value === false)

@@ -99,6 +99,27 @@ describe('联动：宿主强制设定与引擎', () => {
   })
 })
 
+describe('联动：经引擎编译', () => {
+  it('同一次联动里同一源码只编译一次，编译失败按求值失败报出', () => {
+    const { registry, ids } = setup()
+    const qty = linked(fieldOf(registry, ids, 'number', 'qty'), [{ id: 'a', action: 'disable', when: 'locked' }, { id: 'b', action: 'hide', when: 'bad @@' }])
+    const lines = withChildren(containerOf(registry, ids, 'subtable', 'lines'), 0, [qty])
+    const engine = createFakeEngine({ locked: false })
+    let compiles = 0
+    const counting = { compile: (source: string) => {
+      compiles += 1
+      return engine.compile(source)
+    } }
+    const result = resolveLinkage(documentOf([lines]), { lines: [{ qty: 1 }, { qty: 2 }, { qty: 3 }] }, { engine: counting })
+    expect(compiles).toBe(2)
+    expect(result.issues.map(issue => [issue.code, issue.data?.expressionCode, issue.data?.instance])).toEqual([
+      ['XH_FORM_EXPRESSION_FAILED', 'SYNTAX', `${qty.id}#0`],
+      ['XH_FORM_EXPRESSION_FAILED', 'SYNTAX', `${qty.id}#1`],
+      ['XH_FORM_EXPRESSION_FAILED', 'SYNTAX', `${qty.id}#2`],
+    ])
+  })
+})
+
 describe('联动：赋值', () => {
   it('赋值写进工作副本，后面的表达式读到新值，输入不被修改', () => {
     const { registry, ids } = setup()
