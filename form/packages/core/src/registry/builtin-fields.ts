@@ -32,6 +32,7 @@ const TEXT_RULES: readonly ValidationKind[] = ['required', 'length', 'pattern', 
 const NUMBER_RULES: readonly ValidationKind[] = ['required', 'range', 'expression']
 const CHOICE_RULES: readonly ValidationKind[] = ['required', 'length', 'expression']
 const PLAIN_RULES: readonly ValidationKind[] = ['required', 'expression']
+const BOOLEAN_RULES: readonly ValidationKind[] = ['required', 'accepted', 'expression']
 
 interface FieldSpec {
   readonly kind: string
@@ -224,7 +225,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     kind: 'checkbox',
     category: 'choice',
     element: 'xh-checkbox',
-    validations: PLAIN_RULES,
+    validations: BOOLEAN_RULES,
     valueKind: 'boolean',
     emptyValue: false,
   }),
@@ -232,7 +233,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     kind: 'switch',
     category: 'choice',
     element: 'xh-switch',
-    validations: PLAIN_RULES,
+    validations: BOOLEAN_RULES,
     valueKind: 'boolean',
     emptyValue: false,
   }),

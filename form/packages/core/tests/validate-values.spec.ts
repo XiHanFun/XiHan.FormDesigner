@@ -1,6 +1,6 @@
 import type { FieldNode, FormNode, ValidationRule } from '../src'
 import { describe, expect, it } from 'vitest'
-import { isEmptyValue, resolveLinkage, validateValues } from '../src'
+import { resolveLinkage, validateValues } from '../src'
 import { createFakeEngine } from './fake-engine'
 import { containerOf, documentOf, fieldOf, setup, withChildren } from './helpers'
 
@@ -13,12 +13,23 @@ function codes(document: ReturnType<typeof documentOf>, values: Record<string, n
 }
 
 describe('空值', () => {
-  it.each([null, undefined, '', '  \n', false, [], ['', ''], [null]])('%j 为空', (value) => {
-    expect(isEmptyValue(value)).toBe(true)
+  it.each([null, '', '  \n', ' ', '　　'])('文本 %j 算空，必填报出', (value) => {
+    const { registry, ids } = setup()
+    const name = ruled(fieldOf(registry, ids, 'text', 'name'), [{ id: 'r', kind: 'required' }])
+    expect(codes(documentOf([name]), { name: value })).toEqual(['XH_FORM_VALUE_REQUIRED'])
   })
 
-  it.each([0, 'a', true, ['a', ''], [0], { strokes: [] }])('%j 不为空', (value) => {
-    expect(isEmptyValue(value)).toBe(false)
+  it.each([[[]], [['', '  ']], [[null]]])('列表 %j 算空，必填报出', (value) => {
+    const { registry, ids } = setup()
+    const tags = ruled(fieldOf(registry, ids, 'tags', 'tags'), [{ id: 'r', kind: 'required' }])
+    expect(codes(documentOf([tags]), { tags: value })).toEqual(['XH_FORM_VALUE_REQUIRED'])
+  })
+
+  it('false 与 0 不算空', () => {
+    const { registry, ids } = setup()
+    const agree = ruled(fieldOf(registry, ids, 'checkbox', 'agree'), [{ id: 'r', kind: 'required' }])
+    const count = ruled(fieldOf(registry, ids, 'number', 'count'), [{ id: 'r2', kind: 'required' }])
+    expect(codes(documentOf([agree, count]), { agree: false, count: 0 })).toEqual([])
   })
 })
 
@@ -32,11 +43,22 @@ describe('值校验：内置规则', () => {
     expect(validateValues(documentOf([name]), { name: 'x' })).toEqual([])
   })
 
-  it('勾选框必填即必须勾上', () => {
+  it('必须为 true：false 与空值都报出，带上规则 id 与提示', () => {
     const { registry, ids } = setup()
-    const agree = ruled(fieldOf(registry, ids, 'checkbox', 'agree'), [{ id: 'r', kind: 'required' }])
-    expect(codes(documentOf([agree]), { agree: false })).toEqual(['XH_FORM_VALUE_REQUIRED'])
+    const agree = ruled(fieldOf(registry, ids, 'checkbox', 'agree'), [{ id: 'a', kind: 'accepted', message: '请先同意协议' }])
+    expect(validateValues(documentOf([agree]), { agree: false })).toEqual([
+      { code: 'XH_FORM_VALUE_NOT_ACCEPTED', nodeId: agree.id, ruleId: 'a', path: ['agree'], message: '请先同意协议' },
+    ])
+    expect(codes(documentOf([agree]), { agree: null })).toEqual(['XH_FORM_VALUE_NOT_ACCEPTED'])
+    expect(codes(documentOf([agree]), { agree: 'yes' })).toEqual(['XH_FORM_VALUE_TYPE_MISMATCH'])
     expect(codes(documentOf([agree]), { agree: true })).toEqual([])
+  })
+
+  it('必须为 true 的字段被隐藏或禁用时不校验', () => {
+    const { registry, ids } = setup()
+    const field = fieldOf(registry, ids, 'switch', 'agree')
+    const agree = ruled({ ...field, basic: { ...field.basic, hidden: true } }, [{ id: 'a', kind: 'accepted' }])
+    expect(codes(documentOf([agree]), { agree: false })).toEqual([])
   })
 
   it('值为空且不必填时跳过其余规则', () => {
@@ -45,13 +67,14 @@ describe('值校验：内置规则', () => {
     expect(codes(documentOf([name]), { name: '' })).toEqual([])
   })
 
-  it('长度按码点数文本、按元素数列表', () => {
+  it('长度按字素数文本、按元素数列表', () => {
     const { registry, ids } = setup()
     const name = ruled(fieldOf(registry, ids, 'text', 'name'), [{ id: 'l', kind: 'length', min: 2, max: 3 }])
-    expect(validateValues(documentOf([name]), { name: '😀' })).toEqual([
+    expect(validateValues(documentOf([name]), { name: '👨‍👩‍👧‍👦' })).toEqual([
       { code: 'XH_FORM_VALUE_TOO_SHORT', nodeId: name.id, ruleId: 'l', path: ['name'], data: { min: 2, actual: 1 } },
     ])
     expect(codes(documentOf([name]), { name: '😀😀😀' })).toEqual([])
+    expect(codes(documentOf([name]), { name: 'é🇨🇳👨‍👩‍👧‍👦' })).toEqual([])
     expect(codes(documentOf([name]), { name: 'abcd' })).toEqual(['XH_FORM_VALUE_TOO_LONG'])
     const tags = ruled(fieldOf(registry, ids, 'tags', 'tags'), [{ id: 'l', kind: 'length', max: 1 }])
     expect(codes(documentOf([tags]), { tags: ['a', 'b'] })).toEqual(['XH_FORM_VALUE_TOO_LONG'])

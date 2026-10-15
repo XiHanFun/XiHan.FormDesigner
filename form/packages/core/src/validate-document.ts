@@ -41,6 +41,7 @@ const NODE_FIELDS: Readonly<Record<NodeType, readonly string[]>> = {
 const REGION_FIELDS = ['id', 'props', 'children']
 const RULE_FIELDS: Readonly<Record<ValidationKind, readonly string[]>> = {
   required: ['id', 'kind', 'message'],
+  accepted: ['id', 'kind', 'message'],
   length: ['id', 'kind', 'min', 'max', 'message'],
   range: ['id', 'kind', 'min', 'max', 'message'],
   pattern: ['id', 'kind', 'pattern', 'flags', 'message'],
@@ -360,6 +361,7 @@ class DocumentChecker {
         this.expression(rule.expression, { nodeId, ruleId: rule.id, part: 'expression', hasValue: true, inList })
         break
       case 'required':
+      case 'accepted':
         break
     }
   }
@@ -375,6 +377,8 @@ class DocumentChecker {
       return LENGTH_KINDS.has(valueKind)
     if (kind === 'range')
       return valueKind === 'number'
+    if (kind === 'accepted')
+      return valueKind === 'boolean'
     return valueKind === 'string'
   }
 

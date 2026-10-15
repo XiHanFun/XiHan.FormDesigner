@@ -63,6 +63,9 @@ importers:
       '@xihan-ui/expression':
         specifier: link:../../../../XiHan.UI/ui/packages/features/expression
         version: link:../../../../XiHan.UI/ui/packages/features/expression
+      '@xihan-ui/headless':
+        specifier: link:../../../../XiHan.UI/ui/packages/engine/headless
+        version: link:../../../../XiHan.UI/ui/packages/engine/headless
 
   packages/designer:
     dependencies:

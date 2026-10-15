@@ -10,6 +10,7 @@ import type { FormIssue, FormIssueCode } from './issues'
 import type { JsonValue } from './json'
 import type { NodeState } from './linkage'
 import type { ContainerNode, FieldNode, FormDocument, FormNode, ValidationRule } from './schema'
+import { graphemeLength, isEmptyFormValue } from '@xihan-ui/headless'
 import { evaluateSource, RUNTIME_VARIABLES } from './expression'
 import { formIssue } from './issues'
 import { isPlainObject } from './json'
@@ -31,23 +32,9 @@ export interface ValidateValuesOptions {
   readonly variables?: Readonly<Record<string, unknown>>
 }
 
-/**
- * 值是否为空：`null`、`undefined`、只含空白的字符串、`false`、空列表，
- * 以及元素全都为空的列表（如两端都没选的区间）。
- */
-export function isEmptyValue(value: unknown): boolean {
-  if (value === null || value === undefined || value === false)
-    return true
-  if (typeof value === 'string')
-    return value.trim() === ''
-  if (Array.isArray(value))
-    return value.every(isEmptyValue)
-  return false
-}
-
 function lengthOf(value: unknown): number | null {
   if (typeof value === 'string')
-    return [...value].length
+    return graphemeLength(value)
   return Array.isArray(value) ? value.length : null
 }
 
@@ -109,6 +96,12 @@ class ValueValidator {
     switch (rule.kind) {
       case 'required':
         return
+      case 'accepted':
+        if (typeof value !== 'boolean')
+          this.report('XH_FORM_VALUE_TYPE_MISMATCH', node, path, rule)
+        else if (!value)
+          this.report('XH_FORM_VALUE_NOT_ACCEPTED', node, path, rule)
+        return
       case 'length': {
         const length = lengthOf(value)
         if (length === null)
@@ -165,10 +158,14 @@ class ValueValidator {
     const key = node.key as string
     const value = frame.scope[key] ?? null
     const path = [...frame.path, key]
-    if (isEmptyValue(value)) {
+    if (isEmptyFormValue(value)) {
       if (state.required) {
         const rule = node.validation.find(item => item.kind === 'required')
         this.report('XH_FORM_VALUE_REQUIRED', node, path, rule)
+      }
+      for (const rule of node.validation) {
+        if (rule.kind === 'accepted')
+          this.report('XH_FORM_VALUE_NOT_ACCEPTED', node, path, rule)
       }
       return value
     }
@@ -214,7 +211,7 @@ class ValueValidator {
 
 /**
  * 按声明式规则校验表单值，返回全部问题。隐藏或禁用的实例连同其后代都不校验；
- * 值为空时只看必填，其余规则跳过；必填由节点状态决定，联动可以加上或去掉。
+ * 值为空时只看必填与 accepted（必须为 true），其余规则跳过；必填由节点状态决定，联动可以加上或去掉。
  * 正则整串匹配。有表达式规则却没有提供 engine 时抛 `TypeError`。
  */
 export function validateValues(document: FormDocument, values: Readonly<Record<string, JsonValue>>, options: ValidateValuesOptions = {}): readonly ValueIssue[] {
