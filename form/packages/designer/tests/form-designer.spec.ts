@@ -452,3 +452,40 @@ describe('<xh-form-designer>：栅格跨度', () => {
     expect(designer.canUndo).toBe(false)
   })
 })
+
+describe('<xh-form-designer>：右键菜单', () => {
+  it('右键先选中节点并派发可取消事件；不取消时按选择列出内建菜单，选中条目执行命令', async () => {
+    const { document, name, card } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    const menu = designer.querySelector('xh-context-menu') as HTMLElement & { collection?: { value: string, disabled: boolean }[], updateComplete: Promise<unknown> }
+    const opened = events(designer, 'node-contextmenu')
+    const right = (target: Element): MouseEvent => {
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 20 })
+      target.dispatchEvent(event)
+      return event
+    }
+    const native = right(block(designer, name.id).querySelector('[data-part="node-body"]')!)
+    expect(native.defaultPrevented).toBe(true)
+    expect(designer.getSelection()).toEqual({ nodes: [name.id] })
+    expect(opened).toEqual([{ id: name.id, x: 10, y: 20 }])
+    await menu.updateComplete
+    expect(menu.collection!.map(entry => entry.value)).toContain('move-down')
+    expect(menu.querySelectorAll('[data-xh-part="item"], [data-part="item"]')).toHaveLength(menu.collection!.length)
+    menu.dispatchEvent(new CustomEvent('select', { bubbles: true, detail: { value: 'move-down' } }))
+    expect(designer.schema.children.map(node => node.id)).toEqual([card.id, name.id])
+  })
+
+  it('宿主取消 node-contextmenu 时不换内建菜单的条目', async () => {
+    const { document, name } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    designer.addEventListener('node-contextmenu', event => event.preventDefault())
+    block(designer, name.id).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
+    const menu = designer.querySelector('xh-context-menu') as HTMLElement & { collection?: unknown[], updateComplete: Promise<unknown> }
+    await menu.updateComplete
+    expect(menu.collection!.map(entry => (entry as { value: string }).value)).toEqual(['paste'])
+  })
+})

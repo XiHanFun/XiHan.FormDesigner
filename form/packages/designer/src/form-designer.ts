@@ -16,6 +16,7 @@ import type { DesignerFrameRegion, DesignerIssuesEventMap, DesignerPaletteEventM
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
 import type { CanvasDrop, CanvasTarget } from './canvas'
+import type { MenuCommand } from './context-menu'
 import type { FormClipboard, FormDropTarget, FormEditor, FormSelection } from './editor'
 import type { FormCanvasDragPayload } from './palette'
 import type { FormPropertyEditor, PropertyView } from './properties'
@@ -28,6 +29,7 @@ import { createPointerSession } from '@xihan-ui/pointer'
 import { createAuthoredElement, emitEvent, registerElement, setAttributes, setText, SVG_NS, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { DesignCanvas, spanColumns } from './canvas'
 import { readFormClipboard, writeFormClipboard } from './clipboard'
+import { menuEntries, menuLabel } from './context-menu'
 import { createFormEditor } from './editor'
 import { issueFocus, issueItems } from './issues'
 import { dragSubject, paletteGroups, paletteKind } from './palette'
@@ -109,6 +111,10 @@ interface DesignerParts {
   readonly inspector: XhDesignerPropertiesElement
   readonly issues: HTMLElement
   readonly problems: XhDesignerIssuesElement
+  /** 内建右键菜单：触发区不可交互，由画布的右键在指针处打开。 */
+  readonly menu: HTMLElement & { collection?: unknown, updateComplete?: Promise<unknown> }
+  readonly menuTrigger: HTMLElement
+  readonly menuContent: HTMLElement
 }
 
 function sameIssues(a: readonly FormSchemaIssue[], b: readonly FormSchemaIssue[]): boolean {
@@ -371,7 +377,15 @@ export class XhFormDesigner extends XhReactiveElement {
     const properties = createAuthoredElement(doc, 'div', { 'data-part': 'properties', 'slot': 'properties' }, [inspector])
     const problems = createAuthoredElement(doc, 'xh-designer-issues', { 'data-part': 'problems', 'group-by': 'target' })
     const issues = createAuthoredElement(doc, 'div', { 'data-part': 'issues', 'slot': 'issues' }, [problems])
-    const frame = createAuthoredElement(doc, 'xh-designer-frame', { 'data-part': 'frame', 'role': 'application' }, [toolbar, palette, canvas, properties, issues])
+    const menuTrigger = createAuthoredElement(doc, 'div', { 'data-xh-part': 'trigger', 'inert': true })
+    const menuContent = createAuthoredElement(doc, 'div', { 'data-xh-part': 'content' })
+    const menu = createAuthoredElement(doc, 'xh-context-menu', { 'data-part': 'menu', 'size': 'sm' }, [
+      createAuthoredElement(doc, 'div', { 'data-xh-part': 'root' }, [menuTrigger, createAuthoredElement(doc, 'div', { 'data-xh-part': 'positioner' }, [menuContent])]),
+    ])
+    this.#fillMenu({ menu, menuContent })
+    menu.addEventListener('select', this.#onMenuSelect)
+    menu.addEventListener('open-change', this.#onMenuOpenChange)
+    const frame = createAuthoredElement(doc, 'xh-designer-frame', { 'data-part': 'frame', 'role': 'application' }, [toolbar, palette, canvas, properties, issues, menu])
     canvas.addEventListener('click', this.#onCanvasClick)
     canvas.addEventListener('dblclick', this.#onCanvasDblclick)
     canvas.addEventListener('contextmenu', this.#onCanvasContextMenu)
@@ -383,7 +397,7 @@ export class XhFormDesigner extends XhReactiveElement {
     inspector.addEventListener('property-change', this.#onPropertyChange)
     inspector.addEventListener('property-commit', this.#onPropertyCommit)
     this.replaceChildren(frame)
-    this.#parts = { frame, toolbar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), properties, inspector, issues, problems }
+    this.#parts = { frame, toolbar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), properties, inspector, issues, problems, menu, menuTrigger, menuContent }
     return this.#parts
   }
 
@@ -765,16 +779,156 @@ export class XhFormDesigner extends XhReactiveElement {
       emitEvent(this, 'node-dblclick', { id: target.id })
   }
 
+  /**
+   * 右键：指针落在选择之外的节点或区域上时先选中它，落在空白处时清空选择；用键盘打开时照当前选择，菜单贴在选中节点下方。
+   * 先派发可取消的 node-contextmenu / blank-contextmenu，宿主不取消时在指针处打开内建菜单；浏览器自己的菜单一律不出。
+   */
   readonly #onCanvasContextMenu = (event: MouseEvent): void => {
     if ((this.mode ?? 'design') !== 'design')
       return
+    event.preventDefault()
+    const keyboard = event.target === this.#parts?.canvas
     const target = this.#canvas.targetOf(event.target)
-    const position = { x: event.clientX, y: event.clientY }
-    const proceed = target.kind === 'node'
-      ? emitEvent(this, 'node-contextmenu', { id: target.id, ...position }, { cancelable: true })
+    const selection = this.#editor.selection
+    if (target.kind === 'node' && !selection.nodes.includes(target.id))
+      this.#editor.select({ nodes: [target.id] })
+    else if (target.kind === 'region' && !(selection.regions ?? []).includes(target.id))
+      this.#editor.select({ regions: [target.id] })
+    else if (target.kind === 'blank' && !keyboard)
+      this.#editor.clearSelection()
+    this.#requestMenu(target.kind === 'node' ? target.id : undefined, keyboard ? this.#selectionAnchor() : { x: event.clientX, y: event.clientY })
+  }
+
+  /** 派发可取消的 node-contextmenu（给了节点时）或 blank-contextmenu，宿主不取消时在 position 处打开内建菜单。 */
+  #requestMenu(node: string | undefined, position: { readonly x: number, readonly y: number }): void {
+    const proceed = node !== undefined
+      ? emitEvent(this, 'node-contextmenu', { id: node, ...position }, { cancelable: true })
       : emitEvent(this, 'blank-contextmenu', position, { cancelable: true })
-    if (!proceed)
-      event.preventDefault()
+    if (proceed)
+      void this.#openMenu(position)
+  }
+
+  /** 用键盘打开菜单时的锚点：选中节点或区域的左下角，没有选择时是画布左上角。 */
+  #selectionAnchor(): { x: number, y: number } {
+    const selection = this.#editor.selection
+    const region = selection.regions?.[0]
+    const node = selection.nodes.at(-1)
+    const element = (region === undefined ? undefined : this.#canvas.regionElement(region)) ?? (node === undefined ? undefined : this.#canvas.nodeElement(node)) ?? this.#parts?.canvas
+    const rect = element?.getBoundingClientRect()
+    return rect === undefined ? { x: 0, y: 0 } : { x: rect.left, y: rect.bottom }
+  }
+
+  /** 按当前选择列出条目，再在触发区上补一次右键，让菜单在 point 处打开。 */
+  async #openMenu(point: { readonly x: number, readonly y: number }): Promise<void> {
+    const parts = this.#ensureParts()
+    this.#fillMenu(parts)
+    await parts.menu.updateComplete
+    parts.menuTrigger.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: point.x, clientY: point.y }))
+  }
+
+  /** 按当前选择写出菜单条目与条目数据；菜单元素至少要有一条，建好时也照此填一次。 */
+  #fillMenu(parts: Pick<DesignerParts, 'menu' | 'menuContent'>): void {
+    const t = this.#t()
+    const entries = menuEntries({ document: this.#editor.document, registry: this.#editor.registry, selection: this.#editor.selection, readonly: this.readonly === true, canPaste: this.canPaste })
+    const doc = this.ownerDocument
+    const children: HTMLElement[] = []
+    for (const entry of entries) {
+      if (entry.separatorBefore === true && children.length > 0)
+        children.push(createAuthoredElement(doc, 'div', { 'data-xh-part': 'separator' }))
+      children.push(createAuthoredElement(doc, 'div', { 'data-xh-part': 'item', 'value': entry.value }, [
+        createAuthoredElement(doc, 'span', { 'data-xh-part': 'item-text' }, [menuLabel(entry.value, t)]),
+      ]))
+    }
+    parts.menuContent.replaceChildren(...children)
+    parts.menu.collection = entries.map(entry => ({ value: entry.value, label: menuLabel(entry.value, t), disabled: entry.disabled, ...(entry.tone === undefined ? {} : { tone: entry.tone }) }))
+  }
+
+  readonly #onMenuSelect = (event: Event): void => {
+    if (!(event instanceof CustomEvent))
+      return
+    event.stopPropagation()
+    this.#runCommand((event as CustomEvent<{ value: string }>).detail.value as MenuCommand)
+    this.#parts?.canvas.focus({ preventScroll: true })
+  }
+
+  /** 菜单收起后的下一帧，焦点还在菜单里或已经丢了时交回画布；菜单自己的焦点归还在收起那一拍之后。 */
+  readonly #onMenuOpenChange = (event: Event): void => {
+    event.stopPropagation()
+    if ((event as CustomEvent<{ open: boolean }>).detail.open)
+      return
+    this.ownerDocument.defaultView?.requestAnimationFrame(() => {
+      const active = this.ownerDocument.activeElement
+      if (active === null || active === this.ownerDocument.body || this.#parts?.menu.contains(active))
+        this.#parts?.canvas.focus({ preventScroll: true })
+    })
+  }
+
+  /** 执行菜单命令；表格命令作用在选中的单元格所在的表格上。 */
+  #runCommand(command: MenuCommand): void {
+    const selection = this.#editor.selection
+    const node = selection.nodes.at(-1)
+    const regions = selection.regions ?? []
+    const cell = regions[0] === undefined ? undefined : findRegion(this.#editor.document, regions[0])
+    const row = typeof cell?.region.props.row === 'number' ? cell.region.props.row : 0
+    const column = typeof cell?.region.props.column === 'number' ? cell.region.props.column : 0
+    const rowSpan = typeof cell?.region.props.rowSpan === 'number' ? cell.region.props.rowSpan : 1
+    const columnSpan = typeof cell?.region.props.columnSpan === 'number' ? cell.region.props.columnSpan : 1
+    switch (command) {
+      case 'copy':
+        this.copy()
+        return
+      case 'cut':
+        this.cut()
+        return
+      case 'paste':
+        this.paste()
+        return
+      case 'duplicate':
+        this.duplicate()
+        return
+      case 'delete':
+        this.deleteSelection()
+        return
+      case 'select-parent': {
+        const parent = this.#parentOf(selection)
+        if (parent !== undefined)
+          this.#editor.select({ nodes: [parent] })
+        return
+      }
+      case 'move-up':
+      case 'move-down':
+        if (node !== undefined)
+          this.#moveBy(node, command === 'move-up' ? -1 : 1)
+        return
+    }
+    if (cell === undefined || this.readonly === true)
+      return
+    const table = cell.container.id
+    switch (command) {
+      case 'merge-cells':
+        this.#editor.mergeCells(table, regions)
+        return
+      case 'split-cell':
+        this.#editor.splitCell(table, cell.region.id)
+        return
+      case 'insert-row-above':
+        this.#editor.insertTableLine(table, 'row', row)
+        return
+      case 'insert-row-below':
+        this.#editor.insertTableLine(table, 'row', row + rowSpan)
+        return
+      case 'insert-column-left':
+        this.#editor.insertTableLine(table, 'column', column)
+        return
+      case 'insert-column-right':
+        this.#editor.insertTableLine(table, 'column', column + columnSpan)
+        return
+      case 'remove-row':
+        this.#editor.removeTableLine(table, 'row', row)
+        return
+      case 'remove-column':
+        this.#editor.removeTableLine(table, 'column', column)
+    }
   }
 
   /** 点开一条问题：选中它所在的节点、区域或表单设置，滚到它，再把焦点交给属性面板上对应的字段。 */
@@ -926,10 +1080,15 @@ export class XhFormDesigner extends XhReactiveElement {
     event.preventDefault()
   }
 
-  /** 方向键在同一层里移动选择，Alt 加方向键移动节点，Enter 选第一个子节点，Esc 选上一级再清空。 */
+  /** 方向键在同一层里移动选择，Alt 加方向键移动节点，Enter 选第一个子节点，Esc 选上一级再清空；菜单键与 Shift+F10 打开右键菜单。 */
   readonly #onKeyDown = (event: KeyboardEvent): void => {
     if ((this.mode ?? 'design') !== 'design')
       return
+    if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey)) {
+      event.preventDefault()
+      this.#requestMenu(this.#editor.selection.nodes.at(-1), this.#selectionAnchor())
+      return
+    }
     const command = event.ctrlKey || event.metaKey
     if (command && !event.altKey && this.#onCommandKey(event)) {
       event.preventDefault()
