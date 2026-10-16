@@ -226,6 +226,28 @@ describe('<xh-form-renderer>：值与事件', () => {
     expect(renderer.controller!.getIssues().map(issue => issue.code)).toEqual(['XH_FORM_VALUE_REQUIRED'])
   })
 
+  it('提示与错误文案落在 xh-field 的说明与错误部件上，并接到控件的输入框', async () => {
+    const { registry, ids } = setup()
+    const name = field(registry, ids, 'text', 'name', { basic: { label: '姓名', hint: '与证件一致' }, validation: [{ id: 'r1', kind: 'required' }] })
+    setXhConfig(formZhCN)
+    const renderer = await mount((element) => {
+      element.schema = documentOf([name])
+    })
+    renderer.validate()
+    await renderer.updateComplete
+    const shell = group(renderer, ['name']).querySelector('xh-field')!
+    await (shell as HTMLElement & { updateComplete?: Promise<boolean> }).updateComplete
+    const description = shell.querySelector('[data-xh-part="description"]')!
+    const error = shell.querySelector('[data-xh-part="error-text"]')!
+    const label = shell.querySelector('[data-xh-part="label"]')!
+    expect([description.textContent, error.textContent]).toEqual(['与证件一致', '此项必填'])
+    const input = shell.querySelector('xh-text-field input')!
+    const describedBy = input.getAttribute('aria-describedby')!.split(' ')
+    expect(describedBy).toEqual(expect.arrayContaining([description.id, error.id]))
+    expect(input.getAttribute('aria-labelledby')!.split(' ')).toContain(label.id)
+    expect(input.getAttribute('aria-invalid')).toBe('true')
+  })
+
   it('整表只读与禁用合进字段状态；表单设置里的也算', async () => {
     const { document } = sample()
     const renderer = await mount((element) => {

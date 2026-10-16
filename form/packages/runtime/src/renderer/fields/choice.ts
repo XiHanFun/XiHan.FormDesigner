@@ -12,7 +12,7 @@ import type { FieldRenderer, FieldRendererContext } from '../types'
 import type { ContextRef } from './shared'
 import { createGeneratedElement, reconcile } from '@xihan-ui/web-components/authoring'
 import { assign, attr, host, make, stringOf, text } from '../dom'
-import { fromList, on, paintCommon, paintLabel, toList } from './shared'
+import { fromList, on, paintCommon, toList } from './shared'
 
 function itemsOf(context: FieldRendererContext): readonly OptionItem[] {
   return context.options?.items ?? []
@@ -63,7 +63,6 @@ export const selectField: FieldRenderer = (context) => {
   const doc = context.document
   const multiple = context.node.data.multiple === true
   const element = host(doc, 'xh-select')
-  const label = make(doc, 'span', 'label')
   const trigger = make(doc, 'button', 'trigger', { type: 'button' })
   const tagList = make(doc, 'span', 'tag-list')
   const overflow = make(doc, 'span', 'overflow-tag')
@@ -79,9 +78,8 @@ export const selectField: FieldRenderer = (context) => {
   const positioner = make(doc, 'div', 'positioner')
   positioner.append(content)
   const root = make(doc, 'div', 'root')
-  root.append(label, control, positioner)
+  root.append(control, positioner)
   element.append(root)
-  paintLabel(label, context.node)
   if (multiple)
     assign(element, 'multiple', true)
   const syncOptions = optionSync(element, list, (owner) => {
@@ -124,11 +122,8 @@ function groupField(tag: 'xh-radio-group' | 'xh-checkbox-group', toUi: (value: u
   return (context) => {
     const doc = context.document
     const element = host(doc, tag)
-    const label = make(doc, 'span', 'label')
     const root = make(doc, 'div', 'root')
-    root.append(label)
     element.append(root)
-    paintLabel(label, context.node)
     assign(element, 'orientation', stringOf(context.node.appearance.orientation))
     const syncOptions = optionSync(element, root, (owner) => {
       const item = generated(owner, 'div', 'item')
@@ -168,7 +163,7 @@ export const toggleGroupField: FieldRenderer = (context) => {
   const doc = context.document
   const multiple = context.node.data.multiple === true
   const element = host(doc, 'xh-toggle-group')
-  const root = make(doc, 'div', 'root', { 'aria-label': stringOf(context.node.basic.label) ?? '' })
+  const root = make(doc, 'div', 'root')
   element.append(root)
   if (multiple)
     assign(element, 'multiple', true)
@@ -200,11 +195,7 @@ function checkable(tag: 'xh-checkbox' | 'xh-switch'): FieldRenderer {
       control.append(make(doc, 'span', 'indicator'), make(doc, 'input', 'hidden-input'))
     else
       control.append(make(doc, 'span', 'thumb'))
-    const caption = make(doc, 'span', 'text')
-    const label = make(doc, 'label', 'label')
-    label.append(control, caption)
-    element.append(label)
-    paintLabel(caption, context.node)
+    element.append(control)
     const ref: ContextRef = { current: context }
     on<{ checked: boolean }>(element, 'checked-change', detail => ref.current.setValue(detail.checked === true))
     const update = (next: FieldRendererContext): void => {
@@ -217,8 +208,8 @@ function checkable(tag: 'xh-checkbox' | 'xh-switch'): FieldRenderer {
   }
 }
 
-/** 勾选框：`xh-checkbox`，标签文字写在 text 部件里。 */
+/** 勾选框：`xh-checkbox`。 */
 export const checkboxField: FieldRenderer = checkable('xh-checkbox')
 
-/** 开关：`xh-switch`，标签文字写在 text 部件里。 */
+/** 开关：`xh-switch`。 */
 export const switchField: FieldRenderer = checkable('xh-switch')

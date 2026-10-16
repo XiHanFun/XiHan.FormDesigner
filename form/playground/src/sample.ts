@@ -74,7 +74,7 @@ const PROVINCES = [{ value: 'zj', label: '浙江' }, { value: 'js', label: '江�
 export function expenseForm(): FormDocument {
   const applicant = field('text', 'applicant', '申请人', { validation: [rule({ kind: 'required' }), rule({ kind: 'length', min: 2, max: 20 })] })
   const phone = field('text', 'phone', '手机号', {
-    basic: { placeholder: '11 位手机号' },
+    basic: { placeholder: '11 位手机号', hint: '用于接收审批结果短信' },
     data: { inputType: 'tel' },
     validation: [rule({ kind: 'required' }), rule({ kind: 'pattern', pattern: '^1\\d{10}$', message: '请输入 11 位手机号' })],
   })
@@ -91,7 +91,7 @@ export function expenseForm(): FormDocument {
   const amount = field('number', 'amount', '金额（元）', { data: { precision: 2, step: 100 }, validation: [rule({ kind: 'required' }), rule({ kind: 'range', min: 0.01, max: 100000 })] })
   const invoices = field('number', 'invoices', '发票张数', { data: { precision: 0 }, validation: [rule({ kind: 'expression', expression: '$value == null || $value <= 20', message: '一次最多报销 20 张发票' })] })
   const reason = field('textarea', 'reason', '事由', {
-    basic: { placeholder: '金额超过 5000 元时必填' },
+    basic: { placeholder: '金额超过 5000 元时必填', hint: '写清费用用途，财务审核时会对照发票' },
     appearance: { minRows: 2, maxRows: 6 },
     linkage: [linkage('require', 'amount > 5000')],
     validation: [rule({ kind: 'length', max: 200 })],

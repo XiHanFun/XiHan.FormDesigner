@@ -4,7 +4,8 @@
  */
 
 // <xh-form-renderer>：按表单模板渲染表单。值、联动、校验与选项都在表单控制器里，
-// 外层用 UI 的 <xh-form> 承担提交、错误摘要、落焦与整表的禁用、只读，它的 values 与 errors 由控制器驱动。
+// 外层用 UI 的 <xh-form> 承担提交、错误摘要、落焦与整表的禁用、只读，它的 values 与 errors 由控制器驱动；
+// 每个字段用 <xh-field> 包住控件，给出标签、提示与错误文案。
 
 import type { ContainerNode, FieldNode, FormDocument, FormNode, FormSchemaIssue, KindRegistry, NodeState, StaticNode, ValueIssue } from '@xihan-form/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
@@ -14,6 +15,7 @@ import type { FormController, FormEvent, GetFormDataOptions, LinkageIssue, SetFo
 import type { FormRuntimeErrorCode } from '../state/errors'
 import type { OptionLoader } from '../state/options'
 import type { FormRendererTranslations } from '../translations'
+import type { FieldShell } from './field-shell'
 import type { FieldRenderer, FieldRendererContext, FieldRendererInstance, FieldSize } from './types'
 import { createBuiltinKindRegistry } from '@xihan-form/core'
 import { isJsonPathPrefix, jsonEquals } from '@xihan-ui/core/json'
@@ -27,6 +29,7 @@ import { isListContainer } from '../state/paths'
 import { DEFAULT_FORM_RENDERER_TRANSLATIONS } from '../translations'
 import { CONTAINER_BUILDERS, STATIC_BUILDERS } from './containers'
 import { make, stringOf, text } from './dom'
+import { createFieldShell } from './field-shell'
 import { FORM_FIELD_RENDERERS } from './fields'
 import { issueMessage } from './messages'
 
@@ -100,6 +103,7 @@ interface FieldEntry {
   readonly group: HTMLElement
   readonly summary: HTMLElement
   readonly instance: FieldRendererInstance
+  readonly shell: FieldShell
 }
 
 interface NodeEntry {
@@ -407,14 +411,17 @@ export class XhFormRenderer extends XhReactiveElement {
     const group = make(doc, 'div', 'field-group', { 'data-path': data, 'data-xh-part-owner': 'form' })
     const item = make(doc, 'a', 'error-summary-item', { 'data-path': data })
     summary.append(item)
-    const instance = renderer(this.#contextOf(node, path))
-    group.append(instance.element)
+    const context = this.#contextOf(node, path)
+    const instance = renderer(context)
+    const shell = createFieldShell(doc, node, instance.element)
+    shell.update(context)
+    group.append(shell.element)
     group.addEventListener('focusout', (event) => {
       const next = (event as FocusEvent).relatedTarget
       if (!(next instanceof Node && group.contains(next)))
         this.#commit(path)
     })
-    const entry: FieldEntry = { node, path, key: node.id, group, summary: item, instance }
+    const entry: FieldEntry = { node, path, key: node.id, group, summary: item, instance, shell }
     this.#fields.set(pathKey(path), entry)
     this.#fieldsByKey.set(entry.key, entry)
     group.hidden = this.#controller!.getState(path)!.hidden
@@ -464,7 +471,9 @@ export class XhFormRenderer extends XhReactiveElement {
     if (entry === undefined || this.#controller === null)
       return
     entry.group.hidden = this.#controller.getState(entry.path)!.hidden
-    entry.instance.update?.(this.#contextOf(entry.node, entry.path))
+    const context = this.#contextOf(entry.node, entry.path)
+    entry.instance.update?.(context)
+    entry.shell.update(context)
   }
 
   #refreshAll(): void {

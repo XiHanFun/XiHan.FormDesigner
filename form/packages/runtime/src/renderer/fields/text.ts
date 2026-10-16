@@ -3,27 +3,25 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 文本类字段：单行与多行文本、密码、数字、验证码，部件树照 UI 文档的写法。
+// 文本类字段：单行与多行文本、密码、数字、验证码，部件树照 UI 文档的写法；标签、提示与错误由字段外壳给出。
 // 节点的属性在模板换掉前不变，建节点时写一次；update 只写值与状态。
 
 import type { FieldRenderer, FieldRendererContext } from '../types'
 import type { ContextRef } from './shared'
 import { assign, host, make, numberOf, stringOf } from '../dom'
-import { on, paintCommon, paintLabel, textValue } from './shared'
+import { on, paintCommon, textValue } from './shared'
 
-function labelled(context: FieldRendererContext, tag: string, control: HTMLElement): { element: HTMLElement, label: HTMLLabelElement } {
+function hosted(context: FieldRendererContext, tag: string, control: HTMLElement): HTMLElement {
   const doc = context.document
   const element = host(doc, tag)
-  const label = make(doc, 'label', 'label')
   const root = make(doc, 'div', 'root')
-  root.append(label, control)
+  root.append(control)
   element.append(root)
-  paintLabel(label, context.node)
-  return { element, label }
+  return element
 }
 
 function textual(context: FieldRendererContext, tag: string, control: HTMLElement, configure: (element: HTMLElement) => void): ReturnType<FieldRenderer> {
-  const { element } = labelled(context, tag, control)
+  const element = hosted(context, tag, control)
   configure(element)
   const ref: ContextRef = { current: context }
   on<{ value: string }>(element, 'value-change', detail => ref.current.setValue(detail.value))
@@ -67,7 +65,7 @@ export const numberField: FieldRenderer = (context) => {
   const doc = context.document
   const control = make(doc, 'div', 'control')
   control.append(make(doc, 'button', 'decrement-trigger', { type: 'button' }), make(doc, 'input', 'input'), make(doc, 'button', 'increment-trigger', { type: 'button' }))
-  const { element } = labelled(context, 'xh-number-field', control)
+  const element = hosted(context, 'xh-number-field', control)
   const precision = numberOf(context.node.data.precision)
   const format = (value: number): string => (precision === undefined ? String(value) : value.toFixed(precision))
   assign(element, 'step', numberOf(context.node.data.step))
@@ -93,7 +91,7 @@ export const pinField: FieldRenderer = (context) => {
   const cells = make(doc, 'div')
   for (let index = 0; index < length; index += 1)
     cells.append(make(doc, 'input', 'input'))
-  const { element } = labelled(context, 'xh-pin-input', cells)
+  const element = hosted(context, 'xh-pin-input', cells)
   assign(element, 'length', length)
   if (context.node.data.mask === true)
     assign(element, 'mask', true)
