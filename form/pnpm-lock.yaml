@@ -154,6 +154,9 @@ importers:
       '@xihan-ui/designer-kit':
         specifier: link:../../../XiHan.UI/ui/packages/features/designer-kit
         version: link:../../../XiHan.UI/ui/packages/features/designer-kit
+      '@xihan-ui/designer-shell':
+        specifier: link:../../../XiHan.UI/ui/packages/features/designer-shell
+        version: link:../../../XiHan.UI/ui/packages/features/designer-shell
       '@xihan-ui/styles':
         specifier: link:../../../XiHan.UI/ui/packages/design/styles
         version: link:../../../XiHan.UI/ui/packages/design/styles

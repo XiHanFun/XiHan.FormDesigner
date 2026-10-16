@@ -36,8 +36,14 @@ async function mount(setup: (designer: XhFormDesigner) => void): Promise<XhFormD
   setup(designer)
   window.document.body.append(designer)
   mounted.push(designer)
-  await designer.updateComplete
+  await settle(designer)
   return designer
+}
+
+/** 等设计器与外框都更新完。 */
+async function settle(designer: XhFormDesigner): Promise<void> {
+  await designer.updateComplete
+  await designer.querySelector('xh-designer-frame')!.updateComplete
 }
 
 function events<K extends keyof FormDesignerEventMap>(target: EventTarget, type: K): FormDesignerEventMap[K]['detail'][] {
@@ -172,12 +178,19 @@ describe('<xh-form-designer>：编辑', () => {
 })
 
 describe('<xh-form-designer>：面板与模式', () => {
-  it('panels 只控制可收起的面板，画布常驻', async () => {
+  it('panels 经外框收起面板，画布常驻；预览态只留工具栏', async () => {
     const designer = await mount((element) => {
-      element.panels = 'toolbar'
+      element.panels = 'toolbar properties'
     })
-    const part = (name: string): HTMLElement => designer.querySelector<HTMLElement>(`[data-part="${name}"]`)!
-    expect([part('toolbar').hidden, part('palette').hidden, part('properties').hidden, part('issues').hidden, part('canvas').hidden]).toEqual([false, true, true, true, false])
+    const shown = (): string[] => ['toolbar', 'palette', 'canvas', 'properties', 'issues'].filter(name => designer.querySelector(`[data-part="frame"] [slot="${name}"]`) !== null)
+    expect(shown()).toEqual(['toolbar', 'canvas', 'properties'])
+    designer.mode = 'preview'
+    await settle(designer)
+    expect(shown()).toEqual(['toolbar', 'canvas'])
+    designer.mode = 'design'
+    designer.panels = undefined
+    await settle(designer)
+    expect(shown()).toEqual(['toolbar', 'palette', 'canvas', 'properties', 'issues'])
   })
 
   it('切到预览态时画布换成渲染器，派发 mode-change', async () => {
