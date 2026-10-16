@@ -69,9 +69,6 @@ export const ratingField: FieldRenderer = (context) => {
   const update = (next: FieldRendererContext): void => {
     ref.current = next
     paintCommon(element, next)
-    const labels = (element as HTMLElement & { translations?: { item?: unknown } }).translations
-    if (labels?.item !== next.translations.ratingItem)
-      assign(element, 'translations', { item: next.translations.ratingItem })
     assign(element, 'value', typeof next.value === 'number' ? next.value : 0)
   }
   update(context)

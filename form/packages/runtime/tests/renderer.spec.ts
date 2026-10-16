@@ -4,8 +4,9 @@ import type { FormDocument } from '@xihan-form/core'
 import type { FieldRenderer, FormRendererEventMap, XhFormRenderer } from '../src'
 import { onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
 import { getFormPathValue } from '@xihan-ui/headless'
-import { setXhConfig } from '@xihan-ui/web-components'
+import { mergeXhConfig, setXhConfig } from '@xihan-ui/web-components'
 import { defineXhElements } from '@xihan-ui/web-components/define'
+import { zhCN } from '@xihan-ui/web-components/locale'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineFormRenderer, FORM_RENDERER_TAG, FormRuntimeError } from '../src'
 import { formZhCN } from '../src/locale'
@@ -266,17 +267,19 @@ describe('<xh-form-renderer>：值与事件', () => {
     expect(references.filter(id => window.document.getElementById(id) === null)).toEqual([])
   })
 
-  it('评分的每颗星带上可访问名，文案取语言包', async () => {
+  it('评分的每颗星用 UI 语言包的缺省名，渲染器不另给', async () => {
     const { registry, ids } = setup()
-    setXhConfig(formZhCN)
-    const renderer = await mount((element) => {
-      element.schema = documentOf([field(registry, ids, 'rating', 'score')])
-    })
-    const rating = group(renderer, ['score']).querySelector('xh-rating') as HTMLElement & { updateComplete?: Promise<boolean> }
-    await rating.updateComplete
-    expect([...rating.querySelectorAll('[data-xh-part="item"]')].map(star => star.getAttribute('aria-label'))).toEqual(
-      [1, 2, 3, 4, 5].map(value => `${value} 星，共 5 星`),
-    )
+    const names = async (): Promise<(string | null)[]> => {
+      const renderer = await mount((element) => {
+        element.schema = documentOf([field(registry, ids, 'rating', 'score')])
+      })
+      const rating = group(renderer, ['score']).querySelector('xh-rating') as HTMLElement & { updateComplete?: Promise<boolean> }
+      await rating.updateComplete
+      return [...rating.querySelectorAll('[data-xh-part="item"]')].map(star => star.getAttribute('aria-label'))
+    }
+    expect(await names()).toEqual([1, 2, 3, 4, 5].map(value => `${value} of 5 stars`))
+    setXhConfig(mergeXhConfig(zhCN, formZhCN))
+    expect(await names()).toEqual([1, 2, 3, 4, 5].map(value => `${value} 星，共 5 星`))
   })
 
   it('整表只读与禁用合进字段状态；表单设置里的也算', async () => {
