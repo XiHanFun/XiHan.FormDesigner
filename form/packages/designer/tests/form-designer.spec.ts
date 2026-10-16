@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 
 import type { ContainerNode, FieldNode, FormDocument } from '@xihan-form/core'
+import type { XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
 import type { FormDesignerEventMap, XhFormDesigner } from '../src'
 import { createBuiltinKindRegistry, createDocument, createNode, findNode } from '@xihan-form/core'
+import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { defineXhElements } from '@xihan-ui/web-components/define'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineFormDesigner, FORM_DESIGNER_TAG } from '../src'
 
 defineXhElements()
@@ -14,12 +16,39 @@ defineFormDesigner()
 // jsdom 没有 scrollIntoView。
 Element.prototype.scrollIntoView ??= function scrollIntoView() {}
 
+// jsdom 不排版：多行文本框自动增高要读的计算样式与内容高度给出浏览器里的缺省值
+const STYLE_FALLBACK: Readonly<Record<string, string>> = {
+  'writing-mode': 'horizontal-tb',
+  'box-sizing': 'border-box',
+  'max-block-size': 'none',
+  'padding-top': '0px',
+  'padding-bottom': '0px',
+  'border-top-width': '0px',
+  'border-bottom-width': '0px',
+  'font-size': '14px',
+  'line-height': '20px',
+}
+
+beforeEach(() => {
+  const real = window.getComputedStyle.bind(window)
+  vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => new Proxy(real(element, pseudo), {
+    get(target, key) {
+      if (key === 'getPropertyValue')
+        return (name: string) => target.getPropertyValue(name) || STYLE_FALLBACK[name] || ''
+      const value = Reflect.get(target, key) as unknown
+      return typeof value === 'function' ? (value as (...args: unknown[]) => unknown).bind(target) : value
+    },
+  }))
+  vi.spyOn(HTMLTextAreaElement.prototype, 'scrollHeight', 'get').mockReturnValue(20)
+})
+
 const registry = createBuiltinKindRegistry()
 const mounted: Element[] = []
 
 afterEach(() => {
   for (const element of mounted.splice(0))
     element.remove()
+  vi.restoreAllMocks()
 })
 
 function sample(): { document: FormDocument, name: FieldNode, card: ContainerNode, inner: FieldNode } {
@@ -205,5 +234,87 @@ describe('<xh-form-designer>：面板与模式', () => {
     expect(preview).not.toBeNull()
     expect(preview.schema).toBe(designer.schema)
     expect(modes).toEqual([{ mode: 'preview' }])
+  })
+})
+
+describe('<xh-form-designer>：属性面板', () => {
+  function inspector(designer: XhFormDesigner): XhDesignerPropertiesElement {
+    return designer.querySelector('xh-designer-properties')!
+  }
+
+  async function pick(designer: XhFormDesigner, selection: Parameters<XhFormDesigner['select']>[0]): Promise<void> {
+    designer.select(selection)
+    await settle(designer)
+    await inspector(designer).updateComplete
+  }
+
+  it('编辑对象随选择换：表单设置、节点、区域', async () => {
+    const { document, name, card } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    const panel = inspector(designer)
+    expect(panel.targets!.map(target => target.kind)).toEqual(['settings'])
+    expect(panel.heading).toBe(DEFAULT_FORM_DESIGNER_TRANSLATIONS.settings)
+    await pick(designer, { nodes: [name.id] })
+    expect(panel.targets!.map(target => target.id)).toEqual([name.id])
+    expect(panel.querySelector('[data-path="key"]')).not.toBeNull()
+    expect(panel.querySelector('[data-path="basic.label"]')).not.toBeNull()
+    await pick(designer, { regions: [card.regions[0]!.id] })
+    expect(panel.targets!.map(target => target.kind)).toEqual(['region'])
+  })
+
+  it('同一合并键的写入并成一步，property-commit 后另起一步；面板事件不冒出设计器', async () => {
+    const { document, name } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    await pick(designer, { nodes: [name.id] })
+    const panel = inspector(designer)
+    const outside: Event[] = []
+    window.document.body.addEventListener('property-change', event => outside.push(event))
+    const change = (value: string): void => {
+      panel.dispatchEvent(new CustomEvent('property-change', { bubbles: true, detail: { path: ['basic', 'label'], value, targets: [{ kind: 'text', id: name.id }], merge: 'label' } }))
+    }
+    const label = (): unknown => findNode(designer.schema, name.id)!.node.basic.label
+    change('a')
+    change('ab')
+    expect(label()).toBe('ab')
+    panel.dispatchEvent(new CustomEvent('property-commit', { bubbles: true, detail: { path: ['basic', 'label'] } }))
+    change('abc')
+    designer.undo()
+    expect(label()).toBe('ab')
+    designer.undo()
+    expect(label()).toBe(name.basic.label)
+    expect(outside).toHaveLength(0)
+  })
+
+  it('在字段里输入，模板跟着改', async () => {
+    const { document, name } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    await pick(designer, { nodes: [name.id] })
+    const input = inspector(designer).querySelector<HTMLInputElement>('[data-path="key"] input')!
+    input.value = 'fullName'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    expect((findNode(designer.schema, name.id)!.node as FieldNode).key).toBe('fullName')
+  })
+
+  it('问题落到字段上；只读时面板只读、写入不生效', async () => {
+    const { document, name } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    await pick(designer, { nodes: [name.id] })
+    designer.execute([{ type: 'setKey', nodeId: name.id, key: '1bad' }])
+    await settle(designer)
+    const panel = inspector(designer)
+    expect(panel.errors).toEqual([{ target: { kind: 'text', id: name.id }, path: ['key'], message: expect.any(String) }])
+    designer.readonly = true
+    await settle(designer)
+    expect(panel.readonly).toBe(true)
+    panel.dispatchEvent(new CustomEvent('property-change', { bubbles: true, detail: { path: ['key'], value: 'ok', targets: [{ kind: 'text', id: name.id }], merge: 'key' } }))
+    expect((findNode(designer.schema, name.id)!.node as FieldNode).key).toBe('1bad')
   })
 })
