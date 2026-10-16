@@ -5,8 +5,14 @@
 
 // 导出 @xihan-form/runtime 的公共接口。
 
+export { defineFormRenderer, FORM_RENDERER_TAG, XhFormRenderer } from './renderer/element'
+export type { FormRendererEventMap, FormSubmitAction, FormValidateOn } from './renderer/element'
+export { FORM_FIELD_RENDERERS } from './renderer/fields'
+export type { FieldRenderer, FieldRendererContext, FieldRendererInstance, FieldSize } from './renderer/types'
 export { createFormController } from './state/controller'
 export type { AddRowOptions, FormController, FormControllerOptions, FormEvent, FormEventType, FormTarget, GetFormDataOptions, LinkageIssue, SetFormDataOptions, ValidationOutcome } from './state/controller'
 export { FormRuntimeError } from './state/errors'
 export type { FormRuntimeErrorCode } from './state/errors'
 export type { OptionItem, OptionLoader, OptionRequest, OptionsState } from './state/options'
+export { DEFAULT_FORM_RENDERER_TRANSLATIONS } from './translations'
+export type { FormRendererTranslations } from './translations'

@@ -15,10 +15,12 @@ catalog:
   '@xihan-ui/designer-kit': ^5.0.0
   '@xihan-ui/expression': ^5.0.0
   '@xihan-ui/headless': ^5.0.0
+  '@xihan-ui/web-components': ^5.0.0
   # 开发依赖
   '@antfu/eslint-config': ^9.5.1
   '@types/node': ^24.10.0
   eslint: ^10.12.0
+  jsdom: ^27.0.0
   oxlint: ^1.88.0
   tsdown: ~0.22.0
   typescript: ^6.0.3
@@ -31,10 +33,11 @@ minimumReleaseAgeExclude:
   - '@xihan-ui/pointer@4.2.0'
   - '@xihan-ui/viz@4.2.0'
 
-# 开发期临时：@xihan-ui/* 改指同级 XiHan.UI 源码（与 BasicApp 联调方式相同）。
-# UI 4.3.0 正式发布后删掉本段，即回落到 catalog 里的发布版。
+# 开发期临时：@xihan-ui/* 改指同级 XiHan.UI 源码（与 BasicApp 联调方式相同），读的是各包 dist，用前先在 XiHan.UI/ui 构建用到的包。
+# UI 5.0.0 正式发布后删掉本段，即回落到 catalog 里的发布版。本段生效期间不推送远端：CI 上没有同级的 UI。
 overrides:
   '@xihan-ui/core': 'link:../../XiHan.UI/ui/packages/engine/core'
   '@xihan-ui/designer-kit': 'link:../../XiHan.UI/ui/packages/features/designer-kit'
   '@xihan-ui/expression': 'link:../../XiHan.UI/ui/packages/features/expression'
   '@xihan-ui/headless': 'link:../../XiHan.UI/ui/packages/engine/headless'
+  '@xihan-ui/web-components': 'link:../../XiHan.UI/ui/packages/adapters/web-components'
