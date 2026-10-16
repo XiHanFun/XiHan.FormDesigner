@@ -5,6 +5,7 @@ import type { XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
 import type { FormDesignerEventMap, XhFormDesigner } from '../src'
 import { createBuiltinKindRegistry, createDocument, createNode, findNode } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
+import { onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { defineXhElements } from '@xihan-ui/web-components/define'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -95,6 +96,28 @@ describe('<xh-form-designer>：装载与画布', () => {
     expect(block(designer, card.id).querySelector(`[data-part="region"][data-region-id="${card.regions[0]!.id}"]`)).not.toBeNull()
     expect(block(designer, inner.id).closest('[data-part="region"]')!.getAttribute('data-region-id')).toBe(card.regions[0]!.id)
     expect((block(designer, name.id).querySelector('xh-field') as HTMLElement).inert).toBe(true)
+  })
+
+  it('挂载、选中表单设置与没有属性的区域时，库内元素不报诊断', async () => {
+    const { document, card } = sample()
+    const codes: string[] = []
+    setDiagnosticsLevel('warn')
+    const stop = onDiagnostic(record => codes.push(record.code))
+    try {
+      const designer = await mount((element) => {
+        element.schema = document
+      })
+      designer.select({ regions: [card.regions[0]!.id] })
+      await settle(designer)
+      designer.select({ nodes: [] })
+      await settle(designer)
+      await designer.querySelector('xh-designer-properties')!.updateComplete
+    }
+    finally {
+      stop()
+      setDiagnosticsLevel('silent')
+    }
+    expect(codes.filter(code => code.startsWith('wc.'))).toEqual([])
   })
 
   it('赋回当前这一份不重新装载；新模板清空历史', async () => {

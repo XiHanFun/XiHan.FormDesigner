@@ -365,7 +365,6 @@ export class XhFormDesigner extends XhReactiveElement {
     const dropIndicator = createAuthoredElement(doc, 'div', { 'data-part': 'drop-indicator', 'aria-hidden': 'true', 'hidden': true })
     const canvas = createAuthoredElement(doc, 'div', { 'data-part': 'canvas', 'slot': 'canvas', 'tabindex': '0' }, [this.#canvas.element, dropIndicator])
     const catalog = createAuthoredElement(doc, 'xh-designer-palette', { 'data-part': 'catalog', 'searchable': true, 'collapsible': true })
-    catalog.groups = paletteGroups(this.#editor.registry, this.#t())
     const palette = createAuthoredElement(doc, 'div', { 'data-part': 'palette', 'slot': 'palette' }, [catalog])
     const inspector = createAuthoredElement(doc, 'xh-designer-properties', { 'data-part': 'inspector', 'collapsible': true, 'toggle-limit': '3' })
     const properties = createAuthoredElement(doc, 'div', { 'data-part': 'properties', 'slot': 'properties' }, [inspector])
