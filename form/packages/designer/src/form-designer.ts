@@ -11,20 +11,22 @@ import type { FieldRenderer, FormDesignerTranslations, FormRendererTranslations,
 import type { JsonValue } from '@xihan-ui/core/json'
 import type { ExecuteOptions } from '@xihan-ui/designer-kit'
 import type { PropertyEditorTable } from '@xihan-ui/designer-kit/properties'
-import type { DesignerFrameRegion, DesignerPropertiesEventMap, DesignerPropertyDescriptor } from '@xihan-ui/designer-shell'
+import type { DesignerFrameRegion, DesignerPaletteEventMap, DesignerPropertiesEventMap, DesignerPropertyDescriptor, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
-import type { CanvasTarget } from './canvas'
+import type { CanvasDrop, CanvasTarget } from './canvas'
 import type { FormClipboard, FormDropTarget, FormEditor, FormSelection } from './editor'
+import type { FormCanvasDragPayload } from './palette'
 import type { FormPropertyEditor, PropertyView } from './properties'
 import { createDocument, findNode, findRegion, PROPERTY_GROUPS } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
-import { defineDesignerShellElement, DESIGNER_FRAME_REGIONS, parseDesignerPanels, XhDesignerFrameElement, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
+import { defineDesignerShellElement, DESIGNER_FRAME_REGIONS, parseDesignerPanels, registerDropTarget, startDrag, XhDesignerFrameElement, XhDesignerPaletteElement, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { createAuthoredElement, emitEvent, registerElement, setAttributes, setText, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { DesignCanvas } from './canvas'
 import { readFormClipboard, writeFormClipboard } from './clipboard'
 import { createFormEditor } from './editor'
+import { dragSubject, paletteGroups, paletteKind } from './palette'
 import { propertyErrors, propertyOperations, propertyView } from './properties'
 
 /** 设计器的标签名。 */
@@ -84,6 +86,8 @@ interface DesignerParts {
   readonly toolbar: HTMLElement
   readonly canvas: HTMLElement
   readonly palette: HTMLElement
+  readonly catalog: XhDesignerPaletteElement
+  readonly dropIndicator: HTMLElement
   readonly properties: HTMLElement
   readonly inspector: XhDesignerPropertiesElement
   readonly issues: HTMLElement
@@ -144,6 +148,9 @@ export class XhFormDesigner extends XhReactiveElement {
   #clipboard: FormClipboard | undefined
   #propertyView: PropertyView | undefined
   #propertySource: { readonly document: FormDocument, readonly selection: FormSelection } | undefined
+  #releaseDropTarget: (() => void) | undefined
+  #dropList: HTMLElement | undefined
+  #suppressClick = false
 
   constructor() {
     super()
@@ -201,15 +208,22 @@ export class XhFormDesigner extends XhReactiveElement {
 
   override connectedCallback(): void {
     super.connectedCallback()
-    this.#ensureParts()
+    const parts = this.#ensureParts()
     for (const type of CLIPBOARD_EVENTS)
       this.addEventListener(type, this.#onClipboard)
+    this.#releaseDropTarget ??= registerDropTarget<unknown>(parts.canvas, {
+      over: (point, payload) => this.#dragOver(point, payload),
+      drop: (point, payload) => this.#drop(point, payload),
+      leave: () => this.#showDrop(undefined),
+    })
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback()
     for (const type of CLIPBOARD_EVENTS)
       this.removeEventListener(type, this.#onClipboard)
+    this.#releaseDropTarget?.()
+    this.#releaseDropTarget = undefined
   }
 
   protected override update(changed: PropertyValues): void {
@@ -229,6 +243,7 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#syncPreview()
     this.#syncToolbar()
     this.#syncProperties(changed, t)
+    this.#syncPalette(changed, t)
   }
 
   /** 执行一组操作并记为一步撤销；返回新模板。 */
@@ -326,8 +341,11 @@ export class XhFormDesigner extends XhReactiveElement {
       return this.#parts
     const doc = this.ownerDocument
     const toolbar = this.#buildToolbar(doc)
-    const canvas = createAuthoredElement(doc, 'div', { 'data-part': 'canvas', 'slot': 'canvas', 'tabindex': '0' }, [this.#canvas.element])
-    const palette = createAuthoredElement(doc, 'div', { 'data-part': 'palette', 'slot': 'palette' })
+    const dropIndicator = createAuthoredElement(doc, 'div', { 'data-part': 'drop-indicator', 'aria-hidden': 'true', 'hidden': true })
+    const canvas = createAuthoredElement(doc, 'div', { 'data-part': 'canvas', 'slot': 'canvas', 'tabindex': '0' }, [this.#canvas.element, dropIndicator])
+    const catalog = createAuthoredElement(doc, 'xh-designer-palette', { 'data-part': 'catalog', 'searchable': true, 'collapsible': true })
+    catalog.groups = paletteGroups(this.#editor.registry, this.#t())
+    const palette = createAuthoredElement(doc, 'div', { 'data-part': 'palette', 'slot': 'palette' }, [catalog])
     const inspector = createAuthoredElement(doc, 'xh-designer-properties', { 'data-part': 'inspector', 'collapsible': true, 'toggle-limit': '3' })
     const properties = createAuthoredElement(doc, 'div', { 'data-part': 'properties', 'slot': 'properties' }, [inspector])
     const issues = createAuthoredElement(doc, 'div', { 'data-part': 'issues', 'slot': 'issues' })
@@ -336,10 +354,13 @@ export class XhFormDesigner extends XhReactiveElement {
     canvas.addEventListener('dblclick', this.#onCanvasDblclick)
     canvas.addEventListener('contextmenu', this.#onCanvasContextMenu)
     canvas.addEventListener('keydown', this.#onKeyDown)
+    canvas.addEventListener('pointerdown', this.#onCanvasPointerDown)
+    canvas.addEventListener('pan-request', this.#onPanRequest)
+    catalog.addEventListener('item-activate', this.#onPaletteActivate)
     inspector.addEventListener('property-change', this.#onPropertyChange)
     inspector.addEventListener('property-commit', this.#onPropertyCommit)
     this.replaceChildren(frame)
-    this.#parts = { frame, toolbar, canvas, palette, properties, inspector, issues }
+    this.#parts = { frame, toolbar, canvas, palette, catalog, dropIndicator, properties, inspector, issues }
     return this.#parts
   }
 
@@ -455,11 +476,11 @@ export class XhFormDesigner extends XhReactiveElement {
     if ((this.mode ?? 'design') === 'preview') {
       defineFormRenderer()
       this.#preview ??= this.ownerDocument.createElement(FORM_RENDERER_TAG)
-      parts.canvas.replaceChildren(this.#preview)
+      parts.canvas.replaceChildren(this.#preview, parts.dropIndicator)
       this.#syncPreview()
     }
     else {
-      parts.canvas.replaceChildren(this.#canvas.element)
+      parts.canvas.replaceChildren(this.#canvas.element, parts.dropIndicator)
     }
   }
 
@@ -501,6 +522,67 @@ export class XhFormDesigner extends XhReactiveElement {
     }
     inspector.optionLabel = (descriptor, option) => t.option(nameOf(descriptor).name, String(option.value))
     inspector.errors = propertyErrors(document, view, this.#issues, issue => t.issue(issue))
+  }
+
+  /** 种类登记表或文案变了时重排物料。 */
+  #syncPalette(changed: PropertyValues, t: FormDesignerTranslations): void {
+    const catalog = this.#ensureParts().catalog
+    if (catalog.groups === undefined || changed.has('registry') || changed.has('translations') || changed.size === 0)
+      catalog.groups = paletteGroups(this.#editor.registry, t)
+    catalog.readonly = this.readonly === true
+  }
+
+  /** 拖到画布上：算出放置位置，能放下时画插入线。 */
+  #dragOver(point: { readonly x: number, readonly y: number }, payload: unknown): { accept: boolean } {
+    const subject = dragSubject(payload, this)
+    if (subject === undefined || this.readonly === true || (this.mode ?? 'design') !== 'design') {
+      this.#showDrop(undefined)
+      return { accept: false }
+    }
+    const drop = this.#canvas.dropAt(point)
+    const accept = 'kind' in subject ? this.#editor.canAdd(subject.kind, drop.target) : this.#editor.canDrop(subject.nodes, drop.target)
+    this.#showDrop(accept ? drop : undefined)
+    return { accept }
+  }
+
+  #drop(point: { readonly x: number, readonly y: number }, payload: unknown): void {
+    this.#showDrop(undefined)
+    const subject = dragSubject(payload, this)
+    if (subject === undefined || this.readonly === true || (this.mode ?? 'design') !== 'design')
+      return
+    const { target } = this.#canvas.dropAt(point)
+    if ('kind' in subject) {
+      const node = this.#editor.addNode(subject.kind, target)
+      if (node !== undefined)
+        this.revealNode(node.id)
+    }
+    else if (this.#editor.moveNodes(subject.nodes, target)) {
+      this.#editor.select({ nodes: subject.nodes })
+    }
+    this.#parts?.canvas.focus({ preventScroll: true })
+  }
+
+  /** 插入线画在插入点前后两个节点块之间；列表为空时只标出放置区。 */
+  #showDrop(drop: CanvasDrop | undefined): void {
+    const parts = this.#ensureParts()
+    if (this.#dropList !== drop?.list) {
+      this.#dropList?.removeAttribute('data-drop-target')
+      this.#dropList = drop?.list
+      this.#dropList?.setAttribute('data-drop-target', '')
+    }
+    const indicator = parts.dropIndicator
+    const edge = drop?.before?.getBoundingClientRect().top ?? drop?.after?.getBoundingClientRect().bottom
+    if (drop === undefined || edge === undefined) {
+      indicator.hidden = true
+      return
+    }
+    const canvas = parts.canvas
+    const base = canvas.getBoundingClientRect()
+    const list = drop.list.getBoundingClientRect()
+    indicator.style.top = `${edge - base.top + canvas.scrollTop}px`
+    indicator.style.left = `${list.left - base.left + canvas.scrollLeft}px`
+    indicator.style.width = `${list.width}px`
+    indicator.hidden = false
   }
 
   #renderCanvas(): void {
@@ -559,6 +641,10 @@ export class XhFormDesigner extends XhReactiveElement {
   }
 
   readonly #onCanvasClick = (event: MouseEvent): void => {
+    if (this.#suppressClick) {
+      this.#suppressClick = false
+      return
+    }
     if ((this.mode ?? 'design') !== 'design')
       return
     this.#selectTarget(this.#canvas.targetOf(event.target), event.shiftKey || event.ctrlKey || event.metaKey)
@@ -580,6 +666,49 @@ export class XhFormDesigner extends XhReactiveElement {
       : emitEvent(this, 'blank-contextmenu', position, { cancelable: true })
     if (!proceed)
       event.preventDefault()
+  }
+
+  /** 点按物料：在缺省位置新建并选中，滚到它。 */
+  readonly #onPaletteActivate = (event: Event): void => {
+    event.stopPropagation()
+    const kind = paletteKind((event as DesignerPaletteEventMap['item-activate']).detail.payload)
+    const node = kind === undefined ? undefined : this.addNode(kind)
+    if (node !== undefined)
+      this.revealNode(node.id)
+  }
+
+  /** 按住节点拖动：拖的是选中的那组节点（按住的节点不在选择里时只拖它）。 */
+  readonly #onCanvasPointerDown = (event: PointerEvent): void => {
+    this.#suppressClick = false
+    if (this.readonly === true || (this.mode ?? 'design') !== 'design' || !event.isPrimary || event.button !== 0)
+      return
+    const target = this.#canvas.targetOf(event.target)
+    const source = target.kind === 'node' ? this.#canvas.nodeElement(target.id) : undefined
+    if (target.kind !== 'node' || source === undefined)
+      return
+    const selected = this.#editor.selection.nodes
+    const nodes = selected.includes(target.id) ? selected : [target.id]
+    startDrag<FormCanvasDragPayload>(event, {
+      source,
+      preview: this.#dragChip(nodes),
+      payload: { source: 'form-canvas', owner: this, nodes },
+      onEnd: ({ dragged }) => {
+        this.#suppressClick = dragged
+      },
+    })
+  }
+
+  /** 拖动节点时跟着指针的小标签：节点的种类与键，多个时带上个数。 */
+  #dragChip(nodes: readonly string[]): HTMLElement {
+    const first = findNode(this.#editor.document, nodes[0]!)?.node
+    const key = first === undefined || first.type === 'static' ? undefined : first.key
+    const label = first === undefined ? '' : this.#t().nodeTag(first.kind, key)
+    return createAuthoredElement(this.ownerDocument, 'div', { 'data-form-drag-chip': '' }, [nodes.length > 1 ? `${label} +${nodes.length - 1}` : label])
+  }
+
+  readonly #onPanRequest = (event: Event): void => {
+    const { dx, dy } = (event as CustomEvent<PanRequestDetail>).detail
+    this.#parts?.canvas.scrollBy(dx, dy)
   }
 
   /** 面板的写入换成编辑操作；同一合并键的连续写入并成一步，直到 property-commit。 */
@@ -736,6 +865,7 @@ export class XhFormDesigner extends XhReactiveElement {
 export function defineFormDesigner(): void {
   defineDesignerShellElement('xh-designer-frame', XhDesignerFrameElement)
   defineDesignerShellElement('xh-designer-properties', XhDesignerPropertiesElement)
+  defineDesignerShellElement('xh-designer-palette', XhDesignerPaletteElement)
   registerElement(FORM_DESIGNER_TAG, XhFormDesigner)
 }
 

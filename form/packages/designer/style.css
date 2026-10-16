@@ -25,6 +25,7 @@ xh-form-designer > [data-part='frame'] [slot='toolbar'] {
 
 /* 画布：滚动区里放一张宽度随预览宽度的表单。 */
 xh-form-designer > [data-part='frame'] [slot='canvas'] {
+  position: relative;
   flex: 1 1 auto;
   min-block-size: 0;
   overflow: auto;
@@ -37,7 +38,7 @@ xh-form-designer > [data-part='frame'] [slot='canvas']:focus-visible {
   box-shadow: inset 0 0 0 var(--xh-ring-width) var(--xh-ring-focus);
 }
 
-xh-form-designer > [data-part='frame'] [slot='canvas'] > * {
+xh-form-designer > [data-part='frame'] [slot='canvas'] > :is([data-part='surface'], xh-form-renderer) {
   display: block;
   box-sizing: border-box;
   margin-inline: auto;
@@ -46,12 +47,41 @@ xh-form-designer > [data-part='frame'] [slot='canvas'] > * {
   background: var(--xh-bg-surface);
 }
 
-xh-form-designer > [data-part='frame'][data-width='tablet'] [slot='canvas'] > * {
+xh-form-designer > [data-part='frame'][data-width='tablet'] [slot='canvas'] > :is([data-part='surface'], xh-form-renderer) {
   max-inline-size: var(--xh-breakpoint-md);
 }
 
-xh-form-designer > [data-part='frame'][data-width='phone'] [slot='canvas'] > * {
+xh-form-designer > [data-part='frame'][data-width='phone'] [slot='canvas'] > :is([data-part='surface'], xh-form-renderer) {
   max-inline-size: var(--xh-breakpoint-sm);
+}
+
+/* 拖放：插入线画在两个节点块之间，接收的区域加淡底。 */
+xh-form-designer [slot='canvas'] > [data-part='drop-indicator'] {
+  position: absolute;
+  block-size: var(--xh-ring-width);
+  background: var(--xh-ring-focus);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+xh-form-designer [slot='canvas'] > [data-part='drop-indicator'][hidden] {
+  display: none;
+}
+
+xh-form-designer [data-region-id][data-drop-target] {
+  border-color: var(--xh-ring-focus);
+  background: var(--xh-bg-brand-subtle);
+}
+
+/* 拖动节点时跟着指针的小标签；拖动预览挂在 body 下，不在设计器里。 */
+[data-xh-designer-drag-preview] > [data-form-drag-chip] {
+  padding: var(--xh-space-1) var(--xh-space-2);
+  border: var(--xh-stroke-thin) solid var(--xh-border-default);
+  border-radius: var(--xh-shape-control);
+  background: var(--xh-bg-surface);
+  color: var(--xh-fg-default);
+  font-size: var(--xh-font-size-sm);
+  white-space: nowrap;
 }
 
 /* 节点外框：悬停时虚线，选中时焦点色描边，并在左上角露出种类与键。 */
