@@ -489,3 +489,35 @@ describe('<xh-form-designer>：右键菜单', () => {
     expect(menu.collection!.map(entry => (entry as { value: string }).value)).toEqual(['paste'])
   })
 })
+
+describe('<xh-form-designer>：规则页签', () => {
+  it('单选字段时校验与联动页签可用；从菜单加规则、改参数、删掉；选空白时回到属性页签', async () => {
+    const { document, name } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    const tabs = designer.querySelector('[data-part="inspector-tabs"]') as HTMLElement & { value?: string }
+    const trigger = (tab: string): HTMLButtonElement => tabs.querySelector<HTMLButtonElement>(`button[value="${tab}"]`)!
+    const rules = (): unknown[] => [...(findNode(designer.schema, name.id)!.node as FieldNode).validation]
+    expect([trigger('validation').disabled, trigger('linkage').disabled]).toEqual([true, true])
+    designer.select({ nodes: [name.id] })
+    await settle(designer)
+    expect([trigger('validation').disabled, trigger('linkage').disabled]).toEqual([false, false])
+    tabs.value = 'validation'
+    const list = designer.querySelector('[data-part="rule-list"][data-list="validation"]')!
+    list.querySelector('xh-menu')!.dispatchEvent(new CustomEvent('select', { bubbles: true, detail: { value: 'length' } }))
+    expect(rules()).toEqual([{ id: expect.any(String), kind: 'length' }])
+    await settle(designer)
+    const panel = list.querySelector('xh-designer-properties[data-part="rule"]') as XhDesignerPropertiesElement
+    await panel.updateComplete
+    expect(panel.errors!.map(error => error.path)).toEqual([['min']])
+    const id = (rules()[0] as { id: string }).id
+    panel.dispatchEvent(new CustomEvent('property-change', { bubbles: true, detail: { path: ['min'], value: 2, targets: [{ kind: 'rule', id }], merge: 'min' } }))
+    expect(rules()).toEqual([{ id, kind: 'length', min: 2 }])
+    panel.querySelector<HTMLButtonElement>('[data-part="rule-remove"] button')!.click()
+    expect(rules()).toEqual([])
+    designer.select({ nodes: [] })
+    await settle(designer)
+    expect(tabs.value).toBe('properties')
+  })
+})

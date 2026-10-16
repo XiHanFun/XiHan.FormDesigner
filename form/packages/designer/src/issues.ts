@@ -5,7 +5,7 @@
 
 // 问题列表的数据：把模板结构问题换成 <xh-designer-issues> 的条目，并算出点开一条问题时要选中什么、聚焦哪个属性。
 
-import type { FormDocument, FormNode, FormSchemaIssue } from '@xihan-form/core'
+import type { FormDocument, FormNode, FormSchemaIssue, RuleList } from '@xihan-form/core'
 import type { FormDesignerTranslations } from '@xihan-form/runtime'
 import type { JsonPath } from '@xihan-ui/core/json'
 import type { SchemaIssue } from '@xihan-ui/designer-kit/schema'
@@ -15,10 +15,14 @@ import type { PropertyScope } from './properties'
 import { findNode, findRegion, walkNodes } from '@xihan-form/core'
 import { fieldPath, locations } from './properties'
 
-/** 点开一条问题：选中它所在的节点、区域或表单设置，path 是属性面板上要聚焦的字段。 */
+/**
+ * 点开一条问题：选中它所在的节点、区域或表单设置，path 是属性面板上要聚焦的字段；
+ * 落在规则上时 rule 给出规则所在的列表、规则 id 与要聚焦的参数。
+ */
 export interface IssueFocus {
   readonly selection: FormSelection
   readonly path: JsonPath | undefined
+  readonly rule?: { readonly list: RuleList, readonly id: string, readonly path: JsonPath | undefined }
 }
 
 /** 规则所在的节点。 */
@@ -80,7 +84,14 @@ export function issueFocus(document: FormDocument, issue: SchemaIssue): IssueFoc
       return findRegion(document, target.id) === undefined ? undefined : { selection: { nodes: [], regions: [target.id] }, path: focusPath(document, 'regions', target.id, issue.path) }
     case 'rule': {
       const owner = ruleOwner(document, target.id)
-      return owner === undefined ? undefined : { selection: { nodes: [owner.id] }, path: undefined }
+      if (owner === undefined)
+        return undefined
+      const list: RuleList = owner.linkage.some(rule => rule.id === target.id) ? 'linkage' : 'validation'
+      const index = (list === 'linkage' ? owner.linkage : owner.type === 'static' ? [] : owner.validation).findIndex(rule => rule.id === target.id)
+      const base = locations(document).get(owner.id)
+      const prefix = base === undefined ? undefined : [...base, list, index]
+      const field = prefix !== undefined && prefix.every((segment, at) => issue.path[at] === segment) ? issue.path[prefix.length] : undefined
+      return { selection: { nodes: [owner.id] }, path: undefined, rule: { list, id: target.id, path: typeof field === 'string' ? [field] : undefined } }
     }
     default:
       return { selection: { nodes: [] }, path: issue.path[0] === 'settings' ? focusPath(document, 'settings', undefined, issue.path) : undefined }

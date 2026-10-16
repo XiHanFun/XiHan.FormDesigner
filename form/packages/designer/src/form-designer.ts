@@ -6,7 +6,7 @@
 // <xh-form-designer>：表单设计器。编辑模型在 editor.ts，画布在 canvas.ts；版式交给 <xh-designer-frame>：
 // 工具栏、物料、属性与问题列表按 panels 显示，画布常驻。预览态换成 <xh-form-renderer>，只留工具栏。
 
-import type { FormDocument, FormNode, FormOperation, FormSchemaIssue, KindRegistry } from '@xihan-form/core'
+import type { FormDocument, FormNode, FormOperation, FormSchemaIssue, KindRegistry, RuleList } from '@xihan-form/core'
 import type { FieldRenderer, FormDesignerTranslations, FormRendererTranslations, OptionLoader, XhFormRenderer } from '@xihan-form/runtime'
 import type { IconRecord } from '@xihan-ui/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
@@ -34,6 +34,8 @@ import { createFormEditor } from './editor'
 import { issueFocus, issueItems } from './issues'
 import { dragSubject, paletteGroups, paletteKind } from './palette'
 import { propertyErrors, propertyOperations, propertyView } from './properties'
+import { RuleLists } from './rule-lists'
+import { hasRuleList } from './rules'
 
 /** 设计器的标签名。 */
 export const FORM_DESIGNER_TAG = 'xh-form-designer'
@@ -88,6 +90,16 @@ const TOOLBAR_LABELS: Readonly<Record<ToolbarCommand, keyof FormDesignerTranslat
 
 type NodeAction = 'parent' | 'up' | 'down' | 'duplicate' | 'delete'
 
+type InspectorTab = 'properties' | RuleList
+
+const INSPECTOR_TABS: readonly InspectorTab[] = ['properties', 'validation', 'linkage']
+
+const TAB_LABELS: Readonly<Record<InspectorTab, 'propertiesTab' | 'validationTab' | 'linkageTab'>> = {
+  properties: 'propertiesTab',
+  validation: 'validationTab',
+  linkage: 'linkageTab',
+}
+
 /** 选中节点右下角小工具条上的按钮：选父级、上移、下移、再制、删除。 */
 const NODE_ACTIONS: readonly { readonly action: NodeAction, readonly icon: IconRecord, readonly label: 'selectParent' | 'moveUp' | 'moveDown' | 'duplicate' | 'delete' }[] = [
   { action: 'parent', icon: ArrowUpLeftIcon, label: 'selectParent' },
@@ -108,6 +120,10 @@ interface DesignerParts {
   /** 选中一个节点时挂进它的外框，没有时不在文档里。 */
   readonly nodeToolbar: HTMLElement
   readonly properties: HTMLElement
+  /** 属性区的三个页签：属性、校验规则、联动规则。 */
+  readonly inspectorTabs: HTMLElement & { value?: string, requestUpdate?: () => void }
+  readonly tabTriggers: Readonly<Record<InspectorTab, HTMLButtonElement>>
+  readonly tabList: HTMLElement
   readonly inspector: XhDesignerPropertiesElement
   readonly issues: HTMLElement
   readonly problems: XhDesignerIssuesElement
@@ -162,6 +178,7 @@ export class XhFormDesigner extends XhReactiveElement {
   readonly #config = new XhConfigController(this)
   readonly #editor: FormEditor
   readonly #canvas: DesignCanvas
+  readonly #rules: RuleLists
   #defaultEngine: ExpressionEngine | undefined
   #issues: readonly FormSchemaIssue[] = []
   #dirty = false
@@ -186,6 +203,14 @@ export class XhFormDesigner extends XhReactiveElement {
       fieldRenderers: () => this.fieldRenderers,
       translations: () => this.#t(),
       rendererTranslations: () => this.#config.translations<FormRendererTranslations>('xh-form-renderer', DEFAULT_FORM_RENDERER_TRANSLATIONS),
+    })
+    this.#rules = new RuleLists({
+      ownerDocument: this.ownerDocument,
+      editor: this.#editor,
+      registry: () => this.#editor.registry,
+      translations: () => this.#t(),
+      readonly: () => this.readonly === true,
+      settled: () => this.updateComplete,
     })
     this.#editor.subscribe((change) => {
       if (change.kind === 'selection') {
@@ -271,6 +296,38 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#syncPalette(changed, t)
     this.#syncIssues(changed, t)
     this.#syncNodeToolbar(t)
+    this.#syncRuleTabs(t)
+  }
+
+  /** 页签文案与可用：校验规则只给登记了校验种类的单个字段或容器，联动规则只给单个节点；当前页签不可用时回到属性页签。 */
+  #syncRuleTabs(t: FormDesignerTranslations): void {
+    const parts = this.#ensureParts()
+    const selection = this.#editor.selection
+    const id = selection.nodes.length === 1 && (selection.regions?.length ?? 0) === 0 ? selection.nodes[0] : undefined
+    const node = id === undefined ? undefined : findNode(this.#editor.document, id)?.node
+    this.#rules.sync(this.#editor.document, node, this.#issues)
+    const enabled: Readonly<Record<InspectorTab, boolean>> = {
+      properties: true,
+      validation: node !== undefined && hasRuleList(node, 'validation', this.#editor.registry),
+      linkage: node !== undefined,
+    }
+    setAttributes(parts.tabList, { 'aria-label': t.properties })
+    let changed = false
+    for (const tab of INSPECTOR_TABS) {
+      const trigger = parts.tabTriggers[tab]
+      setText(trigger, t[TAB_LABELS[tab]])
+      if (trigger.disabled !== !enabled[tab]) {
+        trigger.disabled = !enabled[tab]
+        changed = true
+      }
+    }
+    const current = parts.inspectorTabs.value as InspectorTab | undefined
+    if (current !== undefined && !enabled[current]) {
+      parts.inspectorTabs.value = 'properties'
+      changed = true
+    }
+    if (changed)
+      parts.inspectorTabs.requestUpdate?.()
   }
 
   /** 执行一组操作并记为一步撤销；返回新模板。 */
@@ -374,7 +431,23 @@ export class XhFormDesigner extends XhReactiveElement {
     const catalog = createAuthoredElement(doc, 'xh-designer-palette', { 'data-part': 'catalog', 'searchable': true, 'collapsible': true })
     const palette = createAuthoredElement(doc, 'div', { 'data-part': 'palette', 'slot': 'palette' }, [catalog])
     const inspector = createAuthoredElement(doc, 'xh-designer-properties', { 'data-part': 'inspector', 'collapsible': true, 'toggle-limit': '3' })
-    const properties = createAuthoredElement(doc, 'div', { 'data-part': 'properties', 'slot': 'properties' }, [inspector])
+    const tabTriggers = Object.fromEntries(INSPECTOR_TABS.map(tab => [tab, createAuthoredElement(doc, 'button', { 'data-xh-part': 'trigger', 'type': 'button', 'value': tab })])) as Record<InspectorTab, HTMLButtonElement>
+    const tabList = createAuthoredElement(doc, 'div', { 'data-xh-part': 'list' }, [...INSPECTOR_TABS.map(tab => tabTriggers[tab]), createAuthoredElement(doc, 'div', { 'data-xh-part': 'indicator' })])
+    const panel = (tab: InspectorTab, child: HTMLElement): HTMLElement => createAuthoredElement(doc, 'div', { 'data-xh-part': 'content', 'value': tab }, [child])
+    const inspectorTabs: DesignerParts['inspectorTabs'] = createAuthoredElement(doc, 'xh-tabs', { 'data-part': 'inspector-tabs', 'size': 'sm' }, [
+      createAuthoredElement(doc, 'div', { 'data-xh-part': 'root' }, [
+        tabList,
+        panel('properties', inspector),
+        panel('validation', this.#rules.element('validation')),
+        panel('linkage', this.#rules.element('linkage')),
+      ]),
+    ])
+    inspectorTabs.value = 'properties'
+    inspectorTabs.addEventListener('value-change', (event) => {
+      event.stopPropagation()
+      inspectorTabs.value = (event as CustomEvent<{ value: string }>).detail.value
+    })
+    const properties = createAuthoredElement(doc, 'div', { 'data-part': 'properties', 'slot': 'properties' }, [inspectorTabs])
     const problems = createAuthoredElement(doc, 'xh-designer-issues', { 'data-part': 'problems', 'group-by': 'target' })
     const issues = createAuthoredElement(doc, 'div', { 'data-part': 'issues', 'slot': 'issues' }, [problems])
     const menuTrigger = createAuthoredElement(doc, 'div', { 'data-xh-part': 'trigger', 'inert': true })
@@ -397,7 +470,7 @@ export class XhFormDesigner extends XhReactiveElement {
     inspector.addEventListener('property-change', this.#onPropertyChange)
     inspector.addEventListener('property-commit', this.#onPropertyCommit)
     this.replaceChildren(frame)
-    this.#parts = { frame, toolbar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), properties, inspector, issues, problems, menu, menuTrigger, menuContent }
+    this.#parts = { frame, toolbar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), properties, inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent }
     return this.#parts
   }
 
@@ -942,6 +1015,12 @@ export class XhFormDesigner extends XhReactiveElement {
     const node = focus.selection.nodes[0] ?? (region === undefined ? undefined : findRegion(this.#editor.document, region)?.container.id)
     if (node !== undefined)
       this.revealNode(node)
+    if (focus.rule !== undefined) {
+      this.#ensureParts().inspectorTabs.value = focus.rule.list
+      void this.#rules.focusRule(focus.rule.list, focus.rule.id, focus.rule.path)
+      return
+    }
+    this.#ensureParts().inspectorTabs.value = 'properties'
     if (focus.path !== undefined)
       void this.#focusProperty(focus.path)
   }
