@@ -3,7 +3,7 @@
 import type { ContainerNode, FieldNode, FormDocument } from '@xihan-form/core'
 import type { XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
 import type { FormDesignerEventMap, XhFormDesigner } from '../src'
-import { createBuiltinKindRegistry, createDocument, createNode, findNode } from '@xihan-form/core'
+import { createBuiltinKindRegistry, createDocument, createNode, findNode, findRegion } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
@@ -421,5 +421,34 @@ describe('<xh-form-designer>：节点小工具条', () => {
     designer.readonly = true
     await settle(designer)
     expect(toolbar()).toBeNull()
+  })
+})
+
+describe('<xh-form-designer>：栅格跨度', () => {
+  it('栅格的区域带跨度把手；拖右缘按列宽改 span，拖动中并成一步撤销', async () => {
+    const ids = createIdAllocator('g')
+    const grid = createNode(registry, 'grid', ids) as ContainerNode
+    const card = createNode(registry, 'card', ids) as ContainerNode
+    const designer = await mount((element) => {
+      element.schema = { ...createDocument(), children: [grid, card] }
+    })
+    const region = grid.regions[0]!.id
+    const span = (): unknown => findRegion(designer.schema, region)!.region.props.span
+    expect(designer.querySelector(`[data-region-id="${card.regions[0]!.id}"] > [data-part="span-handle"]`)).toBeNull()
+    const handle = designer.querySelector<HTMLElement>(`[data-region-id="${region}"] > [data-part="span-handle"]`)!
+    const body = block(designer, grid.id).querySelector<HTMLElement>(':scope > [data-part="node-body"]')!
+    body.getBoundingClientRect = () => ({ top: 0, bottom: 100, left: 0, right: 1200, width: 1200, height: 100, x: 0, y: 0, toJSON: () => ({}) })
+    const pointer = (type: string, target: EventTarget, clientX: number): void => {
+      target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 3, isPrimary: true, button: 0, clientX, clientY: 10 }))
+    }
+    pointer('pointerdown', handle, 600)
+    pointer('pointermove', window.document, 760)
+    expect(span()).toBe(8)
+    pointer('pointermove', window.document, 420)
+    expect(span()).toBe(4)
+    pointer('pointerup', window.document, 420)
+    designer.undo()
+    expect(span()).toBe(6)
+    expect(designer.canUndo).toBe(false)
   })
 })

@@ -42,6 +42,13 @@ export interface CanvasDrop {
 
 const DESIGN_STATE = { hidden: false, disabled: false, readOnly: false } as const
 
+/** 容器的区域属性里有数字的 span 时，区域可以拖右缘改跨度，返回总列数（span 的上限）；否则为 undefined。 */
+export function spanColumns(registry: KindRegistry, kind: string): number | undefined {
+  const definition = registry.get(kind)
+  const span = definition?.type === 'container' ? definition.regionProperties.find(descriptor => descriptor.path.length === 1 && descriptor.path[0] === 'span') : undefined
+  return span?.control.kind === 'number' ? span.control.max ?? undefined : undefined
+}
+
 /** 容器外框上下边缘多宽以内算放在容器前后，像素。 */
 const CONTAINER_EDGE = 16
 
@@ -252,16 +259,19 @@ export class DesignCanvas {
     }
     const view = build(doc, node)
     view.update({ ...DESIGN_STATE, required: false })
+    const resizable = spanColumns(this.#host.registry(), node.kind) !== undefined
     for (const region of node.regions)
-      view.slots.get(region.id)!.append(this.#region(region.id, region.children, document))
+      view.slots.get(region.id)!.append(this.#region(region.id, region.children, document, resizable))
     return view.element
   }
 
-  #region(id: string, children: readonly FormNode[], document: FormDocument): HTMLElement {
+  #region(id: string, children: readonly FormNode[], document: FormDocument, resizable = false): HTMLElement {
     const doc = this.#host.ownerDocument
     const blocks = children.map(child => this.#node(child, document))
     if (blocks.length === 0)
       blocks.push(createAuthoredElement(doc, 'div', { 'data-part': 'region-empty' }, [this.#host.translations().emptyRegion]))
+    if (resizable)
+      blocks.push(createAuthoredElement(doc, 'div', { 'data-part': 'span-handle', 'aria-hidden': 'true' }))
     const region = createAuthoredElement(doc, 'div', { 'data-part': 'region', 'data-region-id': id, 'data-form-region': true }, blocks)
     this.#regions.set(id, region)
     return region
