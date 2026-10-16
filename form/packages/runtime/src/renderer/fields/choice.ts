@@ -22,7 +22,20 @@ function collectionOf(items: readonly OptionItem[]): { value: string, label: str
   return items.map(item => ({ value: item.value, label: item.label, ...(item.disabled === true ? { disabled: true } : {}) }))
 }
 
-/** 按选项排出条目节点：已有的按值复用，文字与禁用随选项更新。 */
+/** 选项同步：选项换了才重写元素的 collection 与条目节点，条目节点按值复用，文字与禁用随选项更新。 */
+function optionSync(element: HTMLElement, parent: Element, build: (doc: Document) => { item: HTMLElement, text: Element }): (items: readonly OptionItem[]) => void {
+  const keys: KeyedChildren = new WeakMap()
+  const texts = new WeakMap<Element, Element>()
+  let last: readonly OptionItem[] | undefined
+  return (items) => {
+    if (items === last)
+      return
+    last = items
+    assign(element, 'collection', collectionOf(items))
+    syncItems(parent, items, keys, texts, build)
+  }
+}
+
 function syncItems(parent: Element, items: readonly OptionItem[], keys: KeyedChildren, texts: WeakMap<Element, Element>, build: (doc: Document) => { item: HTMLElement, text: Element }): void {
   const doc = parent.ownerDocument
   reconcile(parent, items, keys, item => item.value, (item, reuse) => {
@@ -71,8 +84,12 @@ export const selectField: FieldRenderer = (context) => {
   paintLabel(label, context.node)
   if (multiple)
     assign(element, 'multiple', true)
-  const keys: KeyedChildren = new WeakMap()
-  const texts = new WeakMap<Element, Element>()
+  const syncOptions = optionSync(element, list, (owner) => {
+    const item = generated(owner, 'div', 'item')
+    const itemText = make(owner, 'span', 'item-text')
+    item.append(itemText, make(owner, 'span', 'item-indicator'))
+    return { item, text: itemText }
+  })
   const tagKeys: KeyedChildren = new WeakMap()
   const select = element as HTMLElement & { tags?: readonly { value: string, label: string }[], updateComplete?: Promise<boolean> }
   const renderTags = (): void => {
@@ -92,14 +109,7 @@ export const selectField: FieldRenderer = (context) => {
   const update = (next: FieldRendererContext): void => {
     ref.current = next
     paintCommon(element, next, { placeholder: true })
-    const items = itemsOf(next)
-    assign(element, 'collection', collectionOf(items))
-    syncItems(list, items, keys, texts, (owner) => {
-      const item = generated(owner, 'div', 'item')
-      const itemText = make(owner, 'span', 'item-text')
-      item.append(itemText, make(owner, 'span', 'item-indicator'))
-      return { item, text: itemText }
-    })
+    syncOptions(itemsOf(next))
     text(loading, next.translations.optionsLoading)
     text(empty, next.translations.optionsEmpty)
     assign(element, 'loading', next.options?.status === 'loading' ? true : undefined)
@@ -120,21 +130,18 @@ function groupField(tag: 'xh-radio-group' | 'xh-checkbox-group', toUi: (value: u
     element.append(root)
     paintLabel(label, context.node)
     assign(element, 'orientation', stringOf(context.node.appearance.orientation))
-    const keys: KeyedChildren = new WeakMap()
-    const texts = new WeakMap<Element, Element>()
+    const syncOptions = optionSync(element, root, (owner) => {
+      const item = generated(owner, 'div', 'item')
+      const itemText = make(owner, 'span', 'item-text')
+      item.append(make(owner, 'input', 'hidden-input'), make(owner, 'span', 'indicator'), itemText)
+      return { item, text: itemText }
+    })
     const ref: ContextRef = { current: context }
     on<{ value: unknown }>(element, 'value-change', detail => ref.current.setValue(fromUi(detail.value)))
     const update = (next: FieldRendererContext): void => {
       ref.current = next
       paintCommon(element, next, { required: tag === 'xh-radio-group' })
-      const items = itemsOf(next)
-      assign(element, 'collection', collectionOf(items))
-      syncItems(root, items, keys, texts, (owner) => {
-        const item = generated(owner, 'div', 'item')
-        const itemText = make(owner, 'span', 'item-text')
-        item.append(make(owner, 'input', 'hidden-input'), make(owner, 'span', 'indicator'), itemText)
-        return { item, text: itemText }
-      })
+      syncOptions(itemsOf(next))
       assign(element, 'value', toUi(next.value))
     }
     update(context)
@@ -165,8 +172,11 @@ export const toggleGroupField: FieldRenderer = (context) => {
   element.append(root)
   if (multiple)
     assign(element, 'multiple', true)
-  const keys: KeyedChildren = new WeakMap()
-  const texts = new WeakMap<Element, Element>()
+  const syncOptions = optionSync(element, root, (owner) => {
+    const item = generated(owner, 'button', 'item')
+    item.setAttribute('type', 'button')
+    return { item, text: item }
+  })
   const ref: ContextRef = { current: context }
   on<{ value: string | string[] | null }>(element, 'value-change', (detail) => {
     ref.current.setValue(fromList(toList(detail.value), multiple))
@@ -174,13 +184,7 @@ export const toggleGroupField: FieldRenderer = (context) => {
   const update = (next: FieldRendererContext): void => {
     ref.current = next
     paintCommon(element, next, { readOnly: false, required: false })
-    const items = itemsOf(next)
-    assign(element, 'collection', collectionOf(items))
-    syncItems(root, items, keys, texts, (owner) => {
-      const item = generated(owner, 'button', 'item')
-      item.setAttribute('type', 'button')
-      return { item, text: item }
-    })
+    syncOptions(itemsOf(next))
     assign(element, 'value', multiple ? toList(next.value) : (typeof next.value === 'string' ? next.value : null))
   }
   update(context)

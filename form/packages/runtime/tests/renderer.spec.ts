@@ -64,6 +64,27 @@ describe('<xh-form-renderer>：结构', () => {
     expect(renderer.querySelectorAll('[data-xh-part="error-summary-item"]')).toHaveLength(3)
   })
 
+  it('容器里的字段组也归 xh-form 接线', async () => {
+    const { document } = sample()
+    const renderer = await mount((element) => {
+      element.schema = document
+    })
+    expect(group(renderer, ['level']).getAttribute('data-scope')).toBe('form')
+    expect(group(renderer, ['name']).getAttribute('data-scope')).toBe('form')
+  })
+
+  it('表格布局的行列数取外观属性', async () => {
+    const { registry, ids } = setup()
+    const table = container(registry, ids, 'table', [field(registry, ids, 'text', 'a')])
+    const renderer = await mount((element) => {
+      const cell = { ...table.regions[0]!, props: { row: 0, column: 0, rowSpan: 1, columnSpan: 3 } }
+      element.schema = documentOf([{ ...table, appearance: { ...table.appearance, rows: 1, columns: 3 }, regions: [cell] }])
+    })
+    const grid = renderer.querySelector('xh-grid')!
+    expect([grid.getAttribute('cols'), grid.getAttribute('rows')]).toEqual(['3', '1'])
+    expect(grid.querySelector('[data-xh-part="item"]')!.getAttribute('span')).toBe('3')
+  })
+
   it('联动隐藏落在字段组的 hidden 上，条件变了随之显隐', async () => {
     const { document } = sample()
     const renderer = await mount((element) => {
@@ -121,6 +142,10 @@ describe('<xh-form-renderer>：值与事件', () => {
     const select = group(renderer, ['level']).querySelector('xh-select') as HTMLElement & { value?: unknown }
     expect(select.value).toEqual(['a'])
     expect(select.querySelectorAll('[data-xh-part="item"]')).toHaveLength(2)
+    const collection = (select as HTMLElement & { collection?: unknown }).collection
+    renderer.setValue(['name'], '甲')
+    renderer.setValue(['level'], 'b')
+    expect((select as HTMLElement & { collection?: unknown }).collection).toBe(collection)
   })
 
   it('values 是初始数据兼基准；建好后再赋值等于带基准的 setFormData，与当前值相同时不动', async () => {
@@ -164,7 +189,7 @@ describe('<xh-form-renderer>：值与事件', () => {
     expect(renderer.validate().valid).toBe(false)
     const form = renderer.querySelector('xh-form') as HTMLElement & { errors?: Record<string, string> }
     expect(getFormPathValue(form.errors as never, ['name'])).toBe('此项必填')
-    expect(renderer.querySelector('[data-xh-part="error-summary-item"]')!.textContent).toBe('此项必填')
+    expect(renderer.querySelector('[data-xh-part="error-summary-item"]')!.textContent).toBe('姓名：此项必填')
     expect(renderer.querySelector('[data-xh-part="error-summary"] p')!.textContent).toBe('共 1 处需要修改')
     expect(issues.map(item => item.paths)).toEqual([[['name']]])
     renderer.reset()

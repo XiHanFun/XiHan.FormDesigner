@@ -43,12 +43,12 @@ export const textField: FieldRenderer = (context) => {
   return textual(context, 'xh-text-field', control, element => assign(element, 'type', stringOf(context.node.data.inputType) ?? 'text'))
 }
 
-/** 多行文本：`xh-text-field` 的输入部件写成 `<textarea>`，行数取 `minRows` / `maxRows`。 */
+/** 多行文本：`xh-text-field` 的输入部件写成 `<textarea>`，行数取外观的 `minRows` / `maxRows`。 */
 export const textareaField: FieldRenderer = (context) => {
   const control = make(context.document, 'div', 'control')
   control.append(make(context.document, 'textarea', 'input'))
-  const minRows = numberOf(context.node.data.minRows)
-  const maxRows = numberOf(context.node.data.maxRows)
+  const minRows = numberOf(context.node.appearance.minRows)
+  const maxRows = numberOf(context.node.appearance.maxRows)
   return textual(context, 'xh-text-field', control, element => assign(element, 'autoSize', {
     ...(minRows === undefined ? {} : { minRows }),
     ...(maxRows === undefined ? {} : { maxRows }),
