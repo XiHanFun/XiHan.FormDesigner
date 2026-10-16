@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "private": true,
-  "description": "XiHan Form Designer 的开发预览页：渲染器的演示，不发布。",
+  "description": "XiHan Form Designer 的开发预览页：渲染器与设计器的演示，不发布。",
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit -p tsconfig.json"
@@ -13,6 +13,7 @@
     "@xihan-form/designer": "workspace:^",
     "@xihan-form/runtime": "workspace:^",
     "@xihan-ui/designer-kit": "catalog:",
+    "@xihan-ui/designer-shell": "catalog:",
     "@xihan-ui/styles": "catalog:",
     "@xihan-ui/web-components": "catalog:"
   },

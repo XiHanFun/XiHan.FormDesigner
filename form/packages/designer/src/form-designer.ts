@@ -3,19 +3,21 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// <xh-form-designer>：表单设计器。编辑模型在 editor.ts，画布在 canvas.ts；
-// 工具栏、物料、属性与问题列表按 panels 显示，画布常驻。预览态换成 <xh-form-renderer>。
+// <xh-form-designer>：表单设计器。编辑模型在 editor.ts，画布在 canvas.ts；版式交给 <xh-designer-frame>：
+// 工具栏、物料、属性与问题列表按 panels 显示，画布常驻。预览态换成 <xh-form-renderer>，只留工具栏。
 
 import type { FormDocument, FormNode, FormOperation, FormSchemaIssue, KindRegistry } from '@xihan-form/core'
 import type { FieldRenderer, FormDesignerTranslations, FormRendererTranslations, OptionLoader, XhFormRenderer } from '@xihan-form/runtime'
 import type { JsonValue } from '@xihan-ui/core/json'
 import type { ExecuteOptions } from '@xihan-ui/designer-kit'
+import type { DesignerFrameRegion } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
 import type { CanvasTarget } from './canvas'
 import type { FormClipboard, FormDropTarget, FormEditor, FormSelection } from './editor'
 import { createDocument, findNode, findRegion } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
+import { defineDesignerShellElement, DESIGNER_FRAME_REGIONS, parseDesignerPanels, XhDesignerFrameElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { createAuthoredElement, emitEvent, registerElement, setAttributes, setText, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { DesignCanvas } from './canvas'
@@ -50,7 +52,6 @@ export interface FormDesignerEventMap {
   'mode-change': CustomEvent<{ mode: FormDesignerMode }>
 }
 
-const PANELS: readonly FormDesignerPanel[] = ['toolbar', 'palette', 'properties', 'issues']
 const CLIPBOARD_EVENTS = ['copy', 'cut', 'paste'] as const
 
 type ToolbarCommand = 'undo' | 'redo' | 'delete' | 'duplicate' | 'design' | 'preview' | 'width-full' | 'width-tablet' | 'width-phone'
@@ -74,9 +75,9 @@ const TOOLBAR_LABELS: Readonly<Record<ToolbarCommand, keyof FormDesignerTranslat
   'width-phone': 'widthPhone',
 }
 
-/** 设计器的各个部件。 */
+/** 设计器的各个部件；面板与画布按 slot 放进外框的同名区。 */
 interface DesignerParts {
-  readonly root: HTMLElement
+  readonly frame: XhDesignerFrameElement
   readonly toolbar: HTMLElement
   readonly canvas: HTMLElement
   readonly palette: HTMLElement
@@ -208,11 +209,10 @@ export class XhFormDesigner extends XhReactiveElement {
       this.#editor.setRegistry(this.registry ?? this.#editor.registry)
     const parts = this.#ensureParts()
     const mode = this.mode ?? 'design'
-    setAttributes(parts.root, { 'data-mode': mode, 'data-width': this.previewWidth ?? 'full', 'data-readonly': this.readonly === true })
-    const shown = this.panels === undefined ? new Set(PANELS) : new Set(this.panels.split(/\s+/).filter(Boolean))
-    for (const panel of PANELS)
-      parts[panel].hidden = !shown.has(panel)
-    parts.root.setAttribute('aria-label', this.#t().label)
+    const t = this.#t()
+    setAttributes(parts.frame, { 'data-mode': mode, 'data-width': this.previewWidth ?? 'full', 'data-readonly': this.readonly === true, 'aria-label': t.label })
+    parts.frame.panels = this.#framePanels(mode)
+    this.#syncRegions(parts.frame, t)
     if (changed.has('mode'))
       this.#syncMode()
     if (this.#rendered !== this.#editor.document || changed.has('fieldRenderers') || changed.has('translations') || changed.size === 0)
@@ -316,19 +316,36 @@ export class XhFormDesigner extends XhReactiveElement {
       return this.#parts
     const doc = this.ownerDocument
     const toolbar = this.#buildToolbar(doc)
-    const canvas = createAuthoredElement(doc, 'div', { 'data-part': 'canvas', 'tabindex': '0' }, [this.#canvas.element])
-    const palette = createAuthoredElement(doc, 'div', { 'data-part': 'palette', 'data-panel': 'palette' })
-    const properties = createAuthoredElement(doc, 'div', { 'data-part': 'properties', 'data-panel': 'properties' })
-    const issues = createAuthoredElement(doc, 'div', { 'data-part': 'issues', 'data-panel': 'issues' })
-    const body = createAuthoredElement(doc, 'div', { 'data-part': 'body' }, [palette, canvas, properties])
-    const root = createAuthoredElement(doc, 'div', { 'data-part': 'root', 'role': 'application' }, [toolbar, body, issues])
+    const canvas = createAuthoredElement(doc, 'div', { 'data-part': 'canvas', 'slot': 'canvas', 'tabindex': '0' }, [this.#canvas.element])
+    const palette = createAuthoredElement(doc, 'div', { 'data-part': 'palette', 'slot': 'palette' })
+    const properties = createAuthoredElement(doc, 'div', { 'data-part': 'properties', 'slot': 'properties' })
+    const issues = createAuthoredElement(doc, 'div', { 'data-part': 'issues', 'slot': 'issues' })
+    const frame = createAuthoredElement(doc, 'xh-designer-frame', { 'data-part': 'frame', 'role': 'application' }, [toolbar, palette, canvas, properties, issues])
     canvas.addEventListener('click', this.#onCanvasClick)
     canvas.addEventListener('dblclick', this.#onCanvasDblclick)
     canvas.addEventListener('contextmenu', this.#onCanvasContextMenu)
     canvas.addEventListener('keydown', this.#onKeyDown)
-    this.replaceChildren(root)
-    this.#parts = { root, toolbar, canvas, palette, properties, issues }
+    this.replaceChildren(frame)
+    this.#parts = { frame, toolbar, canvas, palette, properties, issues }
     return this.#parts
+  }
+
+  /** 交给外框的 panels：设计态原样转交，预览态只留工具栏。 */
+  #framePanels(mode: FormDesignerMode): string | undefined {
+    if (mode === 'design')
+      return this.panels
+    const shown = parseDesignerPanels(this.panels)
+    return shown === undefined || shown.has('toolbar') ? 'toolbar' : ''
+  }
+
+  /** 外框的区名换成文案，供分隔条的无障碍名称使用；文案没变时不重设。 */
+  #syncRegions(frame: XhDesignerFrameElement, t: FormDesignerTranslations): void {
+    const labels: Readonly<Record<string, string>> = { toolbar: t.toolbar, palette: t.palette, canvas: t.canvas, properties: t.properties, issues: t.issues }
+    const regions: DesignerFrameRegion[] = DESIGNER_FRAME_REGIONS.map(region => ({ ...region, label: labels[region.name] ?? region.name }))
+    const current = frame.regions
+    if (current !== undefined && current.every((region, index) => region.label === regions[index]?.label))
+      return
+    frame.regions = regions
   }
 
   #buildToolbar(doc: Document): HTMLElement {
@@ -344,7 +361,7 @@ export class XhFormDesigner extends XhReactiveElement {
     })
     const root = createAuthoredElement(doc, 'div', { 'data-xh-part': 'root' }, groups)
     root.addEventListener('click', this.#onToolbarClick)
-    return createAuthoredElement(doc, 'div', { 'data-part': 'toolbar', 'data-panel': 'toolbar' }, [createAuthoredElement(doc, 'xh-toolbar', { size: 'sm' }, [root])])
+    return createAuthoredElement(doc, 'div', { 'data-part': 'toolbar', 'slot': 'toolbar' }, [createAuthoredElement(doc, 'xh-toolbar', { size: 'sm' }, [root])])
   }
 
   #syncToolbar(): void {
@@ -657,8 +674,9 @@ export class XhFormDesigner extends XhReactiveElement {
   }
 }
 
-/** 注册 <xh-form-designer>；重复调用不报错。UI 元素由宿主另行用 defineXhElements() 注册。 */
+/** 注册 <xh-form-designer> 与它用到的设计器零件；重复调用不报错。其余 UI 元素由宿主另行用 defineXhElements() 注册。 */
 export function defineFormDesigner(): void {
+  defineDesignerShellElement('xh-designer-frame', XhDesignerFrameElement)
   registerElement(FORM_DESIGNER_TAG, XhFormDesigner)
 }
 
