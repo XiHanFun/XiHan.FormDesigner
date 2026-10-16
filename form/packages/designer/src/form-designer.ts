@@ -10,19 +10,22 @@ import type { FormDocument, FormNode, FormOperation, FormSchemaIssue, KindRegist
 import type { FieldRenderer, FormDesignerTranslations, FormRendererTranslations, OptionLoader, XhFormRenderer } from '@xihan-form/runtime'
 import type { JsonValue } from '@xihan-ui/core/json'
 import type { ExecuteOptions } from '@xihan-ui/designer-kit'
-import type { DesignerFrameRegion } from '@xihan-ui/designer-shell'
+import type { PropertyEditorTable } from '@xihan-ui/designer-kit/properties'
+import type { DesignerFrameRegion, DesignerPropertiesEventMap, DesignerPropertyDescriptor } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
 import type { CanvasTarget } from './canvas'
 import type { FormClipboard, FormDropTarget, FormEditor, FormSelection } from './editor'
-import { createDocument, findNode, findRegion } from '@xihan-form/core'
+import type { FormPropertyEditor, PropertyView } from './properties'
+import { createDocument, findNode, findRegion, PROPERTY_GROUPS } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
-import { defineDesignerShellElement, DESIGNER_FRAME_REGIONS, parseDesignerPanels, XhDesignerFrameElement } from '@xihan-ui/designer-shell'
+import { defineDesignerShellElement, DESIGNER_FRAME_REGIONS, parseDesignerPanels, XhDesignerFrameElement, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { createAuthoredElement, emitEvent, registerElement, setAttributes, setText, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { DesignCanvas } from './canvas'
 import { readFormClipboard, writeFormClipboard } from './clipboard'
 import { createFormEditor } from './editor'
+import { propertyErrors, propertyOperations, propertyView } from './properties'
 
 /** 设计器的标签名。 */
 export const FORM_DESIGNER_TAG = 'xh-form-designer'
@@ -82,6 +85,7 @@ interface DesignerParts {
   readonly canvas: HTMLElement
   readonly palette: HTMLElement
   readonly properties: HTMLElement
+  readonly inspector: XhDesignerPropertiesElement
   readonly issues: HTMLElement
 }
 
@@ -94,6 +98,7 @@ export class XhFormDesigner extends XhReactiveElement {
     registry: { attribute: false },
     expressionEngine: { attribute: false },
     fieldRenderers: { attribute: false },
+    editors: { attribute: false },
     previewValues: { attribute: false },
     loadOptions: { attribute: false },
     translations: { attribute: false },
@@ -109,6 +114,8 @@ export class XhFormDesigner extends XhReactiveElement {
   declare expressionEngine: ExpressionEngine | undefined
   /** 与 <xh-form-renderer> 同名同义，画布与预览共用。 */
   declare fieldRenderers: Readonly<Record<string, FieldRenderer>> | undefined
+  /** 自定义属性编辑器，压在内建之上；路径键带分组前缀，如 basic.label，见 FormPropertyEditor。 */
+  declare editors: PropertyEditorTable<FormPropertyEditor> | undefined
   /** 预览的示例数据。 */
   declare previewValues: Readonly<Record<string, JsonValue>> | undefined
   /** 预览的选项加载。 */
@@ -135,6 +142,8 @@ export class XhFormDesigner extends XhReactiveElement {
   #preview: XhFormRenderer | undefined
   #rendered: FormDocument | undefined
   #clipboard: FormClipboard | undefined
+  #propertyView: PropertyView | undefined
+  #propertySource: { readonly document: FormDocument, readonly selection: FormSelection } | undefined
 
   constructor() {
     super()
@@ -150,7 +159,7 @@ export class XhFormDesigner extends XhReactiveElement {
       if (change.kind === 'selection') {
         this.#canvas.select(change.selection)
         emitEvent(this, 'selection-change', change.selection)
-        this.#syncToolbar()
+        this.requestUpdate()
         return
       }
       const kind: FormSchemaChangeKind | undefined = change.cause === 'execute' || change.cause === 'commit'
@@ -219,6 +228,7 @@ export class XhFormDesigner extends XhReactiveElement {
       this.#renderCanvas()
     this.#syncPreview()
     this.#syncToolbar()
+    this.#syncProperties(changed, t)
   }
 
   /** 执行一组操作并记为一步撤销；返回新模板。 */
@@ -318,15 +328,18 @@ export class XhFormDesigner extends XhReactiveElement {
     const toolbar = this.#buildToolbar(doc)
     const canvas = createAuthoredElement(doc, 'div', { 'data-part': 'canvas', 'slot': 'canvas', 'tabindex': '0' }, [this.#canvas.element])
     const palette = createAuthoredElement(doc, 'div', { 'data-part': 'palette', 'slot': 'palette' })
-    const properties = createAuthoredElement(doc, 'div', { 'data-part': 'properties', 'slot': 'properties' })
+    const inspector = createAuthoredElement(doc, 'xh-designer-properties', { 'data-part': 'inspector', 'collapsible': true, 'toggle-limit': '3' })
+    const properties = createAuthoredElement(doc, 'div', { 'data-part': 'properties', 'slot': 'properties' }, [inspector])
     const issues = createAuthoredElement(doc, 'div', { 'data-part': 'issues', 'slot': 'issues' })
     const frame = createAuthoredElement(doc, 'xh-designer-frame', { 'data-part': 'frame', 'role': 'application' }, [toolbar, palette, canvas, properties, issues])
     canvas.addEventListener('click', this.#onCanvasClick)
     canvas.addEventListener('dblclick', this.#onCanvasDblclick)
     canvas.addEventListener('contextmenu', this.#onCanvasContextMenu)
     canvas.addEventListener('keydown', this.#onKeyDown)
+    inspector.addEventListener('property-change', this.#onPropertyChange)
+    inspector.addEventListener('property-commit', this.#onPropertyCommit)
     this.replaceChildren(frame)
-    this.#parts = { frame, toolbar, canvas, palette, properties, issues }
+    this.#parts = { frame, toolbar, canvas, palette, properties, inspector, issues }
     return this.#parts
   }
 
@@ -462,6 +475,34 @@ export class XhFormDesigner extends XhReactiveElement {
     preview.schema = this.#editor.document
   }
 
+  /** 选择、模板、文案或只读变了时，重算属性面板的编辑对象、文案与字段错误。 */
+  #syncProperties(changed: PropertyValues, t: FormDesignerTranslations): void {
+    const document = this.#editor.document
+    const selection = this.#editor.selection
+    const source = this.#propertySource
+    const stale = source?.document !== document || source.selection !== selection
+    if (!stale && !changed.has('readonly') && !changed.has('editors') && !changed.has('translations') && !changed.has('registry') && changed.size > 0)
+      return
+    this.#propertySource = { document, selection }
+    const view = propertyView(document, this.#editor.registry, selection)
+    this.#propertyView = view
+    const inspector = this.#ensureParts().inspector
+    const nameOf = (descriptor: DesignerPropertyDescriptor): { kind: string, group: string, name: string } =>
+      view.names.get(descriptor) ?? { kind: '', group: '', name: String(descriptor.path.at(-1)) }
+    inspector.targets = view.targets
+    inspector.heading = view.scope === 'settings' ? t.settings : view.node ? t.nodeTag(view.node.kind, view.node.key) : view.container === undefined ? undefined : t.group('region')
+    inspector.editors = this.editors
+    inspector.readonly = this.readonly === true
+    inspector.groupOrder = PROPERTY_GROUPS
+    inspector.groupLabel = group => t.group(group)
+    inspector.labelOf = (descriptor) => {
+      const name = nameOf(descriptor)
+      return t.property(name.kind, name.group, name.name)
+    }
+    inspector.optionLabel = (descriptor, option) => t.option(nameOf(descriptor).name, String(option.value))
+    inspector.errors = propertyErrors(document, view, this.#issues, issue => t.issue(issue))
+  }
+
   #renderCanvas(): void {
     this.#rendered = this.#editor.document
     this.#canvas.render(this.#editor.document)
@@ -539,6 +580,23 @@ export class XhFormDesigner extends XhReactiveElement {
       : emitEvent(this, 'blank-contextmenu', position, { cancelable: true })
     if (!proceed)
       event.preventDefault()
+  }
+
+  /** 面板的写入换成编辑操作；同一合并键的连续写入并成一步，直到 property-commit。 */
+  readonly #onPropertyChange = (event: Event): void => {
+    event.stopPropagation()
+    const view = this.#propertyView
+    if (this.readonly === true || view === undefined)
+      return
+    const { path, value, targets, merge } = (event as DesignerPropertiesEventMap['property-change']).detail
+    const operations = propertyOperations(view.scope, path, value, targets)
+    if (operations.length > 0)
+      this.#editor.execute(operations, { merge, mergeWithin: Infinity })
+  }
+
+  readonly #onPropertyCommit = (event: Event): void => {
+    event.stopPropagation()
+    this.#editor.seal()
   }
 
   /** 画布有焦点时，复制、剪切写进剪贴板事件的数据，粘贴读出表单的剪贴板内容；别的内容不处理。 */
@@ -677,6 +735,7 @@ export class XhFormDesigner extends XhReactiveElement {
 /** 注册 <xh-form-designer> 与它用到的设计器零件；重复调用不报错。其余 UI 元素由宿主另行用 defineXhElements() 注册。 */
 export function defineFormDesigner(): void {
   defineDesignerShellElement('xh-designer-frame', XhDesignerFrameElement)
+  defineDesignerShellElement('xh-designer-properties', XhDesignerPropertiesElement)
   registerElement(FORM_DESIGNER_TAG, XhFormDesigner)
 }
 
