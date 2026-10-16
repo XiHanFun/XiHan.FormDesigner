@@ -245,10 +245,25 @@ describe('<xh-form-renderer>：值与事件', () => {
     const label = shell.querySelector('[data-xh-part="label"]')!
     expect([description.textContent, error.textContent]).toEqual(['与证件一致', '此项必填'])
     const input = shell.querySelector(selector)!
-    const describedBy = input.getAttribute('aria-describedby')!.split(' ')
-    expect(describedBy).toEqual(expect.arrayContaining([description.id, error.id]))
-    expect(input.getAttribute('aria-labelledby')!.split(' ')).toContain(label.id)
+    expect(input.getAttribute('aria-describedby')!.split(' ')).toEqual([description.id, error.id])
+    expect(input.getAttribute('aria-labelledby')).toBe(label.id)
     expect(input.getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('名字链与描述链只引用在场的节点：没有提示的字段不带提示 id，控件不再引用自己没写的标签', async () => {
+    const { document } = sample()
+    const renderer = await mount((element) => {
+      element.schema = document
+    })
+    await Promise.all([...renderer.querySelectorAll('xh-field')].map(shell => (shell as HTMLElement & { updateComplete?: Promise<boolean> }).updateComplete))
+    const trigger = group(renderer, ['level']).querySelector('[data-xh-part="trigger"]')!
+    expect(trigger.hasAttribute('aria-describedby')).toBe(false)
+    const references = [...renderer.querySelectorAll('[aria-labelledby], [aria-describedby]')].flatMap(node => [
+      ...(node.getAttribute('aria-labelledby') ?? '').split(' '),
+      ...(node.getAttribute('aria-describedby') ?? '').split(' '),
+    ]).filter(id => id !== '')
+    expect(references.length).toBeGreaterThan(0)
+    expect(references.filter(id => window.document.getElementById(id) === null)).toEqual([])
   })
 
   it('整表只读与禁用合进字段状态；表单设置里的也算', async () => {
