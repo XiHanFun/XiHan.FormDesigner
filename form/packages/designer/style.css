@@ -120,6 +120,18 @@ xh-form-designer [data-node-id][data-selected] > [data-part='node-tag'] {
   display: block;
 }
 
+/* 选中节点右下角的小工具条：选父级、上移、下移、再制、删除。 */
+xh-form-designer [data-node-id] > [data-part='node-toolbar'] {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-end: 0;
+  z-index: var(--xh-z-sticky);
+  border: var(--xh-stroke-thin) solid var(--xh-border-default);
+  border-radius: var(--xh-shape-control);
+  background: var(--xh-bg-surface);
+  box-shadow: var(--xh-shadow-sm);
+}
+
 /* 区域：放置区，空的时候显示提示，选中时淡底。 */
 xh-form-designer [data-region-id] {
   min-block-size: var(--xh-control-h-md);
