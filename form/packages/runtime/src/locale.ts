@@ -16,6 +16,7 @@ export const formZhCN: XhConfig = {
       errorSummaryItem: (label: string, message: string) => `${label}：${message}`,
       optionsLoading: '加载中…',
       optionsEmpty: '暂无选项',
+      ratingItem: (value: number, count: number) => `${value} 星，共 ${count} 星`,
       valueRequired: '此项必填',
       valueNotAccepted: '请勾选此项',
       valueTooShort: (min: number) => `至少输入 ${min} 个字符`,

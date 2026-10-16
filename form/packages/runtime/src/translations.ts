@@ -15,6 +15,8 @@ export interface FormRendererTranslations {
   readonly optionsLoading: string
   /** 没有选项。 */
   readonly optionsEmpty: string
+  /** 评分里第 value 颗星的可访问名，共 count 颗。 */
+  readonly ratingItem: (value: number, count: number) => string
   /** 值校验问题的文案，按问题码取。 */
   readonly valueRequired: string
   readonly valueNotAccepted: string
@@ -36,6 +38,7 @@ export const DEFAULT_FORM_RENDERER_TRANSLATIONS: FormRendererTranslations = Obje
   errorSummaryItem: (label: string, message: string) => `${label}: ${message}`,
   optionsLoading: 'Loading…',
   optionsEmpty: 'No options',
+  ratingItem: (value: number, count: number) => `${value} of ${count}`,
   valueRequired: 'This field is required',
   valueNotAccepted: 'This must be checked',
   valueTooShort: (min: number) => `Enter at least ${min} characters`,
