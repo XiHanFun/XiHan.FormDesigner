@@ -5,8 +5,9 @@
 
 // 导出 @xihan-form/core 的公共接口。
 
-export { createInitialValues, createRowValues, identifiersAt, isValueOfKind, listBindings, scopeKeys } from './bindings'
+export { createInitialValues, createRowValues, formDataFields, identifiersAt, isValueOfKind, listBindings, scopeKeys } from './bindings'
 export type { DataBinding } from './bindings'
+export { cloneNodesForInsert, regionScope } from './copy'
 export { createDocument, createNode, createRegion, deriveKey, FORM_SETTING_PROPERTIES, isValidKey } from './create'
 export type { CreateNodeOptions } from './create'
 export { RUNTIME_VARIABLES } from './expression'
@@ -25,7 +26,7 @@ export type { FormPropertyControl, FormPropertyDescriptor, PropertySchema } from
 export { FORM_SCHEMA_VERSION, PROPERTY_GROUPS } from './schema'
 export type { AcceptedRule, ContainerNode, ExpressionRule, FieldNode, FormDocument, FormNode, LengthRule, LinkageAction, LinkageRule, NodeType, PatternRule, PropertyBag, PropertyGroup, RangeRule, Region, RequiredRule, StaticNode, ValidationKind, ValidationRule } from './schema'
 export { insertTableLine, mergeTableCells, removeTableLine, splitTableCell } from './table-commands'
-export { descendantsOf, findNode, findRegion, walkNodes } from './traverse'
+export { collectDocumentIds, collectIds, descendantsOf, findNode, findRegion, walkNodes } from './traverse'
 export type { FoundNode, FoundRegion, NodeLocation, NodeVisitor, VisitContext } from './traverse'
 export { validateDocument } from './validate-document'
 export type { ValidateDocumentOptions } from './validate-document'

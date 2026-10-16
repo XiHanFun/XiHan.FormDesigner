@@ -6,6 +6,7 @@
 // 数据绑定：字段与列表容器的数据键、所在作用域、可引用的名字，以及由文档得出初始值。
 
 import type { JsonValue } from '@xihan-ui/core/json'
+import type { DataField } from '@xihan-ui/designer-kit'
 import type { KindRegistry, ValueKind } from './registry/kinds'
 import type { ContainerNode, FieldNode, FormDocument, FormNode } from './schema'
 import { cloneJson, isJsonValue, isPlainObject } from '@xihan-ui/core/json'
@@ -139,4 +140,35 @@ export function createRowValues(container: ContainerNode, registry: KindRegistry
 /** 由文档得出表单的初始值：字段取 `basic.initialValue`，没有则取种类的空值；列表容器取 `data.initialRows` 行。 */
 export function createInitialValues(document: FormDocument, registry: KindRegistry): Record<string, JsonValue> {
   return scopeValues(document.children, registry, {})
+}
+
+function labelOf(value: unknown): { readonly label?: string } {
+  return typeof value === 'string' && value !== '' ? { label: value } : {}
+}
+
+function scopeFields(children: readonly FormNode[], out: DataField[]): DataField[] {
+  for (const node of children) {
+    if (node.type === 'field') {
+      out.push({ name: node.key, ...labelOf(node.basic.label), kind: 'value' })
+    }
+    else if (node.type === 'container') {
+      if (isListContainer(node)) {
+        const rows: DataField[] = []
+        node.regions.forEach(region => scopeFields(region.children, rows))
+        out.push({ name: node.key, ...labelOf(node.basic.title), kind: 'list', children: rows })
+      }
+      else {
+        node.regions.forEach(region => scopeFields(region.children, out))
+      }
+    }
+  }
+  return out
+}
+
+/**
+ * 表单数据的字段树（designer-kit 的 DataField）：字段是 value，标签取 `basic.label`；
+ * 列表容器是 list，标签取 `basic.title`，子字段是一行里的字段；布局容器不占层级。按文档顺序。
+ */
+export function formDataFields(document: FormDocument): DataField[] {
+  return scopeFields(document.children, [])
 }
