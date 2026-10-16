@@ -68,6 +68,7 @@ export interface FormDesignerTranslations {
   readonly rulePattern: string
   readonly ruleFlags: string
   readonly ruleExpression: string
+  readonly ruleAction: string
   readonly noRules: string
   /** 表格布局的右键菜单。 */
   readonly mergeCells: string
@@ -207,6 +208,7 @@ export const DEFAULT_FORM_DESIGNER_TRANSLATIONS: FormDesignerTranslations = Obje
   rulePattern: 'Pattern',
   ruleFlags: 'Flags',
   ruleExpression: 'Expression',
+  ruleAction: 'Action',
   noRules: 'No rules',
   mergeCells: 'Merge cells',
   splitCell: 'Split cell',

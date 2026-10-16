@@ -45,7 +45,7 @@ describe('issueFocus', () => {
     const issues = issuesOf(document)
     const of = (kind: string | undefined): ReturnType<typeof issueFocus> => issueFocus(document, issues.find(issue => issue.target?.kind === kind)!)
     expect(of('node')).toEqual({ selection: { nodes: [name.id] }, path: ['key'] })
-    expect(of('rule')).toEqual({ selection: { nodes: [name.id] }, path: undefined })
+    expect(of('rule')).toEqual({ selection: { nodes: [name.id] }, path: undefined, rule: { list: 'linkage', id: 'r1', path: ['when'] } })
     expect(of('region')).toEqual({ selection: { nodes: [], regions: [grid.regions[0]!.id] }, path: ['span'] })
     expect(of(undefined)).toEqual({ selection: { nodes: [] }, path: ['size'] })
   })

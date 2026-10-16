@@ -274,6 +274,7 @@ export const formDesignerZhCN: FormDesignerTranslations = {
   rulePattern: '正则',
   ruleFlags: '修饰符',
   ruleExpression: '表达式',
+  ruleAction: '动作',
   noRules: '还没有规则',
   mergeCells: '合并单元格',
   splitCell: '拆分单元格',
