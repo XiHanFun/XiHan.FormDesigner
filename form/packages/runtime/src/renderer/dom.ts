@@ -3,37 +3,29 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 生成 UI 元素部件树用的小工具：建节点、标部件、写属性与文字。
+// 生成 UI 元素部件树用的小工具：建节点、标部件、写属性与文字，底层是 @xihan-ui/web-components/authoring 的公开工具。
 
 import type { NodeState } from '@xihan-form/core'
+import { createAuthoredElement, setAttributes, setText } from '@xihan-ui/web-components/authoring'
 
-/** 建一个节点；给了 name 就标成该部件。 */
+/** 按作者写法建一个节点；给了 name 就标成该部件。 */
 export function make<K extends keyof HTMLElementTagNameMap>(doc: Document, tag: K, name?: string, attributes: Readonly<Record<string, string>> = {}): HTMLElementTagNameMap[K] {
-  const element = doc.createElement(tag)
-  if (name !== undefined)
-    element.setAttribute('data-xh-part', name)
-  for (const [key, value] of Object.entries(attributes))
-    element.setAttribute(key, value)
-  return element
+  return createAuthoredElement(doc, tag, name === undefined ? attributes : { 'data-xh-part': name, ...attributes })
 }
 
 /** 建一个 UI 元素宿主。 */
 export function host(doc: Document, tag: string): HTMLElement {
-  return doc.createElement(tag)
+  return createAuthoredElement(doc, tag)
 }
 
-/** 有值时写属性，`undefined` 时移除。 */
+/** 有值时写属性，`undefined` 时移除；值没变时不写。 */
 export function attr(element: Element, name: string, value: string | undefined): void {
-  if (value === undefined)
-    element.removeAttribute(name)
-  else if (element.getAttribute(name) !== value)
-    element.setAttribute(name, value)
+  setAttributes(element, { [name]: value })
 }
 
 /** 文字不同时才写。 */
 export function text(element: Element, value: string): void {
-  if (element.textContent !== value)
-    element.textContent = value
+  setText(element, value)
 }
 
 /** 取字符串属性，不是字符串时为 `undefined`。 */
