@@ -1,0 +1,23 @@
+/*
+ * Copyright (c) 2021-Present XiHanFun and contributors.
+ * Licensed under the MIT License. See LICENSE in the project root for license information.
+ */
+
+/* <xh-form-renderer> 的样式：只做排布，只消费 @xihan-ui 设计令牌；控件外观来自 @xihan-ui/styles。 */
+
+xh-form-renderer {
+  display: block;
+}
+
+/* 容器每个区域里的子节点竖排，项距与表单根一致。 */
+xh-form-renderer [data-form-region] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--xh-form-gap, var(--xh-space-5));
+  min-inline-size: 0;
+}
+
+xh-form-renderer xh-grid:not([hidden]),
+xh-form-renderer xh-separator:not([hidden]) {
+  display: contents;
+}

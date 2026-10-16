@@ -18,6 +18,8 @@ import type { FormSchemaIssue } from '@xihan-form/core'
  * - `XH_FORM_RT_NO_OPTIONS`：目标不是选项类字段。
  * - `XH_FORM_RT_NO_OPTION_LOADER`：字段有选项来源，却没有提供选项加载函数。
  * - `XH_FORM_RT_DISPOSED`：控制器已经销毁。
+ * - `XH_FORM_RT_NOT_READY`：渲染器还没有可用的控制器（没给模板，或模板无效）。
+ * - `XH_FORM_RT_NO_RENDERER`：渲染器找不到某个种类的渲染方式，`data.kind` 是种类名。
  */
 export type FormRuntimeErrorCode
   = | 'XH_FORM_RT_INVALID_DOCUMENT'
@@ -30,6 +32,8 @@ export type FormRuntimeErrorCode
     | 'XH_FORM_RT_NO_OPTIONS'
     | 'XH_FORM_RT_NO_OPTION_LOADER'
     | 'XH_FORM_RT_DISPOSED'
+    | 'XH_FORM_RT_NOT_READY'
+    | 'XH_FORM_RT_NO_RENDERER'
 
 /** 运行时错误；`message` 就是错误码。 */
 export class FormRuntimeError extends Error {
