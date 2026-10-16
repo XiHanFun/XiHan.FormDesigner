@@ -226,9 +226,12 @@ describe('<xh-form-renderer>：值与事件', () => {
     expect(renderer.controller!.getIssues().map(issue => issue.code)).toEqual(['XH_FORM_VALUE_REQUIRED'])
   })
 
-  it('提示与错误文案落在 xh-field 的说明与错误部件上，并接到控件的输入框', async () => {
+  it.each([
+    ['text', 'xh-text-field input'],
+    ['password', 'xh-password-input input'],
+  ])('提示与错误文案落在 xh-field 的说明与错误部件上，并接到 %s 的输入框', async (kind, selector) => {
     const { registry, ids } = setup()
-    const name = field(registry, ids, 'text', 'name', { basic: { label: '姓名', hint: '与证件一致' }, validation: [{ id: 'r1', kind: 'required' }] })
+    const name = field(registry, ids, kind, 'name', { basic: { label: '姓名', hint: '与证件一致' }, validation: [{ id: 'r1', kind: 'required' }] })
     setXhConfig(formZhCN)
     const renderer = await mount((element) => {
       element.schema = documentOf([name])
@@ -241,7 +244,7 @@ describe('<xh-form-renderer>：值与事件', () => {
     const error = shell.querySelector('[data-xh-part="error-text"]')!
     const label = shell.querySelector('[data-xh-part="label"]')!
     expect([description.textContent, error.textContent]).toEqual(['与证件一致', '此项必填'])
-    const input = shell.querySelector('xh-text-field input')!
+    const input = shell.querySelector(selector)!
     const describedBy = input.getAttribute('aria-describedby')!.split(' ')
     expect(describedBy).toEqual(expect.arrayContaining([description.id, error.id]))
     expect(input.getAttribute('aria-labelledby')!.split(' ')).toContain(label.id)
