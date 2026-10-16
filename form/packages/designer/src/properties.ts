@@ -122,7 +122,7 @@ export function propertyOperations(scope: PropertyScope, path: JsonPath, value: 
 }
 
 /** 文档里每个节点与区域的路径，写法与模板结构问题的 path 相同。 */
-function locations(document: FormDocument): Map<string, JsonPath> {
+export function locations(document: FormDocument): Map<string, JsonPath> {
   const out = new Map<string, JsonPath>()
   const visit = (children: readonly FormNode[], base: JsonPath): void => {
     children.forEach((node, index) => {
@@ -146,7 +146,7 @@ function startsWith(path: JsonPath, prefix: JsonPath): boolean {
 }
 
 /** 面板上的路径：问题落在属性值里面时取到属性这一层。 */
-function fieldPath(scope: PropertyScope, rest: JsonPath): JsonPath | undefined {
+export function fieldPath(scope: PropertyScope, rest: JsonPath): JsonPath | undefined {
   if (scope === 'nodes') {
     if (rest[0] === 'key')
       return ['key']

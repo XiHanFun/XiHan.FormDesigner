@@ -338,3 +338,31 @@ describe('<xh-form-designer>：物料面板', () => {
     expect(designer.schema.children).toHaveLength(3)
   })
 })
+
+describe('<xh-form-designer>：问题列表', () => {
+  it('问题列进问题面板；点开一条选中所在节点并把焦点交给对应字段', async () => {
+    const { document, name } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    designer.execute([{ type: 'setKey', nodeId: name.id, key: '1bad' }])
+    await settle(designer)
+    const problems = designer.querySelector('xh-designer-issues')!
+    expect(problems.items!.map(item => [item.issue.code, item.subject])).toEqual([['invalid-value', DEFAULT_FORM_DESIGNER_TRANSLATIONS.nodeTag('text', '1bad')]])
+    problems.dispatchEvent(new CustomEvent('issue-activate', { bubbles: true, detail: { issue: problems.items![0]!.issue, index: 0 } }))
+    expect(designer.getSelection()).toEqual({ nodes: [name.id] })
+    await settle(designer)
+    await designer.querySelector('xh-designer-properties')!.updateComplete
+    await new Promise(resolve => setTimeout(resolve))
+    expect(window.document.activeElement?.closest('[data-path]')?.getAttribute('data-path')).toBe('key')
+  })
+
+  it('规则里的表达式按 expressionEngine 检查', async () => {
+    const { document, name } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    designer.execute([{ type: 'insertRule', nodeId: name.id, list: 'linkage', index: 0, rule: { id: 'r1', action: 'hide', when: 'name +' } }])
+    expect(designer.validate().map(issue => issue.code)).toContain('expression.invalid')
+  })
+})
