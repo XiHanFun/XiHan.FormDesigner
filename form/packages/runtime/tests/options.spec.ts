@@ -168,3 +168,80 @@ describe('选项', () => {
     expect(() => controller.getOptions(city.id)).toThrow(FormRuntimeError)
   })
 })
+
+describe('选项依赖', () => {
+  function cascade() {
+    const { registry, ids } = setup()
+    const province = field(registry, ids, 'select', 'province', { data: { options: [{ value: 'zj', label: '浙江' }, { value: 'js', label: '江苏' }] } })
+    const city = field(registry, ids, 'select', 'city', { data: { optionSource: 'cities', optionDependencies: ['province'] } })
+    const district = field(registry, ids, 'select', 'district', { data: { optionSource: 'districts', optionDependencies: ['city'] } })
+    const rowCity = field(registry, ids, 'select', 'rowCity', { data: { optionSource: 'cities', optionDependencies: ['province'] } })
+    const rowProvince = field(registry, ids, 'select', 'province', { data: { options: [{ value: 'zj', label: '浙江' }] } })
+    const lines = container(registry, ids, 'subtable', [rowProvince, rowCity], { key: 'lines' })
+    return { document: documentOf([province, city, district, lines]), city, district, rowCity }
+  }
+
+  it('改了依赖的值：依赖它的字段逐级回到空值，并自动重新加载选项', async () => {
+    const { document, city, district } = cascade()
+    const requests: OptionRequest[] = []
+    const controller = createFormController({
+      document,
+      values: { province: 'zj', city: 'hz', district: 'xh' },
+      loadOptions: (request) => {
+        requests.push(request)
+        return []
+      },
+    })
+    controller.setValue(['province'], 'js')
+    expect(controller.getFormData()).toMatchObject({ province: 'js', city: null, district: null })
+    expect(controller.getOptions(city.id).status).toBe('loading')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(requests.map(request => [request.source, request.path, request.values.province])).toEqual([
+      ['cities', ['city'], 'js'],
+      ['districts', ['district'], 'js'],
+    ])
+    expect(controller.getOptions(district.id).status).toBe('ready')
+  })
+
+  it('列表行里的依赖先在行内找：改行里的键只牵动本行，外层的同名键不受影响', async () => {
+    const { document, rowCity } = cascade()
+    const requests: OptionRequest[] = []
+    const controller = createFormController({
+      document,
+      values: { province: 'zj', lines: [{ province: 'zj', rowCity: 'hz' }, { province: 'zj', rowCity: 'nb' }] },
+      loadOptions: (request) => {
+        requests.push(request)
+        return []
+      },
+    })
+    controller.setValue(['lines', 1, 'province'], 'zj')
+    controller.setValue(['province'], 'js')
+    expect(controller.getValue(['lines'])).toEqual([{ province: 'zj', rowCity: 'hz' }, { province: 'zj', rowCity: 'nb' }])
+    controller.setValue(['lines', 1, 'province'], null)
+    expect(controller.getValue(['lines'])).toEqual([{ province: 'zj', rowCity: 'hz' }, { province: null, rowCity: null }])
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(requests.filter(request => request.nodeId === rowCity.id).map(request => request.path)).toEqual([['lines', 1, 'rowCity']])
+  })
+
+  it('整份替换与重置只重新加载，不清空依赖它的字段；没有加载函数时什么也不做', async () => {
+    const { document } = cascade()
+    const requests: OptionRequest[] = []
+    const controller = createFormController({
+      document,
+      values: { province: 'zj', city: 'hz' },
+      loadOptions: (request) => {
+        requests.push(request)
+        return []
+      },
+    })
+    controller.setFormData({ province: 'js', city: 'nj' })
+    expect(controller.getFormData()).toMatchObject({ province: 'js', city: 'nj' })
+    await Promise.resolve()
+    expect(requests.map(request => request.source)).toEqual(['cities', 'districts'])
+    const silent = createFormController({ document, values: { province: 'zj', city: 'hz' } })
+    silent.setValue(['province'], 'js')
+    expect(silent.getFormData()).toMatchObject({ province: 'js', city: null })
+  })
+})

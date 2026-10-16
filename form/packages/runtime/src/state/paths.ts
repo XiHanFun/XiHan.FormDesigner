@@ -61,3 +61,21 @@ export function resolvePath(children: readonly FormNode[], path: JsonPath): Reso
   }
   return undefined
 }
+
+/** 选项依赖的数据路径：依赖键先在实例所在作用域找，找不到再逐层往外；都找不到返回 `undefined`。 */
+export function dependencyPath(children: readonly FormNode[], instancePath: JsonPath, key: string): JsonPath | undefined {
+  const scopes: { children: readonly FormNode[], prefix: JsonPath }[] = [{ children, prefix: [] }]
+  let scope = children
+  for (let index = 0; index + 2 < instancePath.length; index += 2) {
+    const list = scopeBindings(scope).find(item => item.key === instancePath[index])
+    if (list === undefined || !isListContainer(list))
+      return undefined
+    scope = rowChildren(list)
+    scopes.push({ children: scope, prefix: instancePath.slice(0, index + 2) })
+  }
+  for (const { children: members, prefix } of scopes.reverse()) {
+    if (scopeBindings(members).some(item => item.key === key))
+      return [...prefix, key]
+  }
+  return undefined
+}

@@ -30,7 +30,7 @@ import { changedIssuePaths, changedKeys, sameState } from './changes'
 import { FormRuntimeError } from './errors'
 import { normalizeRow, normalizeScope, normalizeValue } from './normalize'
 import { isValidOptions, optionsDescriptor, optionSourceOf } from './options'
-import { isListContainer, resolvePath, rowChildren, scopeBindings } from './paths'
+import { dependencyPath, isListContainer, resolvePath, rowChildren, scopeBindings } from './paths'
 
 /** 联动重算的轮数上限。 */
 const MAX_LINKAGE_PASSES = 10
@@ -108,7 +108,7 @@ export interface FormController {
    * `baseline` 为 `true` 时，填入的值同时成为 `reset` 与 `isDirty` 的基准。
    */
   readonly setFormData: (data: Readonly<Record<string, JsonValue>>, options?: SetFormDataOptions) => void
-  /** 写一个字段或列表容器的值；形状不符时抛错。 */
+  /** 写一个字段或列表容器的值；形状不符时抛错。值确实变了时，依赖它的选项字段回到空值，并逐级带上依赖这些字段的字段。 */
   readonly setValue: (path: JsonPath, value: JsonValue) => void
   /** 节点实例的状态；字符串只取顶层实例，列表里的实例用数据路径。 */
   readonly getState: (target: FormTarget) => NodeState | undefined
@@ -132,7 +132,10 @@ export interface FormController {
   readonly addRow: (listPath: JsonPath, options?: AddRowOptions) => void
   readonly removeRow: (listPath: JsonPath, index: number) => void
   readonly moveRow: (listPath: JsonPath, from: number, to: number) => void
-  /** 重新加载选项：不给目标时加载全部带选项来源的字段实例。 */
+  /**
+   * 重新加载选项：不给目标时加载全部带选项来源的字段实例。
+   * 提供了加载函数时，选项依赖的值一变（改值、整份替换、重置、联动赋值），依赖它的字段实例会自动重新加载。
+   */
   readonly reloadOptions: (target?: FormTarget) => Promise<void>
   /** 字段实例的选项：带选项来源时是加载状态，否则是 schema 里的静态选项。 */
   readonly getOptions: (target: FormTarget) => OptionsState
@@ -270,6 +273,56 @@ class Controller implements FormController {
     if (options.length > 0)
       events.push({ type: 'options', keys: options })
     this.emit(events)
+    const dependents = this.loader === undefined ? [] : this.dependentsOf(values)
+    if (dependents.length > 0)
+      void this.load(dependents.map(item => item.key))
+  }
+
+  /** 带选项来源且声明了依赖的字段实例。 */
+  private dependentInstances(): { key: string, node: FieldNode, path: JsonPath, dependencies: JsonPath[] }[] {
+    const out: { key: string, node: FieldNode, path: JsonPath, dependencies: JsonPath[] }[] = []
+    for (const key of this.states.keys()) {
+      const node = findNode(this.document, parseInstanceKey(key).nodeId)?.node
+      if (node?.type !== 'field' || optionSourceOf(node) === undefined)
+        continue
+      const keys = node.data.optionDependencies
+      if (!Array.isArray(keys) || keys.length === 0)
+        continue
+      const path = this.instancePath(node, parseInstanceKey(key).rowPath)
+      const dependencies = keys.flatMap((dependency) => {
+        const found = typeof dependency === 'string' ? dependencyPath(this.document.children, path, dependency) : undefined
+        return found === undefined ? [] : [found]
+      })
+      out.push({ key, node, path, dependencies })
+    }
+    return out
+  }
+
+  /** 依赖的值落在 changed 里的字段实例。 */
+  private dependentsOf(changed: readonly JsonPath[]): { key: string, node: FieldNode, path: JsonPath }[] {
+    if (changed.length === 0)
+      return []
+    return this.dependentInstances().filter(item => item.dependencies.some(dependency => changed.some(path => isJsonPathPrefix(dependency, path) || isJsonPathPrefix(path, dependency))))
+  }
+
+  /** 依赖变了的字段回到空值，并逐级带上依赖它们的字段。 */
+  private clearDependents(changed: JsonPath): void {
+    const seen = new Set<string>()
+    let pending: readonly JsonPath[] = [changed]
+    while (pending.length > 0) {
+      const next: JsonPath[] = []
+      for (const item of this.dependentsOf(pending)) {
+        if (seen.has(item.key))
+          continue
+        seen.add(item.key)
+        const definition = this.registry.get(item.node.kind)
+        if (definition?.type !== 'field')
+          continue
+        this.write(item.path, cloneJson(definition.emptyValue(item.node.data)))
+        next.push(item.path)
+      }
+      pending = next
+    }
   }
 
   private resolve(path: JsonPath): ResolvedPath {
@@ -360,7 +413,12 @@ class Controller implements FormController {
     this.alive()
     const { node } = this.resolve(path)
     const next = normalizeValue(node, value, path, this.registry)
-    this.commit(() => this.write(path, next))
+    this.commit(() => {
+      const before = this.read(path)
+      this.write(path, next)
+      if (before === undefined || !jsonEquals(before, next))
+        this.clearDependents(path)
+    })
   }
 
   getState(target: FormTarget): NodeState | undefined {
@@ -573,7 +631,11 @@ class Controller implements FormController {
 
   async reloadOptions(target?: FormTarget): Promise<void> {
     this.alive()
-    const keys = this.optionTargets(target).filter(key => optionSourceOf(this.optionField(key)) !== undefined)
+    await this.load(this.optionTargets(target).filter(key => optionSourceOf(this.optionField(key)) !== undefined))
+  }
+
+  /** 加载一组字段实例的选项。 */
+  private async load(keys: readonly string[]): Promise<void> {
     if (keys.length === 0)
       return
     const loader = this.loader
