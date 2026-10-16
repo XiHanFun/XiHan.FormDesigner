@@ -41,9 +41,13 @@ import {
 import { cloneJson } from '@xihan-ui/core/json'
 import { createHistory, createIdAllocator } from '@xihan-ui/designer-kit'
 
-/** 选择：选中节点的 id，按选中的先后。 */
+/**
+ * 选择：选中的节点，或同一个容器里的区域（栅格的列、标签页、折叠项、表格单元格），二者互斥，按选中的先后。
+ * 选中区域时 nodes 为空。
+ */
 export interface FormSelection {
   readonly nodes: readonly string[]
+  readonly regions?: readonly string[]
 }
 
 /** 选择方式：替换、追加或切换。 */
@@ -100,7 +104,8 @@ export interface FormEditor {
   /** 把 run 里的全部修改合为一步撤销。 */
   readonly transact: <T>(run: () => T, label?: string) => T
   readonly markSaved: () => void
-  readonly select: (nodes: readonly string[], mode?: FormSelectMode) => void
+  /** 选中节点或区域：给了非空的 regions 就选区域（只留与第一个同一容器的），否则选 nodes。 */
+  readonly select: (selection: Partial<FormSelection>, mode?: FormSelectMode) => void
   readonly clearSelection: () => void
   /** 节点能否放到目标位置：目标区域存在，不放进自己或自己的后代，目标区域收这种节点（如子表只收字段）。 */
   readonly canDrop: (nodeIds: readonly string[], target: FormDropTarget) => boolean
@@ -111,6 +116,10 @@ export interface FormEditor {
   /** 移动一组节点到目标位置，保持它们在文档里的先后；放不下时返回 false。 */
   readonly moveNodes: (nodeIds: readonly string[], target: FormDropTarget, options?: ExecuteOptions) => boolean
   /** 删除选中的节点；没有选中时返回 false。 */
+  /**
+   * 删除选中的节点；选中区域时删除这些区域，删完要少于容器的区域下限或容器是表格布局时不删。
+   * 什么都没删时返回 false。
+   */
   readonly deleteSelection: (options?: ExecuteOptions) => boolean
   /** 写节点的属性；value 为 undefined 时删除该属性。连续写同一属性合为一步，直到 seal。 */
   readonly setProperty: (nodeId: string, group: PropertyGroup, name: string, value: JsonValue | undefined, options?: ExecuteOptions) => void
@@ -193,18 +202,24 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
 
   const allocator = (): IdAllocator => createIdAllocator(ID_PREFIX, collectDocumentIds(history.document))
 
-  const setSelection = (nodes: readonly string[]): void => {
+  const sameList = (a: readonly string[], b: readonly string[]): boolean => a.length === b.length && a.every((id, index) => id === b[index])
+
+  /** 规整选择：去掉不存在的节点与区域，区域只留与第一个同一容器的；选了区域就不留节点。 */
+  const setSelection = (next: Partial<FormSelection>): void => {
     const document = history.document
-    const next = [...new Set(nodes)].filter(id => findNode(document, id) !== undefined)
-    if (next.length === selection.nodes.length && next.every((id, index) => id === selection.nodes[index]))
+    const regions = [...new Set(next.regions ?? [])].map(id => findRegion(document, id)).filter(found => found !== undefined)
+    const owner = regions[0]?.container.id
+    const regionIds = regions.filter(found => found.container.id === owner).map(found => found.region.id)
+    const nodes = regionIds.length > 0 ? [] : [...new Set(next.nodes ?? [])].filter(id => findNode(document, id) !== undefined)
+    if (sameList(nodes, selection.nodes) && sameList(regionIds, selection.regions ?? []))
       return
-    selection = next.length === 0 ? EMPTY_SELECTION : { nodes: next }
+    selection = regionIds.length > 0 ? { nodes: [], regions: regionIds } : nodes.length > 0 ? { nodes } : EMPTY_SELECTION
     emit({ kind: 'selection', selection })
   }
 
   history.subscribe((change) => {
     emit({ kind: 'document', cause: change.kind, document: change.document, operations: change.operations })
-    setSelection(selection.nodes)
+    setSelection(selection)
   })
 
   const execute = (operations: readonly FormOperation[], executeOptions?: ExecuteOptions): FormDocument =>
@@ -226,8 +241,11 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
 
   const fits = (type: FormNode['type'], accepts: 'any' | 'fields'): boolean => accepts === 'any' || type === 'field'
 
-  /** 选中节点之后的位置；没有选中时为顶层末尾。 */
+  /** 选中节点之后的位置；选中区域时为该区域末尾；都没有时为顶层末尾。 */
   const defaultTarget = (): FormDropTarget => {
+    const region = selection.regions?.[0]
+    if (region !== undefined)
+      return { parent: region }
     const last = selection.nodes.at(-1)
     const found = last === undefined ? undefined : findNode(history.document, last)
     if (found === undefined)
@@ -274,7 +292,7 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
       return undefined
     const node = createNode(registry, kind, allocator())
     insertNodes([node], at, executeOptions)
-    setSelection([node.id])
+    setSelection({ nodes: [node.id] })
     return node
   }
 
@@ -310,7 +328,20 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
     return true
   }
 
+  const deleteRegions = (regionIds: readonly string[], executeOptions?: ExecuteOptions): boolean => {
+    const found = findRegion(history.document, regionIds[0]!)
+    const definition = found === undefined ? undefined : registry.get(found.container.kind)
+    if (found === undefined || definition?.type !== 'container' || found.container.kind === 'table')
+      return false
+    if (found.container.regions.length - regionIds.length < definition.regions.min)
+      return false
+    execute(regionIds.map(regionId => ({ type: 'removeRegion', regionId })), executeOptions)
+    return true
+  }
+
   const deleteSelection = (executeOptions?: ExecuteOptions): boolean => {
+    if (selection.regions !== undefined)
+      return deleteRegions(selection.regions, executeOptions)
     const ids = topmost(history.document, selection.nodes)
     if (ids.length === 0)
       return false
@@ -382,7 +413,7 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
       return EMPTY_SELECTION
     const nodes = cloneNodesForInsert(history.document, at.parent, source.nodes, allocator())
     insertNodes(nodes, at, executeOptions)
-    setSelection(nodes.map(node => node.id))
+    setSelection({ nodes: nodes.map(node => node.id) })
     return selection
   }
 
@@ -402,7 +433,7 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
     },
     load: (document) => {
       history.reset(document)
-      setSelection([])
+      setSelection(EMPTY_SELECTION)
     },
     execute,
     undo: () => history.undo(),
@@ -410,15 +441,18 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
     seal: () => history.seal(),
     transact: (run, label) => history.transact(run, label),
     markSaved: () => history.markSaved(),
-    select: (nodes, mode = 'replace') => {
-      if (mode === 'replace')
-        return setSelection(nodes)
-      if (mode === 'add')
-        return setSelection([...selection.nodes, ...nodes])
-      const toggled = new Set(nodes)
-      setSelection([...selection.nodes.filter(id => !toggled.has(id)), ...nodes.filter(id => !selection.nodes.includes(id))])
+    select: (next, mode = 'replace') => {
+      const byRegion = (next.regions?.length ?? 0) > 0
+      const incoming = (byRegion ? next.regions : next.nodes) ?? []
+      const current = byRegion ? (selection.regions ?? []) : selection.nodes
+      const combined = mode === 'replace'
+        ? incoming
+        : mode === 'add'
+          ? [...current, ...incoming]
+          : [...current.filter(id => !incoming.includes(id)), ...incoming.filter(id => !current.includes(id))]
+      setSelection(byRegion ? { regions: combined } : { nodes: combined })
     },
-    clearSelection: () => setSelection([]),
+    clearSelection: () => setSelection(EMPTY_SELECTION),
     canDrop,
     canAdd,
     addNode,
