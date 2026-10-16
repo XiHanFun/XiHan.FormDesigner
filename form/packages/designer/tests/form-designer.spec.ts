@@ -318,3 +318,23 @@ describe('<xh-form-designer>：属性面板', () => {
     expect((findNode(designer.schema, name.id)!.node as FieldNode).key).toBe('1bad')
   })
 })
+
+describe('<xh-form-designer>：物料面板', () => {
+  it('物料按分类列出；点按物料新建到缺省位置并选中，只读时点了没反应', async () => {
+    const { document, name } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    const catalog = designer.querySelector('xh-designer-palette')!
+    await catalog.updateComplete
+    expect(catalog.groups!.map(group => group.id)).toContain('input')
+    designer.select({ nodes: [name.id] })
+    catalog.querySelector<HTMLButtonElement>('button[data-part="item"][data-id="switch"]')!.click()
+    const added = designer.getSelection().nodes[0]!
+    expect(findNode(designer.schema, added)).toMatchObject({ node: { kind: 'switch' }, region: null, index: 1 })
+    designer.readonly = true
+    await settle(designer)
+    catalog.querySelector<HTMLButtonElement>('button[data-part="item"][data-id="switch"]')!.click()
+    expect(designer.schema.children).toHaveLength(3)
+  })
+})

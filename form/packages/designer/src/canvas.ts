@@ -8,7 +8,7 @@
 
 import type { ContainerNode, FieldNode, FormDocument, FormNode, KindRegistry, StaticNode } from '@xihan-form/core'
 import type { FieldRenderer, FieldRendererContext, FieldRendererInstance, FieldSize, FormDesignerTranslations, FormRendererTranslations, OptionItem } from '@xihan-form/runtime'
-import type { FormSelection } from './editor'
+import type { FormDropTarget, FormSelection } from './editor'
 import { isValueOfKind } from '@xihan-form/core'
 import { FORM_FIELD_RENDERERS } from '@xihan-form/runtime'
 import { CONTAINER_BUILDERS, createFieldShell, STATIC_BUILDERS } from '@xihan-form/runtime/design'
@@ -29,10 +29,45 @@ export type CanvasTarget
     | { readonly kind: 'region', readonly id: string }
     | { readonly kind: 'blank' }
 
+/** 画布上的一个放置位置。 */
+export interface CanvasDrop {
+  readonly target: FormDropTarget
+  /** 放进的列表：区域的放置区，或顶层的表单。 */
+  readonly list: HTMLElement
+  /** 插入点后面的节点块；插在末尾时为 undefined。 */
+  readonly before: HTMLElement | undefined
+  /** 插入点前面的节点块；插在开头时为 undefined。 */
+  readonly after: HTMLElement | undefined
+}
+
 const DESIGN_STATE = { hidden: false, disabled: false, readOnly: false } as const
+
+/** 容器外框上下边缘多宽以内算放在容器前后，像素。 */
+const CONTAINER_EDGE = 16
 
 function stringOf(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
+}
+
+/** 容器自己的区域里离点最近的一个；收起的区域（没有尺寸）不算。 */
+function nearestRegion(owner: HTMLElement, point: { readonly x: number, readonly y: number }): HTMLElement | undefined {
+  let best: HTMLElement | undefined
+  let bestDistance = Number.POSITIVE_INFINITY
+  for (const region of owner.querySelectorAll<HTMLElement>('[data-region-id]')) {
+    if (region.closest('[data-node-id]') !== owner)
+      continue
+    const rect = region.getBoundingClientRect()
+    if (rect.width === 0 && rect.height === 0)
+      continue
+    const dx = Math.max(rect.left - point.x, 0, point.x - rect.right)
+    const dy = Math.max(rect.top - point.y, 0, point.y - rect.bottom)
+    const distance = Math.hypot(dx, dy)
+    if (distance < bestDistance) {
+      best = region
+      bestDistance = distance
+    }
+  }
+  return best
 }
 
 /** 设计画布：整份文档变化时重排，选择变化时只改选中标记。 */
@@ -96,6 +131,46 @@ export class DesignCanvas {
     if (node?.dataset.nodeId !== undefined && this.element.contains(node))
       return { kind: 'node', id: node.dataset.nodeId }
     return { kind: 'blank' }
+  }
+
+  /**
+   * 视口坐标处的放置位置：指针下最内层的区域（不在任何区域里时是顶层），按节点块的竖向中线算插入下标。
+   * 一并给出放进的列表与插入点前后的节点块，供画插入线。
+   */
+  dropAt(point: { readonly x: number, readonly y: number }): CanvasDrop {
+    const hit = this.#host.ownerDocument.elementsFromPoint(point.x, point.y).find(element => this.element.contains(element))
+    const list = this.#listAt(hit, point)
+    const blocks = Array.from(list.children).filter((child): child is HTMLElement => child instanceof HTMLElement && child.dataset.nodeId !== undefined)
+    const found = blocks.findIndex((block) => {
+      const rect = block.getBoundingClientRect()
+      return point.y < rect.top + rect.height / 2
+    })
+    const index = found === -1 ? blocks.length : found
+    return {
+      target: { parent: list === this.#root ? null : list.dataset.regionId!, index },
+      list,
+      before: blocks[index],
+      after: index > 0 ? blocks[index - 1] : undefined,
+    }
+  }
+
+  /**
+   * 放进哪个列表：指针落在容器外框里、却不在它的任何区域里（栅格的空隙、卡片的标题）时，
+   * 贴着外框上下边缘放在容器前后，否则放进它最近的可见区域；其余情况取指针所在的最内层区域。
+   */
+  #listAt(hit: Element | undefined, point: { readonly x: number, readonly y: number }): HTMLElement {
+    const region = hit?.closest<HTMLElement>('[data-region-id]') ?? undefined
+    const owner = hit?.closest<HTMLElement>('[data-node-id]') ?? undefined
+    if (owner !== undefined && owner.dataset.nodeType === 'container' && this.element.contains(owner) && (region === undefined || !owner.contains(region))) {
+      const rect = owner.getBoundingClientRect()
+      const edge = Math.min(rect.height / 4, CONTAINER_EDGE)
+      if (point.y > rect.top + edge && point.y < rect.bottom - edge) {
+        const nearest = nearestRegion(owner, point)
+        if (nearest !== undefined)
+          return nearest
+      }
+    }
+    return region !== undefined && this.element.contains(region) ? region : this.#root
   }
 
   #node(node: FormNode, document: FormDocument): HTMLElement {
