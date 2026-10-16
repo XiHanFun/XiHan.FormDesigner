@@ -32,7 +32,7 @@ describe('新建节点', () => {
     const first = editor.addNode('switch')!
     expect(editor.document.children.at(-1)!.id).toBe(first.id)
     expect(editor.selection.nodes).toEqual([first.id])
-    editor.select([name.id])
+    editor.select({ nodes: [name.id] })
     const second = editor.addNode('checkbox')!
     expect(editor.document.children[1]!.id).toBe(second.id)
     expect(validateDocument(editor.document, registry)).toEqual([])
@@ -95,7 +95,7 @@ describe('删除', () => {
     const { document, card } = sample()
     const editor = editorOf(document)
     const inner = editor.addNode('text', { parent: card.regions[0]!.id })!
-    editor.select([inner.id, card.id])
+    editor.select({ nodes: [inner.id, card.id] })
     expect(editor.deleteSelection()).toBe(true)
     expect(findNode(editor.document, card.id)).toBeUndefined()
     expect(editor.selection.nodes).toEqual([])
@@ -193,7 +193,7 @@ describe('剪贴板', () => {
   it('复制粘贴：id 全部换新，冲突的键改为派生键，选中粘贴出的节点', () => {
     const { document, name, age } = sample()
     const editor = editorOf(document)
-    editor.select([age.id, name.id])
+    editor.select({ nodes: [age.id, name.id] })
     const copied = editor.copy()!
     expect(ids(copied.nodes)).toEqual([name.id, age.id])
     const pasted = editor.paste()
@@ -207,12 +207,12 @@ describe('剪贴板', () => {
   it('剪切后粘贴回原处；再制紧跟在原节点之后且不改动剪贴板', () => {
     const { document, name, card } = sample()
     const editor = editorOf(document)
-    editor.select([name.id])
+    editor.select({ nodes: [name.id] })
     editor.cut()
     expect(findNode(editor.document, name.id)).toBeUndefined()
     const pasted = editor.paste(undefined, { parent: null, index: 0 })
     expect((findNode(editor.document, pasted.nodes[0]!)!.node as FieldNode).key).toBe('name')
-    editor.select([card.id])
+    editor.select({ nodes: [card.id] })
     const duplicated = editor.duplicate()
     const position = findNode(editor.document, duplicated.nodes[0]!)!
     expect(position.index).toBe(findNode(editor.document, card.id)!.index + 1)
@@ -223,7 +223,7 @@ describe('剪贴板', () => {
   it('目标区域不收时什么都不做', () => {
     const { document, card, lines } = sample()
     const editor = editorOf(document)
-    editor.select([card.id])
+    editor.select({ nodes: [card.id] })
     editor.copy()
     expect(editor.paste(undefined, { parent: lines.regions[0]!.id })).toEqual({ nodes: [] })
     expect(editor.document).toBe(document)
@@ -236,12 +236,52 @@ describe('装载与通知', () => {
     const editor = editorOf(document)
     const changes: FormEditorChange['kind'][] = []
     editor.subscribe(change => changes.push(change.kind))
-    editor.select([name.id])
+    editor.select({ nodes: [name.id] })
     editor.setProperty(name.id, 'basic', 'label', 'x')
     expect(changes).toEqual(['selection', 'document'])
     editor.load(createDocument())
     expect(editor.history.canUndo).toBe(false)
     expect(editor.selection.nodes).toEqual([])
     expect(editor.validate()).toEqual([])
+  })
+})
+
+describe('区域选择', () => {
+  it('选中同一容器里的区域，与节点互斥；别的容器的区域不留', () => {
+    const { document, name, card } = sample()
+    const editor = editorOf(document)
+    const tabs = editor.addNode('tabs') as ContainerNode
+    editor.select({ nodes: [name.id] })
+    editor.select({ regions: [tabs.regions[0]!.id, card.regions[0]!.id] })
+    expect(editor.selection).toEqual({ nodes: [], regions: [tabs.regions[0]!.id] })
+    editor.select({ regions: [tabs.regions[1]!.id] }, 'add')
+    expect(editor.selection.regions).toEqual(tabs.regions.map(region => region.id))
+    editor.select({ regions: [tabs.regions[0]!.id] }, 'toggle')
+    expect(editor.selection.regions).toEqual([tabs.regions[1]!.id])
+    editor.select({ nodes: [name.id] })
+    expect(editor.selection).toEqual({ nodes: [name.id] })
+  })
+
+  it('选中区域时新建的节点放进该区域末尾', () => {
+    const { document, card } = sample()
+    const editor = editorOf(document)
+    editor.select({ regions: [card.regions[0]!.id] })
+    const added = editor.addNode('text')!
+    expect(findNode(editor.document, added.id)!.region!.id).toBe(card.regions[0]!.id)
+  })
+
+  it('删除选中的区域：不能少于区域下限，表格布局的单元格不删；删掉后选择清空', () => {
+    const editor = editorOf(createDocument())
+    const tabs = editor.addNode('tabs') as ContainerNode
+    editor.select({ regions: [tabs.regions[0]!.id] })
+    expect(editor.deleteSelection()).toBe(true)
+    expect(editor.selection).toEqual({ nodes: [] })
+    const left = (findNode(editor.document, tabs.id)!.node as ContainerNode).regions
+    editor.select({ regions: [left[0]!.id] })
+    expect(editor.deleteSelection()).toBe(false)
+    const table = editor.addNode('table') as ContainerNode
+    editor.select({ regions: [table.regions[0]!.id] })
+    expect(editor.deleteSelection()).toBe(false)
+    expect(editor.copy()).toBeUndefined()
   })
 })
