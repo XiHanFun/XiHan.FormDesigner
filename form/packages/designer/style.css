@@ -68,6 +68,28 @@ xh-form-designer [slot='canvas'] > [data-part='drop-indicator'][hidden] {
   display: none;
 }
 
+/* 区域右缘的跨度把手：悬停或选中区域时露出，拖动改 span。 */
+xh-form-designer [data-region-id] > [data-part='span-handle'] {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  inline-size: var(--xh-space-2);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+xh-form-designer [data-region-id]:is(:hover, [data-selected]) > [data-part='span-handle'] {
+  border-inline-end: var(--xh-ring-width) solid var(--xh-ring-focus);
+}
+
+xh-form-designer [slot='canvas'][data-resizing] {
+  cursor: col-resize;
+}
+
+xh-form-designer > [data-part='frame'][data-readonly] [data-part='span-handle'] {
+  display: none;
+}
+
 xh-form-designer [data-region-id][data-drop-target] {
   border-color: var(--xh-ring-focus);
   background: var(--xh-bg-brand-subtle);
@@ -134,6 +156,7 @@ xh-form-designer [data-node-id] > [data-part='node-toolbar'] {
 
 /* 区域：放置区，空的时候显示提示，选中时淡底。 */
 xh-form-designer [data-region-id] {
+  position: relative;
   min-block-size: var(--xh-control-h-md);
   padding: var(--xh-space-1);
   border: var(--xh-stroke-thin) dashed var(--xh-border-subtle);

@@ -24,8 +24,9 @@ import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS,
 import { defineDesignerShellElement, DESIGNER_FRAME_REGIONS, parseDesignerPanels, registerDropTarget, startDrag, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { ArrowDownIcon, ArrowUpIcon, ArrowUpLeftIcon, CopyIcon, TrashIcon } from '@xihan-ui/icons'
+import { createPointerSession } from '@xihan-ui/pointer'
 import { createAuthoredElement, emitEvent, registerElement, setAttributes, setText, SVG_NS, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
-import { DesignCanvas } from './canvas'
+import { DesignCanvas, spanColumns } from './canvas'
 import { readFormClipboard, writeFormClipboard } from './clipboard'
 import { createFormEditor } from './editor'
 import { issueFocus, issueItems } from './issues'
@@ -814,6 +815,11 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#suppressClick = false
     if (this.readonly === true || (this.mode ?? 'design') !== 'design' || !event.isPrimary || event.button !== 0)
       return
+    const handle = (event.target as Element | null)?.closest<HTMLElement>('[data-part="span-handle"]')
+    if (handle !== null && handle !== undefined) {
+      this.#dragSpan(event, handle)
+      return
+    }
     const target = this.#canvas.targetOf(event.target)
     const source = target.kind === 'node' ? this.#canvas.nodeElement(target.id) : undefined
     if (target.kind !== 'node' || source === undefined)
@@ -826,6 +832,45 @@ export class XhFormDesigner extends XhReactiveElement {
       payload: { source: 'form-canvas', owner: this, nodes },
       onEnd: ({ dragged }) => {
         this.#suppressClick = dragged
+      },
+    })
+  }
+
+  /**
+   * 拖区域右缘改跨度：按住时的跨度加上横向位移折成的列数，列宽取容器宽度除以总列数；从右到左时方向相反。
+   * 拖动中连续写入并成一步撤销，松手时封口；拖过之后不再当作点选。
+   */
+  #dragSpan(event: PointerEvent, handle: HTMLElement): void {
+    const region = handle.closest<HTMLElement>('[data-region-id]')
+    const regionId = region?.dataset.regionId
+    const found = regionId === undefined ? undefined : findRegion(this.#editor.document, regionId)
+    const columns = found === undefined ? undefined : spanColumns(this.#editor.registry, found.container.kind)
+    const body = region?.closest('[data-node-id]')?.querySelector(':scope > [data-part="node-body"]')
+    const width = body?.getBoundingClientRect().width ?? 0
+    if (region === null || region === undefined || regionId === undefined || found === undefined || columns === undefined || width <= 0)
+      return
+    event.preventDefault()
+    const start = typeof found.region.props.span === 'number' ? found.region.props.span : columns
+    const sign = getComputedStyle(region).direction === 'rtl' ? -1 : 1
+    const canvas = this.#ensureParts().canvas
+    canvas.setAttribute('data-resizing', '')
+    let moved = false
+    const session = createPointerSession({
+      doc: this.ownerDocument,
+      pointerId: event.pointerId,
+      onMove: ({ point }) => {
+        const dx = (point.clientX - event.clientX) * sign
+        moved ||= dx !== 0
+        const span = Math.round(start + dx / (width / columns))
+        const current = findRegion(this.#editor.document, regionId)?.region.props.span
+        if (span !== current)
+          this.#editor.setGridSpan(regionId, span, { mergeWithin: Number.POSITIVE_INFINITY })
+      },
+      onEnd: () => {
+        session.dispose()
+        canvas.removeAttribute('data-resizing')
+        this.#editor.seal()
+        this.#suppressClick = moved
       },
     })
   }
