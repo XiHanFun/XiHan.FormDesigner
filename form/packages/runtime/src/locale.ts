@@ -13,6 +13,7 @@ export const formZhCN: XhConfig = {
   translations: {
     'xh-form-renderer': {
       errorSummary: (count: number) => `共 ${count} 处需要修改`,
+      errorSummaryItem: (label: string, message: string) => `${label}：${message}`,
       optionsLoading: '加载中…',
       optionsEmpty: '暂无选项',
       valueRequired: '此项必填',

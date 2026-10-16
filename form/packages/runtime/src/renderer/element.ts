@@ -26,7 +26,7 @@ import { optionsDescriptor } from '../state/options'
 import { isListContainer } from '../state/paths'
 import { DEFAULT_FORM_RENDERER_TRANSLATIONS } from '../translations'
 import { CONTAINER_BUILDERS, STATIC_BUILDERS } from './containers'
-import { make, text } from './dom'
+import { make, stringOf, text } from './dom'
 import { FORM_FIELD_RENDERERS } from './fields'
 import { issueMessage } from './messages'
 
@@ -404,7 +404,7 @@ export class XhFormRenderer extends XhReactiveElement {
       throw new FormRuntimeError('XH_FORM_RT_NO_RENDERER', { kind: node.kind })
     const doc = this.ownerDocument
     const data = JSON.stringify(path)
-    const group = make(doc, 'div', 'field-group', { 'data-path': data })
+    const group = make(doc, 'div', 'field-group', { 'data-path': data, 'data-xh-part-owner': 'form' })
     const item = make(doc, 'a', 'error-summary-item', { 'data-path': data })
     summary.append(item)
     const instance = renderer(this.#contextOf(node, path))
@@ -587,7 +587,9 @@ export class XhFormRenderer extends XhReactiveElement {
     text(this.#summaryTitle!, t.errorSummary(count))
     for (const entry of this.#fields.values()) {
       const issue = issues.find(item => jsonEquals(item.path as JsonValue, entry.path as JsonValue))
-      text(entry.summary, issue === undefined ? '' : issueMessage(issue, t))
+      const label = stringOf(entry.node.basic.label) ?? ''
+      const message = issue === undefined ? '' : issueMessage(issue, t)
+      text(entry.summary, message === '' || label === '' ? message : t.errorSummaryItem(label, message))
     }
   }
 }
