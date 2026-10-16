@@ -5,6 +5,8 @@
 
 // 导出 @xihan-form/runtime 的公共接口。
 
+export { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from './designer-translations'
+export type { FormDesignerTranslations } from './designer-translations'
 export { defineFormRenderer, FORM_RENDERER_TAG, XhFormRenderer } from './renderer/element'
 export type { FormRendererEventMap, FormSubmitAction, FormValidateOn } from './renderer/element'
 export { FORM_FIELD_RENDERERS } from './renderer/fields'

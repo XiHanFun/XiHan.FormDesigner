@@ -3,14 +3,19 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 表单产品的中文文案，渲染器与设计器共用：与 UI 的语言包一起交给 mergeXhConfig，再经 setXhConfig 或 <xh-config> 生效。
+// 表单产品的中文文案，渲染器与设计器共用，内含设计器零件的中文文案：与 UI 的语言包一起交给 mergeXhConfig，再经 setXhConfig 或 <xh-config> 生效。
 
 import type { XhConfig } from '@xihan-ui/web-components'
+import type {} from './designer-translations'
 import type {} from './translations'
+import { designerShellZhCN } from '@xihan-ui/designer-shell/locale'
+import { mergeXhConfig } from '@xihan-ui/web-components'
+import { formDesignerZhCN } from './designer-zh-cn'
 
-/** 表单渲染器与设计器的中文文案。 */
-export const formZhCN: XhConfig = {
+/** 表单渲染器与设计器的中文文案，含 designerShellZhCN。 */
+export const formZhCN: XhConfig = /* @__PURE__ */ mergeXhConfig(designerShellZhCN, {
   translations: {
+    'xh-form-designer': formDesignerZhCN,
     'xh-form-renderer': {
       errorSummary: (count: number) => `共 ${count} 处需要修改`,
       errorSummaryItem: (label: string, message: string) => `${label}：${message}`,
@@ -31,4 +36,4 @@ export const formZhCN: XhConfig = {
       conditionNotBoolean: '校验表达式的结果不是真或假',
     },
   },
-}
+})
