@@ -46,11 +46,14 @@
   },
   "scripts": {
     "build": "tsdown",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "@xihan-form/core": "workspace:^",
-    "@xihan-form/runtime": "workspace:^"
+    "@xihan-form/runtime": "workspace:^",
+    "@xihan-ui/core": "catalog:",
+    "@xihan-ui/designer-kit": "catalog:",
+    "@xihan-ui/expression": "catalog:"
   }
 }
