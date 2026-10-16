@@ -2,6 +2,7 @@
 
 import type { FormDocument } from '@xihan-form/core'
 import type { FieldRenderer, FormRendererEventMap, XhFormRenderer } from '../src'
+import { onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
 import { getFormPathValue } from '@xihan-ui/headless'
 import { setXhConfig } from '@xihan-ui/web-components'
 import { defineXhElements } from '@xihan-ui/web-components/define'
@@ -71,6 +72,34 @@ describe('<xh-form-renderer>：结构', () => {
     })
     expect(group(renderer, ['level']).getAttribute('data-scope')).toBe('form')
     expect(group(renderer, ['name']).getAttribute('data-scope')).toBe('form')
+  })
+
+  it('字段组放在各种容器里，UI 元素都不报部件诊断', async () => {
+    const { registry, ids } = setup()
+    const leaf = (key: string) => field(registry, ids, 'text', key)
+    const document = documentOf([
+      container(registry, ids, 'grid', [leaf('a')]),
+      container(registry, ids, 'tabs', [leaf('b')]),
+      container(registry, ids, 'collapse', [leaf('c')]),
+      container(registry, ids, 'card', [container(registry, ids, 'fieldset', [leaf('d')])]),
+      container(registry, ids, 'table', [leaf('e')]),
+    ])
+    const codes: string[] = []
+    setDiagnosticsLevel('warn')
+    const stop = onDiagnostic(record => codes.push(record.code))
+    let renderer: XhFormRenderer
+    try {
+      renderer = await mount((element) => {
+        element.schema = document
+      })
+      await Promise.resolve()
+    }
+    finally {
+      stop()
+      setDiagnosticsLevel('silent')
+    }
+    expect(codes.filter(code => code.startsWith('wc.'))).toEqual([])
+    expect(renderer.querySelectorAll('[data-xh-part="field-group"][data-scope="form"]')).toHaveLength(5)
   })
 
   it('表格布局的行列数取外观属性', async () => {
