@@ -8,24 +8,25 @@
 
 import type { FormDocument, FormNode, FormOperation, FormSchemaIssue, KindRegistry } from '@xihan-form/core'
 import type { FieldRenderer, FormDesignerTranslations, FormRendererTranslations, OptionLoader, XhFormRenderer } from '@xihan-form/runtime'
-import type { JsonValue } from '@xihan-ui/core/json'
+import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { ExecuteOptions } from '@xihan-ui/designer-kit'
 import type { PropertyEditorTable } from '@xihan-ui/designer-kit/properties'
-import type { DesignerFrameRegion, DesignerPaletteEventMap, DesignerPropertiesEventMap, DesignerPropertyDescriptor, PanRequestDetail } from '@xihan-ui/designer-shell'
+import type { DesignerFrameRegion, DesignerIssuesEventMap, DesignerPaletteEventMap, DesignerPropertiesEventMap, DesignerPropertyDescriptor, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
 import type { CanvasDrop, CanvasTarget } from './canvas'
 import type { FormClipboard, FormDropTarget, FormEditor, FormSelection } from './editor'
 import type { FormCanvasDragPayload } from './palette'
 import type { FormPropertyEditor, PropertyView } from './properties'
-import { createDocument, findNode, findRegion, PROPERTY_GROUPS } from '@xihan-form/core'
+import { createDocument, findNode, findRegion, PROPERTY_GROUPS, validateDocument } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
-import { defineDesignerShellElement, DESIGNER_FRAME_REGIONS, parseDesignerPanels, registerDropTarget, startDrag, XhDesignerFrameElement, XhDesignerPaletteElement, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
+import { defineDesignerShellElement, DESIGNER_FRAME_REGIONS, parseDesignerPanels, registerDropTarget, startDrag, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { createAuthoredElement, emitEvent, registerElement, setAttributes, setText, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { DesignCanvas } from './canvas'
 import { readFormClipboard, writeFormClipboard } from './clipboard'
 import { createFormEditor } from './editor'
+import { issueFocus, issueItems } from './issues'
 import { dragSubject, paletteGroups, paletteKind } from './palette'
 import { propertyErrors, propertyOperations, propertyView } from './properties'
 
@@ -91,6 +92,7 @@ interface DesignerParts {
   readonly properties: HTMLElement
   readonly inspector: XhDesignerPropertiesElement
   readonly issues: HTMLElement
+  readonly problems: XhDesignerIssuesElement
 }
 
 function sameIssues(a: readonly FormSchemaIssue[], b: readonly FormSchemaIssue[]): boolean {
@@ -151,6 +153,7 @@ export class XhFormDesigner extends XhReactiveElement {
   #releaseDropTarget: (() => void) | undefined
   #dropList: HTMLElement | undefined
   #suppressClick = false
+  #issuesShown: readonly FormSchemaIssue[] | undefined
 
   constructor() {
     super()
@@ -244,6 +247,7 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#syncToolbar()
     this.#syncProperties(changed, t)
     this.#syncPalette(changed, t)
+    this.#syncIssues(changed, t)
   }
 
   /** 执行一组操作并记为一步撤销；返回新模板。 */
@@ -312,8 +316,9 @@ export class XhFormDesigner extends XhReactiveElement {
     return this.#editor.duplicate()
   }
 
+  /** 检查模板结构，规则里的表达式用 expressionEngine 检查。 */
   validate(): readonly FormSchemaIssue[] {
-    return this.#editor.validate()
+    return validateDocument(this.#editor.document, this.#editor.registry, { expressionEngine: this.#engine() })
   }
 
   /** 滚动到节点：必要时先切到所在的标签页、展开所在的折叠项。 */
@@ -348,7 +353,8 @@ export class XhFormDesigner extends XhReactiveElement {
     const palette = createAuthoredElement(doc, 'div', { 'data-part': 'palette', 'slot': 'palette' }, [catalog])
     const inspector = createAuthoredElement(doc, 'xh-designer-properties', { 'data-part': 'inspector', 'collapsible': true, 'toggle-limit': '3' })
     const properties = createAuthoredElement(doc, 'div', { 'data-part': 'properties', 'slot': 'properties' }, [inspector])
-    const issues = createAuthoredElement(doc, 'div', { 'data-part': 'issues', 'slot': 'issues' })
+    const problems = createAuthoredElement(doc, 'xh-designer-issues', { 'data-part': 'problems', 'group-by': 'target' })
+    const issues = createAuthoredElement(doc, 'div', { 'data-part': 'issues', 'slot': 'issues' }, [problems])
     const frame = createAuthoredElement(doc, 'xh-designer-frame', { 'data-part': 'frame', 'role': 'application' }, [toolbar, palette, canvas, properties, issues])
     canvas.addEventListener('click', this.#onCanvasClick)
     canvas.addEventListener('dblclick', this.#onCanvasDblclick)
@@ -357,10 +363,11 @@ export class XhFormDesigner extends XhReactiveElement {
     canvas.addEventListener('pointerdown', this.#onCanvasPointerDown)
     canvas.addEventListener('pan-request', this.#onPanRequest)
     catalog.addEventListener('item-activate', this.#onPaletteActivate)
+    problems.addEventListener('issue-activate', this.#onIssueActivate)
     inspector.addEventListener('property-change', this.#onPropertyChange)
     inspector.addEventListener('property-commit', this.#onPropertyCommit)
     this.replaceChildren(frame)
-    this.#parts = { frame, toolbar, canvas, palette, catalog, dropIndicator, properties, inspector, issues }
+    this.#parts = { frame, toolbar, canvas, palette, catalog, dropIndicator, properties, inspector, issues, problems }
     return this.#parts
   }
 
@@ -532,6 +539,14 @@ export class XhFormDesigner extends XhReactiveElement {
     catalog.readonly = this.readonly === true
   }
 
+  /** 问题或文案变了时重列问题。 */
+  #syncIssues(changed: PropertyValues, t: FormDesignerTranslations): void {
+    if (this.#issuesShown === this.#issues && !changed.has('translations') && changed.size > 0)
+      return
+    this.#issuesShown = this.#issues
+    this.#ensureParts().problems.items = issueItems(this.#editor.document, this.#issues, t)
+  }
+
   /** 拖到画布上：算出放置位置，能放下时画插入线。 */
   #dragOver(point: { readonly x: number, readonly y: number }, payload: unknown): { accept: boolean } {
     const subject = dragSubject(payload, this)
@@ -594,7 +609,7 @@ export class XhFormDesigner extends XhReactiveElement {
   #documentChanged(): void {
     this.requestUpdate()
     this.#syncDirty()
-    const issues = this.#editor.validate()
+    const issues = this.validate()
     if (!sameIssues(issues, this.#issues)) {
       this.#issues = issues
       emitEvent(this, 'issues-change', { issues })
@@ -666,6 +681,30 @@ export class XhFormDesigner extends XhReactiveElement {
       : emitEvent(this, 'blank-contextmenu', position, { cancelable: true })
     if (!proceed)
       event.preventDefault()
+  }
+
+  /** 点开一条问题：选中它所在的节点、区域或表单设置，滚到它，再把焦点交给属性面板上对应的字段。 */
+  readonly #onIssueActivate = (event: Event): void => {
+    event.stopPropagation()
+    const focus = issueFocus(this.#editor.document, (event as DesignerIssuesEventMap['issue-activate']).detail.issue)
+    if (focus === undefined)
+      return
+    this.#editor.select(focus.selection)
+    const region = focus.selection.regions?.[0]
+    const node = focus.selection.nodes[0] ?? (region === undefined ? undefined : findRegion(this.#editor.document, region)?.container.id)
+    if (node !== undefined)
+      this.revealNode(node)
+    if (focus.path !== undefined)
+      void this.#focusProperty(focus.path)
+  }
+
+  async #focusProperty(path: JsonPath): Promise<void> {
+    await this.updateComplete
+    const inspector = this.#parts?.inspector
+    if (inspector === undefined || !inspector.isConnected)
+      return
+    await inspector.updateComplete
+    inspector.focusField(path)
   }
 
   /** 点按物料：在缺省位置新建并选中，滚到它。 */
@@ -866,6 +905,7 @@ export function defineFormDesigner(): void {
   defineDesignerShellElement('xh-designer-frame', XhDesignerFrameElement)
   defineDesignerShellElement('xh-designer-properties', XhDesignerPropertiesElement)
   defineDesignerShellElement('xh-designer-palette', XhDesignerPaletteElement)
+  defineDesignerShellElement('xh-designer-issues', XhDesignerIssuesElement)
   registerElement(FORM_DESIGNER_TAG, XhFormDesigner)
 }
 
