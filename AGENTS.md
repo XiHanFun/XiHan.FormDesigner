@@ -53,7 +53,7 @@ XiHan.FormDesigner 是框架无关的表单设计器，以原生 Web Components 
 
 ```bash
 # XiHan.UI/ui
-pnpm --filter "@xihan-ui/web-components..." --filter "@xihan-ui/designer-kit..." --filter "@xihan-ui/designer-shell..." --filter "@xihan-ui/expression..." --filter "@xihan-ui/styles..." build
+pnpm --filter "@xihan-ui/web-components..." --filter "@xihan-ui/designer-kit..." --filter "@xihan-ui/designer-shell..." --filter "@xihan-ui/expression..." --filter "@xihan-ui/icons..." --filter "@xihan-ui/styles..." build
 # XiHan.FormDesigner/form
 pnpm dev
 ```

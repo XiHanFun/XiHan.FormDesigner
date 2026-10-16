@@ -366,3 +366,37 @@ describe('<xh-form-designer>：问题列表', () => {
     expect(designer.validate().map(issue => issue.code)).toContain('expression.invalid')
   })
 })
+
+describe('<xh-form-designer>：节点小工具条', () => {
+  it('只选中一个节点时挂进它的外框，按它在同层的位置启用按钮；点按钮执行后不丢选择', async () => {
+    const { document, name, card, inner } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    const toolbar = (): HTMLElement | null => designer.querySelector<HTMLElement>('[data-part="node-toolbar"]')
+    const button = (action: string): HTMLButtonElement => toolbar()!.querySelector<HTMLButtonElement>(`button[value="${action}"]`)!
+    const disabled = (): boolean[] => ['parent', 'up', 'down', 'duplicate', 'delete'].map(action => button(action).disabled)
+    expect(toolbar()).toBeNull()
+    designer.select({ nodes: [name.id] })
+    await settle(designer)
+    expect(toolbar()!.parentElement).toBe(block(designer, name.id))
+    expect(disabled()).toEqual([true, true, false, false, false])
+    expect(button('down').getAttribute('aria-label')).toBe(DEFAULT_FORM_DESIGNER_TRANSLATIONS.moveDown)
+    button('down').click()
+    await settle(designer)
+    expect(designer.schema.children.map(node => node.id)).toEqual([card.id, name.id])
+    expect(designer.getSelection().nodes).toEqual([name.id])
+    expect(toolbar()!.parentElement).toBe(block(designer, name.id))
+    designer.select({ nodes: [inner.id] })
+    await settle(designer)
+    button('parent').click()
+    expect(designer.getSelection().nodes).toEqual([card.id])
+    designer.select({ nodes: [name.id, card.id] })
+    await settle(designer)
+    expect(toolbar()).toBeNull()
+    designer.select({ nodes: [name.id] })
+    designer.readonly = true
+    await settle(designer)
+    expect(toolbar()).toBeNull()
+  })
+})
