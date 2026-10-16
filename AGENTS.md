@@ -26,10 +26,11 @@ XiHan.FormDesigner 是框架无关的表单设计器，以原生 Web Components 
 ├─ CLAUDE.md -> AGENTS.md         # Claude Code 仓库指令入口
 ├─ .github/ .gitee/ .gitcode/     # 三平台 Issue / PR 模板，GitHub 另有 CI
 └─ form/                           # pnpm monorepo 根
-   └─ packages/
-      ├─ core/                    # @xihan-form/core：模型层，纯 TS，不碰 DOM
-      ├─ runtime/                 # @xihan-form/runtime：业务页面用的运行时元素
-      └─ designer/                # @xihan-form/designer：设计器元素
+   ├─ packages/
+   │  ├─ core/                    # @xihan-form/core：模型层，纯 TS，不碰 DOM
+   │  ├─ runtime/                 # @xihan-form/runtime：业务页面用的运行时元素
+   │  └─ designer/                # @xihan-form/designer：设计器元素
+   └─ playground/                 # @xihan-form/playground：开发预览页（private，不发布）
 ```
 
 仓库根没有 package.json，库命令在 `form/` 执行。
@@ -39,12 +40,25 @@ XiHan.FormDesigner 是框架无关的表单设计器，以原生 Web Components 
 | 任务 | 命令 |
 | --- | --- |
 | 安装 | `pnpm install --frozen-lockfile` |
+| 开发预览 | `pnpm dev`（http://localhost:5192） |
 | 构建 | `pnpm build` |
 | 类型检查 | `pnpm typecheck` |
 | 单测 | `pnpm test` |
 | Lint | `pnpm lint` |
 
 `pnpm build` 按依赖拓扑依次构建 core、runtime、designer。runtime 与 designer 经包的 `exports` 读取上游 dist，改了上游先重建再验证下游。
+
+开发预览页在 `form/playground`，用 Vite 起在 5192 端口（strictPort）：页面上是一张示例报销单，演示渲染器的排布、联动、校验、异步与级联选项、只读与禁用和中文语言包。
+它直接引用各包的源码，改了源码即时生效，不必先 `pnpm build`；`@xihan-ui/*` 经 overrides 读同级 XiHan.UI 的产物，启动前先在 `XiHan.UI/ui` 构建依赖的包：
+
+```bash
+# XiHan.UI/ui
+pnpm --filter "@xihan-ui/web-components..." --filter "@xihan-ui/designer-kit..." --filter "@xihan-ui/expression..." --filter "@xihan-ui/styles..." build
+# XiHan.FormDesigner/form
+pnpm dev
+```
+
+这是开发预览，不是产品：页面只用 UI 的令牌、皮肤与元素，不另写一套样式，也不进任何发布物。
 
 ## 分层与依赖
 
