@@ -38,7 +38,7 @@ export interface FieldRendererContext {
 
 /** 字段渲染器产出的实例。 */
 export interface FieldRendererInstance {
-  /** 放进字段组的控件节点。 */
+  /** 控件节点：作为 `<xh-field>` 的 control 部件放进字段外壳，标签、提示与错误文案由外壳给出，不必自带。 */
   readonly element: HTMLElement
   /** 值、状态、错误或选项变化时调用。 */
   readonly update?: (context: FieldRendererContext) => void
