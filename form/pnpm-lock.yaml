@@ -91,6 +91,15 @@ importers:
       '@xihan-form/runtime':
         specifier: workspace:^
         version: link:../runtime
+      '@xihan-ui/core':
+        specifier: link:../../../../XiHan.UI/ui/packages/engine/core
+        version: link:../../../../XiHan.UI/ui/packages/engine/core
+      '@xihan-ui/designer-kit':
+        specifier: link:../../../../XiHan.UI/ui/packages/features/designer-kit
+        version: link:../../../../XiHan.UI/ui/packages/features/designer-kit
+      '@xihan-ui/expression':
+        specifier: link:../../../../XiHan.UI/ui/packages/features/expression
+        version: link:../../../../XiHan.UI/ui/packages/features/expression
 
   packages/runtime:
     dependencies:

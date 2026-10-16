@@ -5,4 +5,5 @@
 
 // 导出 @xihan-form/designer 的公共接口。
 
-export {}
+export { createFormEditor } from './editor'
+export type { FormClipboard, FormDropTarget, FormEditor, FormEditorChange, FormEditorOptions, FormRuleInit, FormSelection, FormSelectMode } from './editor'
