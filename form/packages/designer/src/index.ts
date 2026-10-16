@@ -8,3 +8,5 @@
 export { decodeFormClipboard, encodeFormClipboard, readFormClipboard, writeFormClipboard } from './clipboard'
 export { createFormEditor } from './editor'
 export type { FormClipboard, FormDropTarget, FormEditor, FormEditorChange, FormEditorOptions, FormRuleInit, FormSelection, FormSelectMode } from './editor'
+export { defineFormDesigner, FORM_DESIGNER_TAG, XhFormDesigner } from './form-designer'
+export type { FormDesignerEventMap, FormDesignerMode, FormDesignerPanel, FormPreviewWidth, FormSchemaChangeKind } from './form-designer'

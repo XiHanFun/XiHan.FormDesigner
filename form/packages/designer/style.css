@@ -1,0 +1,170 @@
+/*
+ * Copyright (c) 2021-Present XiHanFun and contributors.
+ * Licensed under the MIT License. See LICENSE in the project root for license information.
+ */
+
+/* <xh-form-designer> 的样式：只消费 @xihan-ui 设计令牌。宿主给元素定宽高；画布里的表单外观来自渲染器的样式。 */
+
+xh-form-designer {
+  display: block;
+  overflow: hidden;
+  background: var(--xh-bg-surface);
+  color: var(--xh-fg-default);
+  font-size: var(--xh-font-size-sm);
+}
+
+xh-form-designer > [data-part='root'] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  block-size: 100%;
+}
+
+xh-form-designer > [data-part='root'] [data-panel][hidden] {
+  display: none;
+}
+
+xh-form-designer > [data-part='root'] > [data-part='toolbar'] {
+  min-inline-size: 0;
+  padding: var(--xh-space-1) var(--xh-space-2);
+  border-block-end: var(--xh-stroke-thin) solid var(--xh-border-subtle);
+}
+
+xh-form-designer > [data-part='root'] > [data-part='body'] {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-block-size: 0;
+}
+
+xh-form-designer > [data-part='root'] > [data-part='body'] > [data-part='palette'],
+xh-form-designer > [data-part='root'] > [data-part='body'] > [data-part='properties'] {
+  inline-size: var(--xh-layout-col-min-xs);
+  min-block-size: 0;
+  overflow: auto;
+}
+
+xh-form-designer > [data-part='root'] > [data-part='body'] > [data-part='palette'] {
+  grid-column: 1;
+  border-inline-end: var(--xh-stroke-thin) solid var(--xh-border-subtle);
+}
+
+xh-form-designer > [data-part='root'] > [data-part='body'] > [data-part='properties'] {
+  grid-column: 3;
+  border-inline-start: var(--xh-stroke-thin) solid var(--xh-border-subtle);
+}
+
+xh-form-designer > [data-part='root'] > [data-part='issues'] {
+  max-block-size: var(--xh-viewport-h-sm);
+  overflow: auto;
+  border-block-start: var(--xh-stroke-thin) solid var(--xh-border-subtle);
+}
+
+/* 画布：滚动区里放一张宽度随预览宽度的表单。 */
+xh-form-designer > [data-part='root'] > [data-part='body'] > [data-part='canvas'] {
+  grid-column: 2;
+  min-block-size: 0;
+  overflow: auto;
+  padding: var(--xh-space-4);
+  background: var(--xh-bg-canvas);
+  outline: none;
+}
+
+xh-form-designer > [data-part='root'] > [data-part='body'] > [data-part='canvas']:focus-visible {
+  box-shadow: inset 0 0 0 var(--xh-ring-width) var(--xh-ring-focus);
+}
+
+xh-form-designer > [data-part='root'] > [data-part='body'] > [data-part='canvas'] > [data-part='surface'],
+xh-form-designer > [data-part='root'] > [data-part='body'] > [data-part='canvas'] > xh-form-renderer {
+  display: block;
+  box-sizing: border-box;
+  margin-inline: auto;
+  padding: var(--xh-space-4);
+  border-radius: var(--xh-shape-surface);
+  background: var(--xh-bg-surface);
+}
+
+xh-form-designer > [data-part='root'][data-width='tablet'] > [data-part='body'] > [data-part='canvas'] > * {
+  max-inline-size: var(--xh-breakpoint-md);
+}
+
+xh-form-designer > [data-part='root'][data-width='phone'] > [data-part='body'] > [data-part='canvas'] > * {
+  max-inline-size: var(--xh-breakpoint-sm);
+}
+
+xh-form-designer > [data-part='root'][data-mode='preview'] [data-panel='palette'],
+xh-form-designer > [data-part='root'][data-mode='preview'] [data-panel='properties'],
+xh-form-designer > [data-part='root'][data-mode='preview'] [data-panel='issues'] {
+  display: none;
+}
+
+/* 节点外框：悬停时虚线，选中时焦点色描边，并在左上角露出种类与键。 */
+xh-form-designer [data-node-id] {
+  position: relative;
+  padding: var(--xh-space-1);
+  border: var(--xh-stroke-thin) dashed transparent;
+  border-radius: var(--xh-shape-control);
+  cursor: default;
+}
+
+xh-form-designer [data-node-id]:hover {
+  border-color: var(--xh-border-default);
+}
+
+xh-form-designer [data-node-id][data-selected] {
+  border-style: solid;
+  border-color: var(--xh-ring-focus);
+}
+
+xh-form-designer [data-node-id] > [data-part='node-tag'] {
+  display: none;
+  position: absolute;
+  inset-block-end: 100%;
+  inset-inline-start: 0;
+  padding: 0 var(--xh-space-1);
+  border-radius: var(--xh-radius-sm);
+  background: var(--xh-ring-focus);
+  color: var(--xh-fg-on-brand);
+  font-size: var(--xh-font-size-xs);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+xh-form-designer [data-node-id][data-selected] > [data-part='node-tag'] {
+  display: block;
+}
+
+/* 区域：放置区，空的时候显示提示，选中时淡底。 */
+xh-form-designer [data-region-id] {
+  min-block-size: var(--xh-control-h-md);
+  padding: var(--xh-space-1);
+  border: var(--xh-stroke-thin) dashed var(--xh-border-subtle);
+  border-radius: var(--xh-shape-control);
+}
+
+xh-form-designer [data-region-id][data-selected] {
+  border-style: solid;
+  border-color: var(--xh-ring-focus);
+  background: var(--xh-bg-brand-subtle);
+}
+
+xh-form-designer [data-region-id] > [data-part='region-empty'],
+xh-form-designer [data-part='surface'] [data-part='canvas-empty'],
+xh-form-designer [data-node-id] [data-part='node-placeholder'] {
+  display: grid;
+  place-items: center;
+  min-block-size: var(--xh-control-h-md);
+  color: var(--xh-fg-muted);
+  font-size: var(--xh-font-size-xs);
+}
+
+xh-form-designer [data-node-id] > [data-part='node-body'] > [data-part='list'] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--xh-space-2);
+  padding: var(--xh-space-2);
+  border: var(--xh-stroke-thin) solid var(--xh-border-subtle);
+  border-radius: var(--xh-shape-surface);
+}
+
+xh-form-designer [data-part='list'] > [data-part='list-title'] {
+  font-weight: var(--xh-font-weight-semibold);
+}

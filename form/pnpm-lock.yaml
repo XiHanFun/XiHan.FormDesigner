@@ -98,9 +98,19 @@ importers:
       '@xihan-ui/designer-kit':
         specifier: link:../../../../XiHan.UI/ui/packages/features/designer-kit
         version: link:../../../../XiHan.UI/ui/packages/features/designer-kit
+      '@xihan-ui/designer-shell':
+        specifier: link:../../../../XiHan.UI/ui/packages/features/designer-shell
+        version: link:../../../../XiHan.UI/ui/packages/features/designer-shell
       '@xihan-ui/expression':
         specifier: link:../../../../XiHan.UI/ui/packages/features/expression
         version: link:../../../../XiHan.UI/ui/packages/features/expression
+      '@xihan-ui/web-components':
+        specifier: link:../../../../XiHan.UI/ui/packages/adapters/web-components
+        version: link:../../../../XiHan.UI/ui/packages/adapters/web-components
+    devDependencies:
+      jsdom:
+        specifier: 'catalog:'
+        version: 27.4.0
 
   packages/runtime:
     dependencies:
@@ -135,6 +145,9 @@ importers:
       '@xihan-form/core':
         specifier: workspace:^
         version: link:../packages/core
+      '@xihan-form/designer':
+        specifier: workspace:^
+        version: link:../packages/designer
       '@xihan-form/runtime':
         specifier: workspace:^
         version: link:../packages/runtime

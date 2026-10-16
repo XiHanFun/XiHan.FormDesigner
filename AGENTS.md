@@ -48,12 +48,12 @@ XiHan.FormDesigner 是框架无关的表单设计器，以原生 Web Components 
 
 `pnpm build` 按依赖拓扑依次构建 core、runtime、designer。runtime 与 designer 经包的 `exports` 读取上游 dist，改了上游先重建再验证下游。
 
-开发预览页在 `form/playground`，用 Vite 起在 5192 端口（strictPort）：页面上是一张示例报销单，演示渲染器的排布、联动、校验、异步与级联选项、只读与禁用和中文语言包。
+开发预览页在 `form/playground`，用 Vite 起在 5192 端口（strictPort）：页面分渲染器与设计器两页：渲染器页是一张示例报销单，演示排布、联动、校验、异步与级联选项、只读与禁用和中文语言包；设计器页用同一张报销单演示画布、选择、键盘编辑、撤销重做与预览宽度。
 它直接引用各包的源码，改了源码即时生效，不必先 `pnpm build`；`@xihan-ui/*` 经 overrides 读同级 XiHan.UI 的产物，启动前先在 `XiHan.UI/ui` 构建依赖的包：
 
 ```bash
 # XiHan.UI/ui
-pnpm --filter "@xihan-ui/web-components..." --filter "@xihan-ui/designer-kit..." --filter "@xihan-ui/expression..." --filter "@xihan-ui/styles..." build
+pnpm --filter "@xihan-ui/web-components..." --filter "@xihan-ui/designer-kit..." --filter "@xihan-ui/designer-shell..." --filter "@xihan-ui/expression..." --filter "@xihan-ui/styles..." build
 # XiHan.FormDesigner/form
 pnpm dev
 ```
