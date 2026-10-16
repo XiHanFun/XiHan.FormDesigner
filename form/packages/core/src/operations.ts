@@ -10,6 +10,7 @@ import type { ContainerNode, FormDocument, FormNode, LinkageRule, PropertyBag, P
 import { cloneJson, deepFreeze, isJsonValue, isPlainObject, jsonEquals } from '@xihan-ui/core/json'
 import { applyInSequence } from '@xihan-ui/designer-kit'
 import { PROPERTY_GROUPS } from './schema'
+import { collectDocumentIds, collectIds } from './traverse'
 
 /** 规则所在的列表。 */
 export type RuleList = 'validation' | 'linkage'
@@ -145,29 +146,10 @@ function requireIndex(index: unknown, max: number): number {
   return index as number
 }
 
-/** 把节点、区域、规则里的全部 id 收进集合。 */
-function collectIds(value: unknown, out: string[]): void {
-  if (!isPlainObject(value))
-    return
-  if (typeof value.id === 'string')
-    out.push(value.id)
-  for (const key of ['regions', 'children', 'validation', 'linkage']) {
-    const list = value[key]
-    if (Array.isArray(list))
-      list.forEach(item => collectIds(item, out))
-  }
-}
-
-function documentIds(document: FormDocument): Set<string> {
-  const out: string[] = []
-  document.children.forEach(node => collectIds(node, out))
-  return new Set(out)
-}
-
 function requireFreshIds(document: FormDocument, payload: unknown): void {
   const incoming: string[] = []
   collectIds(payload, incoming)
-  const existing = documentIds(document)
+  const existing = collectDocumentIds(document)
   const seen = new Set<string>()
   for (const id of incoming) {
     if (existing.has(id) || seen.has(id))

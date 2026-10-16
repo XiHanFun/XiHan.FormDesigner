@@ -6,6 +6,7 @@
 // 通用遍历：只认节点的区域，不认容器种类。
 
 import type { ContainerNode, FormDocument, FormNode, Region } from './schema'
+import { isPlainObject } from '@xihan-ui/core/json'
 
 /** 节点在树里的位置：所在区域（文档顶层为 `null`）与下标。 */
 export interface NodeLocation {
@@ -93,4 +94,24 @@ export function descendantsOf(node: FormNode): FormNode[] {
     }
   }
   return out
+}
+
+/** 把节点、区域、规则里的全部 id 按出现顺序收进 out；不是对象的值跳过。 */
+export function collectIds(value: unknown, out: string[]): void {
+  if (!isPlainObject(value))
+    return
+  if (typeof value.id === 'string')
+    out.push(value.id)
+  for (const key of ['regions', 'children', 'validation', 'linkage']) {
+    const list = value[key]
+    if (Array.isArray(list))
+      list.forEach(item => collectIds(item, out))
+  }
+}
+
+/** 文档里已用的全部 id：节点、区域与规则共用一个命名空间。 */
+export function collectDocumentIds(document: FormDocument): Set<string> {
+  const out: string[] = []
+  document.children.forEach(node => collectIds(node, out))
+  return new Set(out)
 }
