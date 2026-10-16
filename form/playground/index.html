@@ -13,6 +13,8 @@
     .panel { display: grid; gap: var(--xh-space-3); }
     .output { margin: 0; min-block-size: 6rem; max-block-size: 24rem; overflow: auto; padding: var(--xh-space-2); border: var(--xh-stroke-thin) solid var(--xh-border-subtle); border-radius: var(--xh-radius-md); color: var(--xh-fg-muted); font-family: var(--xh-font-family-mono); font-size: var(--xh-font-size-xs); white-space: pre-wrap; }
     @media (max-width: 64rem) { .columns { grid-template-columns: minmax(0, 1fr); } }
+    .tab-body { display: grid; gap: var(--xh-space-4); padding-block-start: var(--xh-space-4); }
+    xh-form-designer { block-size: 40rem; border: var(--xh-stroke-thin) solid var(--xh-border-default); border-radius: var(--xh-radius-md); }
   </style>
 </head>
 <body>
@@ -21,11 +23,21 @@
       <div data-xh-part="root">
         <div data-xh-part="content">
           <div data-xh-part="title">这是开发预览，不是产品</div>
-          <div data-xh-part="description">只用来查看表单渲染器的当前进度。界面与接口都还会变，数据不会保存。</div>
+          <div data-xh-part="description">只用来查看表单渲染器与设计器的当前进度。界面与接口都还会变，数据不会保存。</div>
         </div>
       </div>
     </xh-alert>
 
+    <xh-tabs default-value="renderer">
+      <div data-xh-part="root">
+        <div data-xh-part="list" aria-label="预览内容">
+          <button data-xh-part="trigger" value="renderer">渲染器</button>
+          <button data-xh-part="trigger" value="designer">设计器</button>
+          <div data-xh-part="indicator"></div>
+        </div>
+
+        <div data-xh-part="content" value="renderer">
+    <div class="tab-body">
     <div class="bar">
       <xh-toolbar>
         <div data-xh-part="root" aria-label="表单操作">
@@ -70,6 +82,17 @@
         <pre class="output" id="log" aria-label="事件日志" aria-live="polite"></pre>
       </div>
     </div>
+    </div>
+        </div>
+
+        <div data-xh-part="content" value="designer">
+          <div class="tab-body">
+            <xh-form-designer id="designer"></xh-form-designer>
+            <pre class="output" id="designer-log" aria-label="设计器事件日志" aria-live="polite"></pre>
+          </div>
+        </div>
+      </div>
+    </xh-tabs>
   </main>
   <script type="module" src="./src/main.ts"></script>
 </body>

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@xihan-form/core": "workspace:^",
+    "@xihan-form/designer": "workspace:^",
     "@xihan-form/runtime": "workspace:^",
     "@xihan-ui/designer-kit": "catalog:",
     "@xihan-ui/styles": "catalog:",

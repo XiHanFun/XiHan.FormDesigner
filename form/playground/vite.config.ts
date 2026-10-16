@@ -19,6 +19,9 @@ export default defineConfig({
       { find: /^@xihan-form\/runtime$/, replacement: local('runtime/src/index.ts') },
       { find: /^@xihan-form\/runtime\/locale$/, replacement: local('runtime/src/locale.ts') },
       { find: /^@xihan-form\/runtime\/style\.css$/, replacement: local('runtime/style.css') },
+      { find: /^@xihan-form\/runtime\/design$/, replacement: local('runtime/src/design.ts') },
+      { find: /^@xihan-form\/designer$/, replacement: local('designer/src/index.ts') },
+      { find: /^@xihan-form\/designer\/style\.css$/, replacement: local('designer/style.css') },
     ],
   },
   server: {

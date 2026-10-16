@@ -3,9 +3,11 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 开发预览页：注册 UI 元素与表单渲染器，装上示例报销单，接好工具栏、开关与事件日志。
+// 开发预览页：注册 UI 元素、表单渲染器与设计器，两个页签装上同一份示例报销单，接好工具栏、开关与事件日志。
 
+import type { FormDesignerEventMap } from '@xihan-form/designer'
 import type { FormRendererEventMap } from '@xihan-form/runtime'
+import { defineFormDesigner } from '@xihan-form/designer'
 import { defineFormRenderer } from '@xihan-form/runtime'
 import { formZhCN } from '@xihan-form/runtime/locale'
 import { mergeXhConfig, setXhConfig } from '@xihan-ui/web-components'
@@ -14,9 +16,11 @@ import { zhCN } from '@xihan-ui/web-components/locale'
 import { expenseForm, loadOptions } from './sample'
 import '@xihan-ui/styles/index.css'
 import '@xihan-form/runtime/style.css'
+import '@xihan-form/designer/style.css'
 
 defineXhElements()
 defineFormRenderer()
+defineFormDesigner()
 setXhConfig(mergeXhConfig(zhCN, formZhCN))
 
 const renderer = document.querySelector('xh-form-renderer')!
@@ -81,3 +85,25 @@ onSwitch('disabled', (checked) => {
   renderer.disabled = checked
 })
 onSwitch('zh', checked => setXhConfig(checked ? mergeXhConfig(zhCN, formZhCN) : {}))
+
+const designer = document.querySelector('xh-form-designer')!
+const designerLog = document.querySelector<HTMLElement>('#designer-log')!
+
+function writeDesigner(line: string): void {
+  designerLog.textContent = `${line}
+${designerLog.textContent ?? ''}`.slice(0, 4000)
+}
+
+function onDesigner<K extends keyof FormDesignerEventMap>(type: K, listener: (event: FormDesignerEventMap[K]) => void): void {
+  designer.addEventListener(type, event => listener(event as FormDesignerEventMap[K]))
+}
+
+onDesigner('schema-change', event => writeDesigner(`schema-change ${event.detail.kind} ${event.detail.operations.map(operation => operation.type).join(', ')}`))
+onDesigner('selection-change', event => writeDesigner(`selection-change ${JSON.stringify(event.detail)}`))
+onDesigner('issues-change', event => writeDesigner(`issues-change ${event.detail.issues.map(issue => issue.code).join(', ') || '无问题'}`))
+onDesigner('dirty-change', event => writeDesigner(`dirty-change ${event.detail.dirty}`))
+onDesigner('mode-change', event => writeDesigner(`mode-change ${event.detail.mode}`))
+onDesigner('save', () => writeDesigner('save'))
+
+designer.loadOptions = loadOptions
+designer.schema = expenseForm()

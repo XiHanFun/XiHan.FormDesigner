@@ -62,11 +62,11 @@ pnpm build
 
 Other commands: `pnpm typecheck`, `pnpm test`, `pnpm lint`.
 
-Development preview (a demo of the renderer, not a product): until XiHan.UI is published, `@xihan-ui/*` points at a sibling XiHan.UI checkout, so build the packages it needs in `XiHan.UI/ui` first, then start it from `form/` and open http://localhost:5192 .
+Development preview (a demo of the renderer and the designer, not a product): until XiHan.UI is published, `@xihan-ui/*` points at a sibling XiHan.UI checkout, so build the packages it needs in `XiHan.UI/ui` first, then start it from `form/` and open http://localhost:5192 .
 
 ```bash
 # XiHan.UI/ui
-pnpm --filter "@xihan-ui/web-components..." --filter "@xihan-ui/designer-kit..." --filter "@xihan-ui/expression..." --filter "@xihan-ui/styles..." build
+pnpm --filter "@xihan-ui/web-components..." --filter "@xihan-ui/designer-kit..." --filter "@xihan-ui/designer-shell..." --filter "@xihan-ui/expression..." --filter "@xihan-ui/styles..." build
 # XiHan.FormDesigner/form
 pnpm dev
 ```
