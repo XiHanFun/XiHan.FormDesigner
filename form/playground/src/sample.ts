@@ -99,7 +99,7 @@ export function expenseForm(): FormDocument {
     data: { optionSource: 'cities', optionDependencies: ['province'] },
     linkage: [linkage('hide', 'type != \'travel\'')],
   })
-  const amount = field('number', 'amount', '金额（元）', { data: { precision: 2, step: 100 }, validation: [rule({ kind: 'required' }), rule({ kind: 'range', min: 0.01, max: 100000 })] })
+  const amount = field('number', 'amount', '金额（元）', { basic: { placeholder: '例如 1280.50' }, data: { precision: 2, step: 100 }, validation: [rule({ kind: 'required' }), rule({ kind: 'range', min: 0.01, max: 100000 })] })
   const vendor = field('combobox', 'vendor', '开票单位', { basic: { placeholder: '输入名称搜索', hint: '按名称搜索，结果来自宿主' }, data: { optionSource: 'vendors' } })
   const invoices = field('number', 'invoices', '发票张数', { data: { precision: 0 }, validation: [rule({ kind: 'expression', expression: '$value == null || $value <= 20', message: '一次最多报销 20 张发票' })] })
   const reason = field('textarea', 'reason', '事由', {

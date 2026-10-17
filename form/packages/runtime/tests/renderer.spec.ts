@@ -510,6 +510,18 @@ describe('<xh-form-renderer>：控件状态', () => {
     await renderer.updateComplete
     expect(element.readOnly).toBe(true)
   })
+
+  it('数字字段的占位文字写成 xh-number-field 的 placeholder，值为空时输入框显示它', async () => {
+    const { registry, ids } = setup()
+    const node = field(registry, ids, 'number', 'amount')
+    const renderer = await mount((element) => {
+      element.schema = documentOf([{ ...node, basic: { ...node.basic, placeholder: '单位：元' } }])
+    })
+    const element = group(renderer, ['amount']).querySelector('xh-number-field') as HTMLElement & { placeholder?: string, updateComplete: Promise<boolean> }
+    await element.updateComplete
+    expect(element.placeholder).toBe('单位：元')
+    expect(element.querySelector('[data-part="input"]')!.getAttribute('placeholder')).toBe('单位：元')
+  })
 })
 
 describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
