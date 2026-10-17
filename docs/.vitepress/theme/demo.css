@@ -14,7 +14,7 @@
   color: var(--xh-fg-default);
 }
 
-.vp-doc .form-demo__stage :where(h1, h2, h3, h4, h5, h6, p, blockquote, ul, ol, li, table, tr, th, td, hr, a, code, label, legend, fieldset, input, button) {
+.form-demo__stage :is(h1, h2, h3, h4, h5, h6, p, blockquote, ul, ol, li, table, tr, th, td, hr, a, code) {
   margin: revert;
   padding: revert;
   border: revert;

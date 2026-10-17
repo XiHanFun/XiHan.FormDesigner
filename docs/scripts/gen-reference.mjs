@@ -593,8 +593,23 @@ function valueFacts(definition, data) {
   return `值：${VALUE_KINDS[base]}${variants.length > 0 ? `（${variants.join('，')}）` : ''}，空值 ${code(empty)}`
 }
 
+/** 运行时内置字段渲染表里的种类名，从 FORM_FIELD_RENDERERS 的源码读出。 */
+function builtinFieldRenderers() {
+  const file = packageSource('runtime', 'src', 'renderer', 'fields', 'index.ts')
+  let initializer = declaration(file, 'FORM_FIELD_RENDERERS').node.initializer
+  if (ts.isCallExpression(initializer))
+    initializer = initializer.arguments[0]
+  if (initializer === undefined || !ts.isObjectLiteralExpression(initializer))
+    throw new Error('[gen-reference] FORM_FIELD_RENDERERS is not an object literal')
+  return new Set(initializer.properties.map(property => nameOf(property)))
+}
+
+const FIELD_RENDERERS = builtinFieldRenderers()
+
 function kindFacts(definition, node) {
   const facts = [`${TYPE_NAMES[definition.type]}`, `渲染为 ${code(`<${definition.element}>`)}`]
+  if (definition.type === 'field' && !FIELD_RENDERERS.has(definition.kind))
+    facts[1] = `内置渲染器不渲染这个种类，模板里用到它时渲染器派发 ${code('schema-error')}（${code('XH_FORM_RT_NO_RENDERER')}），可以经扩展的 ${code('fieldRenderers')} 补上`
   if (definition.type === 'field') {
     facts.push(valueFacts(definition, node.data))
     facts.push(`适用的校验：${definition.validations.map(kind => t.ruleKind(kind)).join('、')}`)
