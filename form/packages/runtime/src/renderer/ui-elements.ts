@@ -11,6 +11,7 @@ import {
   XhCardElement,
   XhCheckboxElement,
   XhCheckboxGroupElement,
+  XhFieldArrayElement,
   XhFieldElement,
   XhFieldsetElement,
   XhFileUploadElement,
@@ -36,6 +37,7 @@ import {
 export function defineRendererElements(): void {
   defineXhElement('xh-form', XhFormElement)
   defineXhElement('xh-field', XhFieldElement)
+  defineXhElement('xh-field-array', XhFieldArrayElement)
   defineXhElement('xh-text-field', XhTextFieldElement)
   defineXhElement('xh-password-input', XhPasswordInputElement)
   defineXhElement('xh-number-field', XhNumberFieldElement)

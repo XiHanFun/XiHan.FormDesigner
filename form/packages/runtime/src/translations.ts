@@ -15,6 +15,8 @@ export interface FormRendererTranslations {
   readonly optionsLoading: string
   /** 没有选项。 */
   readonly optionsEmpty: string
+  /** 列表容器的新增把手。 */
+  readonly addRow: string
   /** 文件字段投放区的说明。 */
   readonly fileDropzone: string
   /** 文件字段打开选择框的按钮。 */
@@ -40,6 +42,7 @@ export const DEFAULT_FORM_RENDERER_TRANSLATIONS: FormRendererTranslations = Obje
   errorSummaryItem: (label: string, message: string) => `${label}: ${message}`,
   optionsLoading: 'Loading…',
   optionsEmpty: 'No options',
+  addRow: 'Add row',
   fileDropzone: 'Drop files here or click to choose',
   fileTrigger: 'Choose files',
   valueRequired: 'This field is required',

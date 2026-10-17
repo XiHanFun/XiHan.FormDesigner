@@ -50,7 +50,7 @@ export interface FormControllerOptions {
   readonly loadOptions?: OptionLoader
 }
 
-/** 寻址：字符串是节点 id，数组是数据路径。 */
+/** 寻址：字符串是节点 id 或实例键（节点 id 后接 `#` 与逐层行号，即 states 通知里的键），数组是数据路径。 */
 export type FormTarget = string | JsonPath
 
 /** 联动问题：表达式求值的问题，或联动多轮重算后仍不稳定。 */
@@ -110,7 +110,7 @@ export interface FormController {
   readonly setFormData: (data: Readonly<Record<string, JsonValue>>, options?: SetFormDataOptions) => void
   /** 写一个字段或列表容器的值；形状不符时抛错。值确实变了时，依赖它的选项字段回到空值，并逐级带上依赖这些字段的字段。 */
   readonly setValue: (path: JsonPath, value: JsonValue) => void
-  /** 节点实例的状态；字符串只取顶层实例，列表里的实例用数据路径。 */
+  /** 节点实例的状态；节点 id 只取顶层实例，列表里的实例用实例键或数据路径。 */
   readonly getState: (target: FormTarget) => NodeState | undefined
   /** 当前展示的校验问题。 */
   readonly getIssues: () => readonly ValueIssue[]
@@ -358,7 +358,8 @@ class Controller implements FormController {
 
   private targetKey(target: FormTarget): string {
     if (typeof target === 'string') {
-      if (findNode(this.document, target) === undefined)
+      const { nodeId, rowPath } = parseInstanceKey(target)
+      if (findNode(this.document, nodeId) === undefined || (rowPath.length > 0 && !this.states.has(target)))
         throw new FormRuntimeError('XH_FORM_RT_UNKNOWN_NODE', { nodeId: target })
       return target
     }

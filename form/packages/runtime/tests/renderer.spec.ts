@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
-import type { FormDocument } from '@xihan-form/core'
+import type { ContainerNode, FormDocument, StaticNode } from '@xihan-form/core'
+import type { JsonValue } from '@xihan-ui/core/json'
 import type { FieldRenderer, FormRendererEventMap, XhFormRenderer } from '../src'
-import { createBuiltinKindRegistry } from '@xihan-form/core'
+import { BUILTIN_KINDS, createBuiltinKindRegistry, createKindRegistry, createNode, EMPTY_PROPERTY_SCHEMA, instanceKey } from '@xihan-form/core'
 import { onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { getFormPathValue } from '@xihan-ui/headless'
@@ -141,15 +142,16 @@ describe('<xh-form-renderer>：结构', () => {
   })
 
   it('没有渲染方式的种类派发 schema-error，元素清空；方法在此时抛 XH_FORM_RT_NOT_READY', async () => {
-    const { registry, ids } = setup()
-    const lines = container(registry, ids, 'subform', [field(registry, ids, 'text', 'x')], { key: 'lines' })
+    const registry = createKindRegistry([...BUILTIN_KINDS, { type: 'static', kind: 'banner', category: 'static', element: 'div', properties: EMPTY_PROPERTY_SCHEMA }])
+    const banner = createNode(registry, 'banner', createIdAllocator('b'))
     const renderer = window.document.createElement(FORM_RENDERER_TAG)
     const errors = events(renderer, 'schema-error')
-    renderer.schema = documentOf([lines])
+    renderer.registry = registry
+    renderer.schema = documentOf([banner])
     window.document.body.append(renderer)
     mounted.push(renderer)
     await renderer.updateComplete
-    expect(errors.map(error => [error.code, error.data])).toEqual([['XH_FORM_RT_NO_RENDERER', { kind: 'subform' }]])
+    expect(errors.map(error => [error.code, error.data])).toEqual([['XH_FORM_RT_NO_RENDERER', { kind: 'banner' }]])
     expect(renderer.childElementCount).toBe(0)
     expect(renderer.controller).toBeNull()
     expect(() => renderer.getFormData()).toThrow(FormRuntimeError)
@@ -314,6 +316,99 @@ describe('<xh-form-renderer>：值与事件', () => {
     expect([input.disabled, input.readOnly]).toEqual([true, true])
     const form = renderer.querySelector('xh-form') as HTMLElement & { disabled?: boolean, readOnly?: boolean }
     expect([form.disabled, form.readOnly]).toEqual([true, true])
+  })
+})
+
+describe('<xh-form-renderer>：列表容器', () => {
+  type FieldArray = HTMLElement & { value?: unknown[], movable?: boolean, updateComplete: Promise<boolean> }
+
+  function lines(): { document: FormDocument, note: StaticNode, list: ContainerNode } {
+    const { registry, ids } = setup()
+    const note = createNode(registry, 'paragraph', ids) as StaticNode
+    const list = container(registry, ids, 'subform', [field(registry, ids, 'text', 'name'), field(registry, ids, 'number', 'qty'), note], {
+      key: 'lines',
+      basic: { title: '明细' },
+      validation: [{ id: 'v-lines', kind: 'required', message: '至少填一行' }],
+    })
+    return { document: documentOf([list]), note, list }
+  }
+
+  async function mountLines(values: Record<string, JsonValue>): Promise<{ renderer: XhFormRenderer, array: FieldArray, note: StaticNode }> {
+    const { document, note } = lines()
+    const renderer = await mount((element) => {
+      element.values = values
+      element.schema = document
+    })
+    const array = group(renderer, ['lines']).querySelector('xh-field-array') as FieldArray
+    await array.updateComplete
+    return { renderer, array, note }
+  }
+
+  function items(array: FieldArray): HTMLElement[] {
+    return [...array.querySelectorAll<HTMLElement>(':scope > [data-xh-part="root"] > [data-xh-part="item"]')]
+  }
+
+  function names(renderer: XhFormRenderer, count: number): unknown[] {
+    return Array.from({ length: count }, (_, index) => (group(renderer, ['lines', index, 'name']).querySelector('xh-text-field') as HTMLElement & { value?: string }).value)
+  }
+
+  it('xh-field 包住 xh-field-array，标题是字段标签；一行一个 item，行内字段的路径带行号', async () => {
+    const { renderer, array } = await mountLines({ lines: [{ name: '甲', qty: 1 }, { name: '乙', qty: 2 }] })
+    expect(group(renderer, ['lines']).querySelector('xh-field > [data-xh-part="root"] > label')!.textContent).toBe('明细')
+    expect(array.movable).toBe(true)
+    expect(items(array).map(item => item.querySelector('[data-xh-part="item-label"]')!.textContent)).toEqual(['1', '2'])
+    expect(names(renderer, 2)).toEqual(['甲', '乙'])
+    expect(array.querySelector('[data-xh-part="add-trigger"]')!.textContent).toBe('Add row')
+    expect(array.value).toHaveLength(2)
+  })
+
+  it('新增、换序、删除经 xh-field-array 交给控制器；已在的行原样保留，行号变了的行按新路径重建', async () => {
+    const { renderer, array } = await mountLines({ lines: [{ name: '甲', qty: 1 }, { name: '乙', qty: 2 }] })
+    const [first, second] = items(array)
+    array.querySelector<HTMLButtonElement>('[data-xh-part="add-trigger"]')!.click()
+    await array.updateComplete
+    expect(renderer.getFormData().lines).toEqual([{ name: '甲', qty: 1 }, { name: '乙', qty: 2 }, { name: '', qty: null }])
+    expect(items(array).slice(0, 2)).toEqual([first, second])
+    expect(items(array)).toHaveLength(3)
+    second!.querySelector<HTMLButtonElement>('[data-xh-part="move-up-trigger"]')!.click()
+    await array.updateComplete
+    expect(renderer.getFormData().lines).toEqual([{ name: '乙', qty: 2 }, { name: '甲', qty: 1 }, { name: '', qty: null }])
+    expect(items(array).slice(0, 2)).toEqual([second, first])
+    expect(second!.querySelector('[data-xh-part="field-group"]')!.getAttribute('data-path')).toBe(JSON.stringify(['lines', 0, 'name']))
+    expect(names(renderer, 2)).toEqual(['乙', '甲'])
+    first!.querySelector<HTMLButtonElement>('[data-xh-part="item-delete-trigger"]')!.click()
+    await array.updateComplete
+    expect(renderer.getFormData().lines).toEqual([{ name: '乙', qty: 2 }, { name: '', qty: null }])
+    expect(first!.isConnected).toBe(false)
+    expect(items(array).map(item => item.querySelector('[data-xh-part="item-label"]')!.textContent)).toEqual(['1', '2'])
+    expect(renderer.querySelectorAll('[data-xh-part="error-summary-item"]')).toHaveLength(1 + 2 * 2)
+  })
+
+  it('宿主改整份数据时按行数截短或补齐，行内字段跟着刷新', async () => {
+    const { renderer, array } = await mountLines({ lines: [{ name: '甲', qty: 1 }] })
+    renderer.setFormData({ lines: [{ name: '丙', qty: 3 }, { name: '丁', qty: 4 }, { name: '戊', qty: 5 }] })
+    await array.updateComplete
+    expect(items(array)).toHaveLength(3)
+    expect(names(renderer, 3)).toEqual(['丙', '丁', '戊'])
+    renderer.setFormData({ lines: [] })
+    await array.updateComplete
+    expect(items(array)).toHaveLength(0)
+    expect(array.value).toEqual([])
+  })
+
+  it('行内静态元素按实例键取逐行的状态', async () => {
+    const { renderer, array, note } = await mountLines({ lines: [{ name: '甲', qty: 1 }, { name: '乙', qty: 2 }] })
+    renderer.controller!.setHidden(instanceKey(note.id, [1]), true)
+    const paragraphs = items(array).map(item => item.querySelector('xh-typography') as HTMLElement)
+    expect(paragraphs.map(paragraph => paragraph.hidden)).toEqual([false, true])
+  })
+
+  it('列表自己的校验问题落在列表的字段上，也进错误摘要', async () => {
+    const { renderer } = await mountLines({ lines: [] })
+    renderer.validate()
+    await renderer.updateComplete
+    expect(group(renderer, ['lines']).querySelector('xh-field > [data-xh-part="root"] > [data-xh-part="error-text"]')!.textContent).toBe('至少填一行')
+    expect(renderer.querySelector(`[data-xh-part="error-summary-item"][data-path='${JSON.stringify(['lines'])}']`)!.textContent).toBe('明细: 至少填一行')
   })
 })
 

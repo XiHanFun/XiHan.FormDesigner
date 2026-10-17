@@ -17,6 +17,11 @@ xh-form-renderer [data-form-region] {
   min-inline-size: 0;
 }
 
+/* 列表一行里的区域占满行内容那条轨道。 */
+xh-form-renderer [data-scope='field-array'][data-part='item-content'] > [data-form-region] {
+  flex: 1 1 auto;
+}
+
 xh-form-renderer xh-grid:not([hidden]),
 xh-form-renderer xh-separator:not([hidden]) {
   display: contents;
