@@ -39,9 +39,9 @@ document.body.append(renderer)
 
 ## 选项
 
-选择类字段（下拉、可输入下拉、树选择、单选组、多选组、按钮组）的选项有两种来源。
+选择类字段（下拉、可输入下拉、树选择、级联、单选组、多选组、按钮组、穿梭框）的选项有两种来源。
 
-**写在模板里**：`data.options` 是选项数组，每项 `{ value, label }`，可带 `disabled`。
+**写在模板里**：`data.options` 是选项数组，每项 `{ value, label }`，可带 `disabled`；树选择与级联的选项是树，每项还可带 `children`。
 
 <<< @/examples/templates/purchase.ts#static
 
@@ -51,7 +51,7 @@ document.body.append(renderer)
 
 请求里有 `source`（选项来源）、`nodeId`、`path`（字段的数据路径）与 `values`（当前表单数据），以及按情况带上的：
 
-- **级联**：`data.optionDependencies` 列出这个字段依赖的数据键。依赖的值一变，字段回到空值并重新加载，宿主从 `request.values` 读依赖的值。依赖的键在字段所在作用域里找，找不到再往外层找。
+- **依赖其它字段**：`data.optionDependencies` 列出这个字段依赖的数据键。依赖的值一变，字段回到空值并重新加载，宿主从 `request.values` 读依赖的值。依赖的键在字段所在作用域里找，找不到再往外层找。
 
   <<< @/examples/templates/purchase.ts#cascade
 
@@ -59,7 +59,7 @@ document.body.append(renderer)
 
   <<< @/examples/templates/purchase.ts#search
 
-- **逐级展开**：树选择的选项可以带 `hasChildren: true` 而不给 `children`，用户第一次展开它时请求带上 `parent`（那个节点的值），宿主只返回它的直接子项。
+- **逐级展开**：树选择与级联的选项可以带 `hasChildren: true` 而不给 `children`，用户第一次展开它时请求带上 `parent`（那个节点的值），宿主只返回它的直接子项。级联在那一列末尾显示在途与失败，失败时点重试再请求一次。
 
   <<< @/examples/templates/purchase.ts#tree
 
