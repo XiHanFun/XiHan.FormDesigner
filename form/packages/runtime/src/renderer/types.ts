@@ -42,6 +42,8 @@ export interface FieldRendererContext {
   readonly options: OptionsState | undefined
   /** 带搜索串重新加载本字段的选项，结果经 `options` 回来；字段没有选项来源或宿主没给 `loadOptions` 时为 `undefined`。 */
   readonly searchOptions: ((query: string) => void) | undefined
+  /** 重新加载本字段的选项（如取数失败后重试），结果经 `options` 回来；字段没有选项来源或宿主没给 `loadOptions` 时为 `undefined`。 */
+  readonly reloadOptions: (() => void) | undefined
   readonly size: FieldSize
   /** 渲染器当前的文案。 */
   readonly translations: FormRendererTranslations
