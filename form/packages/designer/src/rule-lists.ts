@@ -5,14 +5,18 @@
 
 // 校验规则与联动规则两个页签的内容：每条规则一张 <xh-designer-properties>，标题是规则种类或联动动作，
 // 头部带删除钮；列表末尾是「添加规则」菜单。规则卡片按规则 id 复用，编辑中的字段不丢焦点。
+// 表达式参数用 <xh-expression-input> 编辑，各卡片共用同一张编辑器表。
 
 import type { FormDocument, FormNode, FormSchemaIssue, KindRegistry, RuleList } from '@xihan-form/core'
 import type { FormDesignerTranslations } from '@xihan-form/runtime'
 import type { IconRecord } from '@xihan-ui/core'
-import type { DesignerPropertiesEventMap, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
+import type { PropertyEditorTable } from '@xihan-ui/designer-kit/properties'
+import type { DesignerPropertiesEventMap, DesignerPropertyEditor, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
+import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { FormEditor } from './editor'
 import { PlusIcon, TrashIcon } from '@xihan-ui/icons'
 import { createAuthoredElement, setAttributes, setText, SVG_NS } from '@xihan-ui/web-components/authoring'
+import { createExpressionEditor, EXPRESSION_CONTROL } from './expression-editor'
 import { hasRuleList, newRule, nextRule, ruleChoices, ruleErrors, ruleFieldLabel, rulesOf, ruleTarget, ruleTitle } from './rules'
 
 /** 规则列表需要设计器提供的能力。 */
@@ -22,6 +26,8 @@ export interface RuleListsHost {
   readonly registry: () => KindRegistry
   readonly translations: () => FormDesignerTranslations
   readonly readonly: () => boolean
+  /** 检查规则里的表达式用。 */
+  readonly expressionEngine: () => ExpressionEngine
   /** 等设计器把这一轮更新做完，规则卡片才建好。 */
   readonly settled: () => Promise<unknown>
 }
@@ -64,10 +70,23 @@ function place(parent: HTMLElement, children: readonly HTMLElement[]): void {
 export class RuleLists {
   readonly #host: RuleListsHost
   readonly #lists: Readonly<Record<RuleList, ListParts>>
+  readonly #editors: PropertyEditorTable<DesignerPropertyEditor>
+  #document: FormDocument | undefined
   #node: FormNode | undefined
 
   constructor(host: RuleListsHost) {
     this.#host = host
+    this.#editors = {
+      byControl: {
+        [EXPRESSION_CONTROL]: createExpressionEditor({
+          ownerDocument: host.ownerDocument,
+          document: () => this.#document,
+          node: () => this.#node,
+          engine: host.expressionEngine,
+          translations: host.translations,
+        }),
+      },
+    }
     this.#lists = { validation: this.#build('validation'), linkage: this.#build('linkage') }
   }
 
@@ -78,6 +97,7 @@ export class RuleLists {
 
   /** 按选中的节点重排两个列表；node 为 undefined 时清空。 */
   sync(document: FormDocument, node: FormNode | undefined, issues: readonly FormSchemaIssue[]): void {
+    this.#document = document
     this.#node = node
     const t = this.#host.translations()
     for (const list of LISTS) {
@@ -93,6 +113,7 @@ export class RuleLists {
           panel = this.#panel(list)
           parts.panels.set(rule.id, panel)
         }
+        panel.editors = this.#editors
         panel.targets = [ruleTarget(node!, list, rule)]
         panel.translations = { title: ruleTitle(list, rule, t) }
         panel.labelOf = descriptor => ruleFieldLabel(descriptor, t)

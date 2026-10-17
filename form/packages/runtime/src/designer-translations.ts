@@ -70,6 +70,10 @@ export interface FormDesignerTranslations {
   readonly ruleExpression: string
   readonly ruleAction: string
   readonly noRules: string
+  /** 表达式补全里运行时变量的说明：`$value`、`$row`、`$index`。 */
+  readonly variableValue: string
+  readonly variableRow: string
+  readonly variableIndex: string
   /** 表格布局的右键菜单。 */
   readonly mergeCells: string
   readonly splitCell: string
@@ -212,6 +216,9 @@ export const DEFAULT_FORM_DESIGNER_TRANSLATIONS: FormDesignerTranslations = Obje
   ruleExpression: 'Expression',
   ruleAction: 'Action',
   noRules: 'No rules',
+  variableValue: 'Value of this field or list',
+  variableRow: 'Data of the current row',
+  variableIndex: 'Index of the current row, from 0',
   mergeCells: 'Merge cells',
   splitCell: 'Split cell',
   insertRowAbove: 'Insert row above',
