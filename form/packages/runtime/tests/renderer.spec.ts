@@ -775,6 +775,7 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['checkbox', 'xh-checkbox', 'indicator'],
     ['password', 'xh-password-input', 'visibility-trigger'],
     ['pin', 'xh-pin-input', 'input'],
+    ['date', 'xh-date-picker', 'trigger'],
   ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
     const { registry, ids } = setup()
     const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]
@@ -853,6 +854,42 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     await pick.updateComplete
     expect([pick.empty, pick.collection]).toEqual(['No options', []])
     expect(pick.querySelector('[data-part="empty"]')!.textContent).toBe('No options')
+  })
+})
+
+describe('<xh-form-renderer>：日期时间字段', () => {
+  type Picker = HTMLElement & { value?: unknown, showTime?: boolean, placeholder?: string, updateComplete: Promise<boolean> }
+
+  async function mountField(kind: string, extra: { basic?: Record<string, JsonValue>, data?: Record<string, JsonValue> }, values: Record<string, JsonValue> = {}): Promise<{ renderer: XhFormRenderer, element: Picker }> {
+    const { registry, ids } = setup()
+    const renderer = await mount((element) => {
+      element.values = values
+      element.schema = documentOf([field(registry, ids, kind, 'when', extra)])
+    })
+    const element = group(renderer, ['when']).querySelector<Picker>('[slot="control"]')!
+    await element.updateComplete
+    return { renderer, element }
+  }
+
+  function pick(element: HTMLElement, value: string[]): void {
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value }, bubbles: true }))
+  }
+
+  it('日期：值是 ISO 日期串，写给元素时是数组；选中写回字符串，清空写回 null；占位符照写', async () => {
+    const { renderer, element } = await mountField('date', { basic: { placeholder: '请选择日期' } }, { when: '2026-10-20' })
+    expect(element.localName).toBe('xh-date-picker')
+    expect([element.value, element.placeholder, element.showTime]).toEqual([['2026-10-20'], '请选择日期', undefined])
+    pick(element, ['2026-11-01'])
+    expect(renderer.getFormData().when).toBe('2026-11-01')
+    pick(element, [])
+    expect(renderer.getFormData().when).toBeNull()
+  })
+
+  it('日期：带时间时打开 showTime，值是 ISO 日期时间串', async () => {
+    const { renderer, element } = await mountField('date', { data: { withTime: true } })
+    expect(element.showTime).toBe(true)
+    pick(element, ['2026-11-01T09:30'])
+    expect(renderer.getFormData().when).toBe('2026-11-01T09:30')
   })
 })
 
