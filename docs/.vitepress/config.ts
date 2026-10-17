@@ -32,6 +32,7 @@ const guideSidebar: DefaultTheme.SidebarItem[] = [
       { text: '校验与联动', link: '/guide/validation' },
       { text: '渲染器', link: '/guide/renderer' },
       { text: '设计器', link: '/guide/designer' },
+      { text: '扩展', link: '/guide/extensions' },
     ],
   },
 ]
