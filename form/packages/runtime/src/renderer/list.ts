@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 列表容器（子表单、子表）的部件树：<xh-field> 包住 <xh-field-array>，标题、整份列表的错误文案与状态由字段给出。
+// 列表容器（子表单、子表）的部件树：<xh-field> 包住 <xh-field-array>，标题、整份列表的错误文案与状态由字段给出；
+// 字段只建宿主元素，标题与错误文案写到属性上，<xh-field-array> 写成 slot="control" 放进字段的标准结构。
 // 子表单按列表排布：一行一个 item，行号、行内容与把手各占一块，行内容由渲染器按行的数据路径渲染；
 // 子表按表格排布：表头与各行放进 table 部件，行内一个字段占一个 item-cell，列头取字段标签。
 
@@ -63,11 +64,10 @@ function tallestSize(children: ContainerNode['regions'][number]['children'], siz
  */
 export function createListShell(doc: Document, node: ContainerNode, size: FieldSize): ListShell {
   const element = host(doc, 'xh-field')
-  const fieldRoot = make(doc, 'div', 'root')
-  const label = make(doc, 'label', 'label')
-  text(label, stringOf(node.basic.title) ?? '')
+  assign(element, 'label', stringOf(node.basic.title) ?? '')
+  assign(element, 'errorText', '')
   const array = host(doc, 'xh-field-array')
-  array.setAttribute('data-xh-part', 'control')
+  array.setAttribute('slot', 'control')
   if (node.data.movable !== false)
     assign(array, 'movable', true)
   const root = make(doc, 'div', 'root')
@@ -93,9 +93,7 @@ export function createListShell(doc: Document, node: ContainerNode, size: FieldS
   }
   root.append(add)
   array.append(root)
-  const error = make(doc, 'p', 'error-text')
-  fieldRoot.append(label, array, error)
-  element.append(fieldRoot)
+  element.append(array)
   return {
     element,
     array,
@@ -108,7 +106,7 @@ export function createListShell(doc: Document, node: ContainerNode, size: FieldS
       assign(element, 'required', state.required ? true : undefined)
       assign(array, 'disabled', state.disabled ? true : undefined)
       assign(array, 'readOnly', state.readOnly ? true : undefined)
-      text(error, message ?? '')
+      assign(element, 'errorText', message ?? '')
       text(add, addText)
     },
   }
