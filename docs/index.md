@@ -53,6 +53,6 @@ features:
   - title: 可视化设计器
     icon: 🎨
     details: 物料面板、拖放排布、属性与规则编辑、问题列表、复制粘贴与撤销重做；扩展可以登记新种类、属性编辑器、命令与面板。
-    link: /introduction
+    link: /guide/designer
     linkText: 了解设计器
 ---
