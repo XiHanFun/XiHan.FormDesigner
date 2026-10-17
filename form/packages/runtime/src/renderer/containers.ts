@@ -4,7 +4,8 @@
  */
 
 // 容器与静态元素的部件树：栅格、标签页、卡片、折叠、分组、表格布局，以及分隔线、段落、标题、提示、图片、条码与二维码。
-// 标签页与折叠只建宿主元素加 collection，区域内容放进带 slot 的子节点，由元素搬进对应的面板；其余照 UI 文档写部件树。
+// 标签页与折叠只建宿主元素加 collection，卡片、分组与分隔线只建宿主元素，区域内容与文字放进带 slot 的子节点，由元素按标准结构
+// 搬进对应的部件；栅格、表格布局与其余静态元素照 UI 文档写部件树。
 // 每个区域给出一个放子节点的位置；状态只管隐藏与分组的禁用，字段自己的状态由字段处理。
 
 import type { ContainerNode, NodeState, StaticNode } from '@xihan-form/core'
@@ -78,20 +79,17 @@ const tabs: ContainerBuilder = (doc, node) => {
   return { element, slots, update: hiding(element) }
 }
 
+/** 卡片：`xh-card`，标题写成 slot="title"（没有标题时不铺页头），区域放进 slot="content"。 */
 const card: ContainerBuilder = (doc, node) => {
   const element = host(doc, 'xh-card')
-  const root = make(doc, 'div', 'root')
   const title = stringOf(node.basic.title) ?? ''
   if (title !== '') {
-    const header = make(doc, 'div', 'header')
-    const heading = make(doc, 'div', 'title')
+    const heading = make(doc, 'span', undefined, { slot: 'title' })
     text(heading, title)
-    header.append(heading)
-    root.append(header)
+    element.append(heading)
   }
-  const content = make(doc, 'div', 'content')
-  root.append(content)
-  element.append(root)
+  const content = make(doc, 'div', undefined, { slot: 'content' })
+  element.append(content)
   return { element, slots: new Map([[node.regions[0]!.id, content]]), update: hiding(element) }
 }
 
@@ -105,16 +103,15 @@ const collapse: ContainerBuilder = (doc, node) => {
   return { element, slots, update: hiding(element) }
 }
 
+/** 分组：`xh-fieldset`，组标题写到 legend 属性，区域放进 slot="field-group"。 */
 const fieldset: ContainerBuilder = (doc, node) => {
   const element = host(doc, 'xh-fieldset')
-  const root = make(doc, 'fieldset', 'root')
-  const legend = make(doc, 'legend', 'legend')
-  text(legend, stringOf(node.basic.legend) ?? '')
-  root.append(legend)
-  element.append(root)
+  assign(element, 'legend', stringOf(node.basic.legend) ?? '')
+  const group = make(doc, 'div', undefined, { slot: 'field-group' })
+  element.append(group)
   return {
     element,
-    slots: new Map([[node.regions[0]!.id, root]]),
+    slots: new Map([[node.regions[0]!.id, group]]),
     update: (state) => {
       element.hidden = state.hidden
       assign(element, 'disabled', state.disabled ? true : undefined)
@@ -144,17 +141,16 @@ const table: ContainerBuilder = (doc, node) => {
 /** 内置容器的部件树；列表容器（子表单、子表）不在其中。 */
 export const CONTAINER_BUILDERS: Readonly<Record<string, ContainerBuilder>> = Object.freeze({ grid, tabs, card, collapse, fieldset, table })
 
+/** 分隔线：`xh-separator`，有文字时写成 slot="content"，由元素铺出线、文字、线。 */
 const divider: StaticBuilder = (doc, node) => {
   const element = host(doc, 'xh-separator')
-  const root = make(doc, 'div', 'root')
   const label = stringOf(node.basic.label) ?? ''
   if (label !== '') {
-    const content = make(doc, 'span', 'content')
+    const content = make(doc, 'span', undefined, { slot: 'content' })
     text(content, label)
-    root.append(make(doc, 'div', 'line'), content, make(doc, 'div', 'line'))
+    element.append(content)
     assign(element, 'decorative', true)
   }
-  element.append(root)
   return { element, update: hiding(element) }
 }
 
