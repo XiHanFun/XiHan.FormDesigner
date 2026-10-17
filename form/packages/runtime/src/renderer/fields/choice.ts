@@ -59,7 +59,7 @@ function generated(doc: Document, tag: 'div' | 'span' | 'button', name: string):
   return node
 }
 
-/** 下拉：`xh-select`，多选时把选中项画成标签。 */
+/** 下拉：`xh-select`，多选时把选中项画成标签；取数失败时浮层里露出失败提示与重试钮，重试交给 reloadOptions。 */
 export const selectField: FieldRenderer = (context) => {
   const doc = context.document
   const multiple = context.node.data.multiple === true
@@ -75,7 +75,7 @@ export const selectField: FieldRenderer = (context) => {
   const empty = make(doc, 'div', 'empty')
   const loading = make(doc, 'div', 'loading')
   const content = make(doc, 'div', 'content')
-  content.append(list, empty, loading)
+  content.append(list, empty, loading, make(doc, 'div', 'error'), make(doc, 'button', 'retry-trigger', { type: 'button' }))
   const positioner = make(doc, 'div', 'positioner')
   positioner.append(content)
   const root = make(doc, 'div', 'root')
@@ -105,6 +105,7 @@ export const selectField: FieldRenderer = (context) => {
   }
   const ref: ContextRef = { current: context }
   on<{ value: string[] }>(element, 'value-change', detail => ref.current.setValue(fromList(detail.value, multiple)))
+  element.addEventListener('retry', () => ref.current.reloadOptions?.())
   const update = (next: FieldRendererContext): void => {
     ref.current = next
     paintCommon(element, next, { placeholder: true })
@@ -112,6 +113,7 @@ export const selectField: FieldRenderer = (context) => {
     text(loading, next.translations.optionsLoading)
     text(empty, next.translations.optionsEmpty)
     assign(element, 'loading', next.options?.status === 'loading' ? true : undefined)
+    assign(element, 'error', next.options?.status === 'error' ? true : undefined)
     assign(element, 'value', toList(next.value))
     void select.updateComplete?.then(renderTags)
   }

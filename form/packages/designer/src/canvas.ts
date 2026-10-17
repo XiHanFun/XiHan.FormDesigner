@@ -230,6 +230,7 @@ export class DesignCanvas {
       error: undefined,
       options: { status: 'ready', items: options },
       searchOptions: undefined,
+      reloadOptions: undefined,
       size: (stringOf(node.appearance.size) ?? 'md') as FieldSize,
       translations: this.#host.rendererTranslations(),
       uploadFile: undefined,

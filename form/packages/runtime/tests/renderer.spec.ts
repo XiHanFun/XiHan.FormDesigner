@@ -511,6 +511,27 @@ describe('<xh-form-renderer>：控件状态', () => {
     expect(element.readOnly).toBe(true)
   })
 
+  it('下拉取数失败时报 error，浮层里有失败提示与重试钮；retry 重新加载选项', async () => {
+    const { registry, ids } = setup()
+    let calls = 0
+    const renderer = await mount((element) => {
+      element.loadOptions = () => {
+        calls += 1
+        if (calls === 1)
+          throw new Error('offline')
+        return [{ value: 'icbc', label: '工商银行' }]
+      }
+      element.schema = documentOf([field(registry, ids, 'select', 'bank', { data: { optionSource: 'banks' } })])
+    })
+    const element = group(renderer, ['bank']).querySelector('xh-select') as HTMLElement & { error?: boolean, collection?: unknown[] }
+    await vi.waitFor(() => expect(element.error).toBe(true))
+    expect(element.querySelector('[data-xh-part="error"]')).not.toBeNull()
+    expect(element.querySelector('[data-xh-part="retry-trigger"]')).not.toBeNull()
+    element.dispatchEvent(new CustomEvent('retry', { bubbles: true, composed: true }))
+    await vi.waitFor(() => expect(element.collection).toEqual([{ value: 'icbc', label: '工商银行' }]))
+    expect([calls, element.error]).toEqual([2, undefined])
+  })
+
   it('数字字段的占位文字写成 xh-number-field 的 placeholder，值为空时输入框显示它', async () => {
     const { registry, ids } = setup()
     const node = field(registry, ids, 'number', 'amount')
