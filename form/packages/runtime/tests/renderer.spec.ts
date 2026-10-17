@@ -776,6 +776,7 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['password', 'xh-password-input', 'visibility-trigger'],
     ['pin', 'xh-pin-input', 'input'],
     ['date', 'xh-date-picker', 'trigger'],
+    ['date-range', 'xh-date-range-picker', 'trigger'],
   ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
     const { registry, ids } = setup()
     const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]
@@ -890,6 +891,21 @@ describe('<xh-form-renderer>：日期时间字段', () => {
     expect(element.showTime).toBe(true)
     pick(element, ['2026-11-01T09:30'])
     expect(renderer.getFormData().when).toBe('2026-11-01T09:30')
+  })
+
+  it('日期范围：值是起止两个 ISO 日期串，没选时元素拿到两端空串；只填一端照存，两端都清空写回空数组；占位符写到两组段位', async () => {
+    const { renderer, element } = await mountField('date-range', { basic: { placeholder: '选择日期' } })
+    const range = element as Picker & { startPlaceholder?: string, endPlaceholder?: string }
+    expect(range.localName).toBe('xh-date-range-picker')
+    expect([range.value, range.startPlaceholder, range.endPlaceholder]).toEqual([['', ''], '选择日期', '选择日期'])
+    pick(range, ['2026-11-01', '2026-11-05'])
+    expect(renderer.getFormData().when).toEqual(['2026-11-01', '2026-11-05'])
+    await range.updateComplete
+    expect(range.value).toEqual(['2026-11-01', '2026-11-05'])
+    pick(range, ['', '2026-11-05'])
+    expect(renderer.getFormData().when).toEqual(['', '2026-11-05'])
+    pick(range, ['', ''])
+    expect(renderer.getFormData().when).toEqual([])
   })
 })
 
