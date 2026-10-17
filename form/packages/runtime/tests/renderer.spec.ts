@@ -412,6 +412,42 @@ describe('<xh-form-renderer>：列表容器', () => {
   })
 })
 
+describe('<xh-form-renderer>：静态元素', () => {
+  it('标题、提示、图片、条码与二维码按属性建出对应的 UI 元素', async () => {
+    const { registry, ids } = setup()
+    const make = (kind: string, props: { basic?: Record<string, unknown>, appearance?: Record<string, unknown> }): StaticNode => {
+      const node = createNode(registry, kind, ids) as StaticNode
+      return { ...node, basic: { ...node.basic, ...props.basic } as StaticNode['basic'], appearance: { ...node.appearance, ...props.appearance } as StaticNode['appearance'] }
+    }
+    const renderer = await mount((element) => {
+      element.schema = documentOf([
+        make('heading', { basic: { content: '报销须知' }, appearance: { level: 4 } }),
+        make('alert', { basic: { title: '注意', content: '发票须在 90 天内' }, appearance: { tone: 'warning' } }),
+        make('alert', { basic: { content: '只有说明' } }),
+        make('image', { basic: { src: '/logo.png', alt: '公司标志' }, appearance: { width: 120 } }),
+        make('barcode', { basic: { value: 'XH-0001', format: 'code39' }, appearance: { showText: false } }),
+        make('qrcode', { basic: { value: 'https://xihanfun.com' } }),
+      ])
+    })
+    const heading = renderer.querySelector('xh-typography [data-xh-part="heading"]')!
+    expect([heading.localName, heading.getAttribute('level'), heading.textContent]).toEqual(['h4', '4', '报销须知'])
+    const [warning, plain] = [...renderer.querySelectorAll('xh-alert')] as (HTMLElement & { tone?: string })[]
+    expect(warning!.tone).toBe('warning')
+    expect([...warning!.querySelectorAll('[data-xh-part="content"] > *')].map(node => [node.getAttribute('data-xh-part'), node.textContent])).toEqual([['title', '注意'], ['description', '发票须在 90 天内']])
+    expect([plain!.tone, [...plain!.querySelectorAll('[data-xh-part="content"] > *')].map(node => node.getAttribute('data-xh-part'))]).toEqual(['info', ['description']])
+    const image = renderer.querySelector('xh-image') as HTMLElement & { src?: string, alt?: string }
+    expect([image.src, image.alt]).toEqual(['/logo.png', '公司标志'])
+    expect((image.querySelector('[data-xh-part="root"]') as HTMLElement).style.getPropertyValue('--xh-image-w')).toBe('120px')
+    expect(image.querySelector('[data-xh-part="fallback"]')!.textContent).toBe('公司标志')
+    const barcode = renderer.querySelector('xh-bar-code') as HTMLElement & { value?: string, format?: string, text?: boolean }
+    expect([barcode.value, barcode.format, barcode.text]).toEqual(['XH-0001', 'code39', false])
+    const qrcode = renderer.querySelector('xh-matrix-code') as HTMLElement & { value?: string, format?: string }
+    expect([qrcode.value, qrcode.format]).toEqual(['https://xihanfun.com', 'qr'])
+    for (const code of [barcode, qrcode])
+      expect(code.querySelector('[data-xh-part="root"]')!.namespaceURI).toBe('http://www.w3.org/2000/svg')
+  })
+})
+
 describe('<xh-form-renderer>：前后缀', () => {
   it('文本与数字的外观带前后缀时，控件放进 xh-input-group，前后缀各是一个 item；不带时不包', async () => {
     const { registry, ids } = setup()
