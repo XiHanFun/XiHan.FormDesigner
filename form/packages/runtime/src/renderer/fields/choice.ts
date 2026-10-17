@@ -3,8 +3,9 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 选择类字段：下拉、单选组、多选组、按钮组、勾选框、开关，部件树照 UI 文档的写法。
-// 选项来自上下文的 options：静态选项或加载结果；条目节点按值复用。
+// 选择类字段：下拉、组合框、单选组、多选组、按钮组、勾选框、开关。
+// 组合框、按钮组与开关只建宿主元素，部件由元素按标准结构生成；其余照 UI 文档写部件树，条目节点按值复用。
+// 选项来自上下文的 options：静态选项或加载结果。
 
 import type { KeyedChildren } from '@xihan-ui/web-components/authoring'
 import type { OptionItem } from '../../state/options'
@@ -158,20 +159,64 @@ export const checkboxGroupField: FieldRenderer = groupField(
   value => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []),
 )
 
-/** 按钮组：`xh-toggle-group`，单选或多选；UI 交回单个值、数组或 `null`。 */
-export const toggleGroupField: FieldRenderer = (context) => {
-  const doc = context.document
+/** 选项换了才重写元素的 collection。 */
+function collectionSync(element: HTMLElement): (items: readonly OptionItem[]) => void {
+  let last: readonly OptionItem[] | undefined
+  return (items) => {
+    if (items === last)
+      return
+    last = items
+    assign(element, 'collection', collectionOf(items))
+  }
+}
+
+/** 组合框：`xh-combobox`，输入串筛选候选：有选项来源时交给 searchOptions 由宿主筛，静态选项按文字包含筛。 */
+export const comboboxField: FieldRenderer = (context) => {
+  const element = host(context.document, 'xh-combobox')
   const multiple = context.node.data.multiple === true
-  const element = host(doc, 'xh-toggle-group')
-  const root = make(doc, 'div', 'root')
-  element.append(root)
   if (multiple)
     assign(element, 'multiple', true)
-  const syncOptions = optionSync(element, root, (owner) => {
-    const item = generated(owner, 'button', 'item')
-    item.setAttribute('type', 'button')
-    return { item, text: item }
+  const ref: ContextRef = { current: context }
+  let query = ''
+  let last: readonly OptionItem[] | undefined
+  const show = (items: readonly OptionItem[]): void => {
+    const keyword = query.trim().toLocaleLowerCase()
+    const matched = ref.current.searchOptions !== undefined || keyword === ''
+      ? items
+      : items.filter(item => item.label.toLocaleLowerCase().includes(keyword))
+    assign(element, 'collection', collectionOf(matched))
+  }
+  on<{ value: string[] }>(element, 'value-change', detail => ref.current.setValue(fromList(detail.value, multiple)))
+  on<{ inputValue: string }>(element, 'input-value-change', (detail) => {
+    query = detail.inputValue
+    if (ref.current.searchOptions !== undefined)
+      ref.current.searchOptions(query)
+    else
+      show(itemsOf(ref.current))
   })
+  const update = (next: FieldRendererContext): void => {
+    ref.current = next
+    paintCommon(element, next, { placeholder: true, required: false })
+    assign(element, 'empty', next.translations.optionsEmpty)
+    assign(element, 'loading', next.options?.status === 'loading' ? true : undefined)
+    const items = itemsOf(next)
+    if (items !== last) {
+      last = items
+      show(items)
+    }
+    assign(element, 'value', toList(next.value))
+  }
+  update(context)
+  return { element, update }
+}
+
+/** 按钮组：`xh-toggle-group`，单选或多选；UI 交回单个值、数组或 `null`。 */
+export const toggleGroupField: FieldRenderer = (context) => {
+  const element = host(context.document, 'xh-toggle-group')
+  const multiple = context.node.data.multiple === true
+  if (multiple)
+    assign(element, 'multiple', true)
+  const syncCollection = collectionSync(element)
   const ref: ContextRef = { current: context }
   on<{ value: string | string[] | null }>(element, 'value-change', (detail) => {
     ref.current.setValue(fromList(toList(detail.value), multiple))
@@ -179,7 +224,7 @@ export const toggleGroupField: FieldRenderer = (context) => {
   const update = (next: FieldRendererContext): void => {
     ref.current = next
     paintCommon(element, next, { readOnly: false, required: false })
-    syncOptions(itemsOf(next))
+    syncCollection(itemsOf(next))
     assign(element, 'value', multiple ? toList(next.value) : (typeof next.value === 'string' ? next.value : null))
   }
   update(context)
@@ -190,12 +235,11 @@ function checkable(tag: 'xh-checkbox' | 'xh-switch'): FieldRenderer {
   return (context) => {
     const doc = context.document
     const element = host(doc, tag)
-    const control = make(doc, 'button', 'root', { type: 'button' })
-    if (tag === 'xh-checkbox')
+    if (tag === 'xh-checkbox') {
+      const control = make(doc, 'button', 'root', { type: 'button' })
       control.append(make(doc, 'span', 'indicator'), make(doc, 'input', 'hidden-input'))
-    else
-      control.append(make(doc, 'span', 'thumb'))
-    element.append(control)
+      element.append(control)
+    }
     const ref: ContextRef = { current: context }
     on<{ checked: boolean }>(element, 'checked-change', detail => ref.current.setValue(detail.checked === true))
     const update = (next: FieldRendererContext): void => {

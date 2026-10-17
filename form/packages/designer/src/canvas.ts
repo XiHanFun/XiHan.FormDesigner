@@ -229,6 +229,7 @@ export class DesignCanvas {
       state: { ...DESIGN_STATE, required: node.validation.some(rule => rule.kind === 'required') },
       error: undefined,
       options: { status: 'ready', items: options },
+      searchOptions: undefined,
       size: (stringOf(node.appearance.size) ?? 'md') as FieldSize,
       translations: this.#host.rendererTranslations(),
       uploadFile: undefined,

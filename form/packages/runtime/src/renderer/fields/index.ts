@@ -6,7 +6,7 @@
 // 内置字段渲染器表：按种类取，宿主经 fieldRenderers 覆盖或新增。
 
 import type { FieldRenderer } from '../types'
-import { checkboxField, checkboxGroupField, radioGroupField, selectField, switchField, toggleGroupField } from './choice'
+import { checkboxField, checkboxGroupField, comboboxField, radioGroupField, selectField, switchField, toggleGroupField } from './choice'
 import { fileField } from './file'
 import { ratingField, sliderField } from './measure'
 import { numberField, passwordField, pinField, tagsField, textareaField, textField } from './text'
@@ -19,6 +19,7 @@ export const FORM_FIELD_RENDERERS: Readonly<Record<string, FieldRenderer>> = Obj
   'number': numberField,
   'pin': pinField,
   'select': selectField,
+  'combobox': comboboxField,
   'radio-group': radioGroupField,
   'checkbox-group': checkboxGroupField,
   'toggle-group': toggleGroupField,

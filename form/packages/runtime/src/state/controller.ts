@@ -9,7 +9,7 @@ import type { ContainerNode, FieldNode, FormDocument, FormIssue, FormNode, KindR
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { FormArrayMutation } from '@xihan-ui/headless'
-import type { OptionItem, OptionLoader, OptionsState } from './options'
+import type { OptionItem, OptionLoader, OptionRequest, OptionsState } from './options'
 import type { ResolvedPath } from './paths'
 import {
   createBuiltinKindRegistry,
@@ -137,6 +137,11 @@ export interface FormController {
    * 提供了加载函数时，选项依赖的值一变（改值、整份替换、重置、联动赋值），依赖它的字段实例会自动重新加载。
    */
   readonly reloadOptions: (target?: FormTarget) => Promise<void>
+  /**
+   * 带搜索串重新加载一个字段实例的选项：请求的 `query` 即这个串，之后因依赖值变化的自动重载也带着它。
+   * 只用于带选项来源的字段；连续调用时只认最后一次的结果。
+   */
+  readonly searchOptions: (target: FormTarget, query: string) => Promise<void>
   /** 字段实例的选项：带选项来源时是加载状态，否则是 schema 里的静态选项。 */
   readonly getOptions: (target: FormTarget) => OptionsState
   /** 替换宿主变量并重算联动。 */
@@ -183,6 +188,7 @@ class Controller implements FormController {
   private readonly overrides = new Map<string, StateOverride>()
   private readonly optionStates = new Map<string, OptionsState>()
   private readonly optionRequests = new Map<string, number>()
+  private readonly optionQueries = new Map<string, string>()
   private readonly listeners = new Set<(event: FormEvent) => void>()
   private requestCounter = 0
   private disposed = false
@@ -530,7 +536,7 @@ class Controller implements FormController {
       const next = rebaseFormArrayPath(rowPath, list.rowPath, mutation) as readonly number[] | null
       return next === null ? null : instanceKey(nodeId, next)
     }
-    for (const store of [this.overrides, this.optionStates, this.optionRequests] as Map<string, unknown>[]) {
+    for (const store of [this.overrides, this.optionStates, this.optionRequests, this.optionQueries] as Map<string, unknown>[]) {
       const entries = [...store]
       store.clear()
       for (const [key, value] of entries) {
@@ -635,6 +641,16 @@ class Controller implements FormController {
     await this.load(this.optionTargets(target).filter(key => optionSourceOf(this.optionField(key)) !== undefined))
   }
 
+  async searchOptions(target: FormTarget, query: string): Promise<void> {
+    this.alive()
+    const key = this.targetKey(target)
+    const node = this.optionField(key)
+    if (optionSourceOf(node) === undefined)
+      throw new FormRuntimeError('XH_FORM_RT_NO_OPTION_SOURCE', { nodeId: node.id })
+    this.optionQueries.set(key, query)
+    await this.load([key])
+  }
+
   /** 加载一组字段实例的选项。 */
   private async load(keys: readonly string[]): Promise<void> {
     if (keys.length === 0)
@@ -645,7 +661,8 @@ class Controller implements FormController {
     const pending = keys.map((key) => {
       const node = this.optionField(key)
       const { rowPath } = parseInstanceKey(key)
-      const request = { source: optionSourceOf(node)!, nodeId: node.id, path: this.instancePath(node, rowPath), values: cloneJson(this.values) }
+      const query = this.optionQueries.get(key)
+      const request: OptionRequest = { source: optionSourceOf(node)!, nodeId: node.id, path: this.instancePath(node, rowPath), values: cloneJson(this.values), ...(query === undefined ? {} : { query }) }
       const ticket = ++this.requestCounter
       this.optionRequests.set(key, ticket)
       const previous = this.optionStates.get(key)

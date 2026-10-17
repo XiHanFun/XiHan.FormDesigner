@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 文本类字段：单行与多行文本、密码、数字、验证码与标签，部件树照 UI 文档的写法；标签、提示与错误由字段外壳给出。
+// 文本类字段：单行与多行文本、密码、数字、验证码与标签；标签、提示与错误由字段外壳给出。
+// 单行文本、数字与标签只建宿主元素，部件由元素按标准结构生成；多行文本、密码与验证码照 UI 文档写部件树。
 // 节点的属性在模板换掉前不变，建节点时写一次；update 只写值与状态。
 
 import type { FieldRenderer, FieldRendererContext, FieldRendererInstance } from '../types'
@@ -41,8 +42,7 @@ function affixed(context: FieldRendererContext, instance: FieldRendererInstance)
   return { ...instance, element: group }
 }
 
-function textual(context: FieldRendererContext, tag: string, control: HTMLElement, configure: (element: HTMLElement) => void): ReturnType<FieldRenderer> {
-  const element = hosted(context, tag, control)
+function textual(context: FieldRendererContext, element: HTMLElement, configure: (element: HTMLElement) => void): ReturnType<FieldRenderer> {
   configure(element)
   const ref: ContextRef = { current: context }
   on<{ value: string }>(element, 'value-change', detail => ref.current.setValue(detail.value))
@@ -57,9 +57,7 @@ function textual(context: FieldRendererContext, tag: string, control: HTMLElemen
 
 /** 单行文本：`xh-text-field`，输入类型取 `data.inputType`，可带前后缀。 */
 export const textField: FieldRenderer = (context) => {
-  const control = make(context.document, 'div', 'control')
-  control.append(make(context.document, 'input', 'input'))
-  return affixed(context, textual(context, 'xh-text-field', control, element => assign(element, 'type', stringOf(context.node.data.inputType) ?? 'text')))
+  return affixed(context, textual(context, host(context.document, 'xh-text-field'), element => assign(element, 'type', stringOf(context.node.data.inputType) ?? 'text')))
 }
 
 /** 多行文本：`xh-text-field` 的输入部件写成 `<textarea>`，行数取外观的 `minRows` / `maxRows`。 */
@@ -68,7 +66,7 @@ export const textareaField: FieldRenderer = (context) => {
   control.append(make(context.document, 'textarea', 'input'))
   const minRows = numberOf(context.node.appearance.minRows)
   const maxRows = numberOf(context.node.appearance.maxRows)
-  return textual(context, 'xh-text-field', control, element => assign(element, 'autoSize', {
+  return textual(context, hosted(context, 'xh-text-field', control), element => assign(element, 'autoSize', {
     ...(minRows === undefined ? {} : { minRows }),
     ...(maxRows === undefined ? {} : { maxRows }),
   }))
@@ -78,15 +76,12 @@ export const textareaField: FieldRenderer = (context) => {
 export const passwordField: FieldRenderer = (context) => {
   const control = make(context.document, 'div', 'control')
   control.append(make(context.document, 'input', 'input'), make(context.document, 'button', 'visibility-trigger', { type: 'button' }))
-  return textual(context, 'xh-password-input', control, () => {})
+  return textual(context, hosted(context, 'xh-password-input', control), () => {})
 }
 
 /** 数字：`xh-number-field`，可带前后缀。UI 的值是文本，表单里是数或 `null`；小数位数取 `precision`。 */
 export const numberField: FieldRenderer = (context) => {
-  const doc = context.document
-  const control = make(doc, 'div', 'control')
-  control.append(make(doc, 'button', 'decrement-trigger', { type: 'button' }), make(doc, 'input', 'input'), make(doc, 'button', 'increment-trigger', { type: 'button' }))
-  const element = hosted(context, 'xh-number-field', control)
+  const element = host(context.document, 'xh-number-field')
   const precision = numberOf(context.node.data.precision)
   const format = (value: number): string => (precision === undefined ? String(value) : value.toFixed(precision))
   assign(element, 'step', numberOf(context.node.data.step))
@@ -127,52 +122,16 @@ export const pinField: FieldRenderer = (context) => {
   return { element, update }
 }
 
-/** 标签：`xh-tags-input`，每个值一个标签，个数上限取 `max`。标签节点按值增删，已在的原地保留。 */
+/** 标签：`xh-tags-input`，每个值一个标签，个数上限取 `max`。 */
 export const tagsField: FieldRenderer = (context) => {
-  const doc = context.document
-  const control = make(doc, 'div', 'control')
-  const input = make(doc, 'input', 'input')
-  control.append(input)
-  const element = hosted(context, 'xh-tags-input', control)
+  const element = host(context.document, 'xh-tags-input')
   assign(element, 'max', numberOf(context.node.data.max))
-  const items = new Map<string, HTMLElement>()
-  const tag = (value: string): HTMLElement => {
-    const item = make(doc, 'div', 'item', { value })
-    const preview = make(doc, 'div', 'item-preview')
-    const label = make(doc, 'span', 'item-text')
-    text(label, value)
-    preview.append(label, make(doc, 'button', 'item-delete-trigger', { type: 'button' }))
-    item.append(preview)
-    return item
-  }
-  const sync = (values: readonly string[]): void => {
-    for (const [value, item] of items) {
-      if (!values.includes(value)) {
-        item.remove()
-        items.delete(value)
-      }
-    }
-    let cursor = control.firstElementChild
-    for (const value of values) {
-      let item = items.get(value)
-      if (item === undefined) {
-        item = tag(value)
-        items.set(value, item)
-      }
-      if (item === cursor)
-        cursor = cursor.nextElementSibling
-      else
-        control.insertBefore(item, cursor)
-    }
-  }
   const ref: ContextRef = { current: context }
   on<{ value: string[] }>(element, 'value-change', detail => ref.current.setValue([...detail.value]))
   const update = (next: FieldRendererContext): void => {
     ref.current = next
     paintCommon(element, next, { placeholder: true })
-    const values = toList(next.value)
-    assign(element, 'value', values)
-    sync(values)
+    assign(element, 'value', toList(next.value))
   }
   update(context)
   return { element, update }

@@ -104,6 +104,26 @@ describe('选项', () => {
     expect(controller.getOptions(city.id).items).toEqual([{ value: 'new', label: '新' }])
   })
 
+  it('searchOptions 的请求带上搜索串，之后对同一实例的重载也带着它；只有带来源的字段能搜', async () => {
+    const { document, city, level } = sample()
+    const requests: OptionRequest[] = []
+    const controller = createFormController({
+      document,
+      loadOptions: (request) => {
+        requests.push(request)
+        return [{ value: request.query ?? 'all', label: request.query ?? '全部' }]
+      },
+    })
+    await controller.reloadOptions(city.id)
+    expect(requests[0]!.query).toBeUndefined()
+    await controller.searchOptions(city.id, '上')
+    expect(requests[1]!.query).toBe('上')
+    expect(controller.getOptions(city.id).items).toEqual([{ value: '上', label: '上' }])
+    await controller.reloadOptions(city.id)
+    expect(requests[2]!.query).toBe('上')
+    expect(await rejection(() => controller.searchOptions(level.id, '甲'))).toBe('XH_FORM_RT_NO_OPTION_SOURCE')
+  })
+
   it('加载失败或返回的选项不合法时状态为 error', async () => {
     const { document, city, region } = sample()
     const controller = createFormController({
