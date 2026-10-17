@@ -3,13 +3,13 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 文本类字段：单行与多行文本、密码、数字、验证码，部件树照 UI 文档的写法；标签、提示与错误由字段外壳给出。
+// 文本类字段：单行与多行文本、密码、数字、验证码与标签，部件树照 UI 文档的写法；标签、提示与错误由字段外壳给出。
 // 节点的属性在模板换掉前不变，建节点时写一次；update 只写值与状态。
 
 import type { FieldRenderer, FieldRendererContext } from '../types'
 import type { ContextRef } from './shared'
-import { assign, host, make, numberOf, stringOf } from '../dom'
-import { on, paintCommon, textValue } from './shared'
+import { assign, host, make, numberOf, stringOf, text } from '../dom'
+import { on, paintCommon, textValue, toList } from './shared'
 
 function hosted(context: FieldRendererContext, tag: string, control: HTMLElement): HTMLElement {
   const doc = context.document
@@ -101,6 +101,57 @@ export const pinField: FieldRenderer = (context) => {
     ref.current = next
     paintCommon(element, next, { placeholder: true })
     assign(element, 'value', Array.from(textValue(next.value)))
+  }
+  update(context)
+  return { element, update }
+}
+
+/** 标签：`xh-tags-input`，每个值一个标签，个数上限取 `max`。标签节点按值增删，已在的原地保留。 */
+export const tagsField: FieldRenderer = (context) => {
+  const doc = context.document
+  const control = make(doc, 'div', 'control')
+  const input = make(doc, 'input', 'input')
+  control.append(input)
+  const element = hosted(context, 'xh-tags-input', control)
+  assign(element, 'max', numberOf(context.node.data.max))
+  const items = new Map<string, HTMLElement>()
+  const tag = (value: string): HTMLElement => {
+    const item = make(doc, 'div', 'item', { value })
+    const preview = make(doc, 'div', 'item-preview')
+    const label = make(doc, 'span', 'item-text')
+    text(label, value)
+    preview.append(label, make(doc, 'button', 'item-delete-trigger', { type: 'button' }))
+    item.append(preview)
+    return item
+  }
+  const sync = (values: readonly string[]): void => {
+    for (const [value, item] of items) {
+      if (!values.includes(value)) {
+        item.remove()
+        items.delete(value)
+      }
+    }
+    let cursor = control.firstElementChild
+    for (const value of values) {
+      let item = items.get(value)
+      if (item === undefined) {
+        item = tag(value)
+        items.set(value, item)
+      }
+      if (item === cursor)
+        cursor = cursor.nextElementSibling
+      else
+        control.insertBefore(item, cursor)
+    }
+  }
+  const ref: ContextRef = { current: context }
+  on<{ value: string[] }>(element, 'value-change', detail => ref.current.setValue([...detail.value]))
+  const update = (next: FieldRendererContext): void => {
+    ref.current = next
+    paintCommon(element, next, { placeholder: true })
+    const values = toList(next.value)
+    assign(element, 'value', values)
+    sync(values)
   }
   update(context)
   return { element, update }
