@@ -4,13 +4,13 @@
  */
 
 // 选择类字段：下拉、组合框、树选择、单选组、多选组、按钮组、勾选框、开关。
-// 除勾选框照 UI 文档写部件树外，都只建宿主元素，部件由元素按标准结构生成，选项写成元素的 collection。
+// 都只建宿主元素，部件由元素按标准结构生成；有选项的写成元素的 collection。
 // 选项来自上下文的 options：静态选项或加载结果。
 
 import type { OptionItem } from '../../state/options'
 import type { FieldRenderer, FieldRendererContext } from '../types'
 import type { ContextRef } from './shared'
-import { assign, host, make, stringOf } from '../dom'
+import { assign, host, stringOf } from '../dom'
 import { fromList, on, paintCommon, toList } from './shared'
 
 function itemsOf(context: FieldRendererContext): readonly OptionItem[] {
@@ -195,13 +195,7 @@ export const toggleGroupField: FieldRenderer = (context) => {
 
 function checkable(tag: 'xh-checkbox' | 'xh-switch'): FieldRenderer {
   return (context) => {
-    const doc = context.document
-    const element = host(doc, tag)
-    if (tag === 'xh-checkbox') {
-      const control = make(doc, 'button', 'root', { type: 'button' })
-      control.append(make(doc, 'span', 'indicator'), make(doc, 'input', 'hidden-input'))
-      element.append(control)
-    }
+    const element = host(context.document, tag)
     const ref: ContextRef = { current: context }
     on<{ checked: boolean }>(element, 'checked-change', detail => ref.current.setValue(detail.checked === true))
     const update = (next: FieldRendererContext): void => {

@@ -754,6 +754,9 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['radio-group', 'xh-radio-group', 'item'],
     ['checkbox-group', 'xh-checkbox-group', 'item'],
     ['textarea', 'xh-text-field', 'input'],
+    ['checkbox', 'xh-checkbox', 'indicator'],
+    ['password', 'xh-password-input', 'visibility-trigger'],
+    ['pin', 'xh-pin-input', 'input'],
   ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
     const { registry, ids } = setup()
     const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]

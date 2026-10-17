@@ -4,22 +4,13 @@
  */
 
 // 文本类字段：单行与多行文本、密码、数字、验证码与标签；标签、提示与错误由字段外壳给出。
-// 单行与多行文本、数字与标签只建宿主元素，部件由元素按标准结构生成；密码与验证码照 UI 文档写部件树。
+// 都只建宿主元素，部件由元素按标准结构生成。
 // 节点的属性在模板换掉前不变，建节点时写一次；update 只写值与状态。
 
 import type { FieldRenderer, FieldRendererContext, FieldRendererInstance } from '../types'
 import type { ContextRef } from './shared'
 import { assign, host, make, numberOf, stringOf, text } from '../dom'
 import { on, paintCommon, textValue, toList } from './shared'
-
-function hosted(context: FieldRendererContext, tag: string, control: HTMLElement): HTMLElement {
-  const doc = context.document
-  const element = host(doc, tag)
-  const root = make(doc, 'div', 'root')
-  root.append(control)
-  element.append(root)
-  return element
-}
 
 /** 外观带前缀或后缀时，用 `xh-input-group` 把它们与控件拼成一体；都没有时原样返回。 */
 function affixed(context: FieldRendererContext, instance: FieldRendererInstance): FieldRendererInstance {
@@ -75,9 +66,7 @@ export const textareaField: FieldRenderer = (context) => {
 
 /** 密码：`xh-password-input`。 */
 export const passwordField: FieldRenderer = (context) => {
-  const control = make(context.document, 'div', 'control')
-  control.append(make(context.document, 'input', 'input'), make(context.document, 'button', 'visibility-trigger', { type: 'button' }))
-  return textual(context, hosted(context, 'xh-password-input', control), () => {})
+  return textual(context, host(context.document, 'xh-password-input'), () => {})
 }
 
 /** 数字：`xh-number-field`，可带前后缀。UI 的值是文本，表单里是数或 `null`；小数位数取 `precision`。 */
@@ -101,14 +90,10 @@ export const numberField: FieldRenderer = (context) => {
   return affixed(context, { element, update })
 }
 
-/** 验证码：`xh-pin-input`，位数取 `length`，每位一个输入框。UI 的值是逐位数组，表单里是拼好的字符串。 */
+/** 验证码：`xh-pin-input`，位数取 `length`，格子由元素按位数生成。UI 的值是逐位数组，表单里是拼好的字符串。 */
 export const pinField: FieldRenderer = (context) => {
-  const doc = context.document
   const length = numberOf(context.node.data.length) ?? 6
-  const cells = make(doc, 'div')
-  for (let index = 0; index < length; index += 1)
-    cells.append(make(doc, 'input', 'input'))
-  const element = hosted(context, 'xh-pin-input', cells)
+  const element = host(context.document, 'xh-pin-input')
   assign(element, 'length', length)
   if (context.node.data.mask === true)
     assign(element, 'mask', true)
