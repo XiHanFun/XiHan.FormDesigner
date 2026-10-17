@@ -137,6 +137,7 @@ const table: ContainerBuilder = (doc, node) => {
   const element = host(doc, 'xh-grid')
   attr(element, 'cols', String(numberOf(node.appearance.columns) ?? 1))
   attr(element, 'rows', String(numberOf(node.appearance.rows) ?? 1))
+  attr(element, 'ruled', node.appearance.bordered === false ? undefined : '')
   const root = make(doc, 'div', 'root')
   const slots = new Map<string, HTMLElement>()
   const cells = [...node.regions].sort((a, b) => (numberOf(a.props.row) ?? 0) - (numberOf(b.props.row) ?? 0) || (numberOf(a.props.column) ?? 0) - (numberOf(b.props.column) ?? 0))
