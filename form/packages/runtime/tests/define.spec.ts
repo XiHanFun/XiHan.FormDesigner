@@ -19,12 +19,13 @@ function unregistered(root: ParentNode): string[] {
   return [...new Set([...root.querySelectorAll('*')].map(element => element.localName).filter(tag => tag.startsWith('xh-') && customElements.get(tag) === undefined))]
 }
 
-it('只调 defineFormRenderer，内置的每种字段、容器与静态元素建出的库内元素都已注册', async () => {
+it('只调 defineFormRenderer，内置的每种字段、容器与静态元素建出的库内元素都已注册（文本带前缀，连同输入组）', async () => {
   const registry = createBuiltinKindRegistry()
   const ids = createIdAllocator('d')
   const children = registry.list()
     .filter(definition => Object.hasOwn(definition.type === 'field' ? FORM_FIELD_RENDERERS : definition.type === 'container' ? CONTAINER_BUILDERS : STATIC_BUILDERS, definition.kind) || (definition.type === 'container' && definition.scope === 'list'))
     .map(definition => createNode(registry, definition.kind, ids))
+    .map(node => (node.kind === 'text' ? { ...node, appearance: { ...node.appearance, prefix: '¥' } } : node))
   const renderer = document.createElement(FORM_RENDERER_TAG) as XhFormRenderer
   renderer.schema = { ...createDocument(), children }
   document.body.append(renderer)

@@ -78,6 +78,7 @@ export function expenseForm(): FormDocument {
   const phone = field('text', 'phone', '手机号', {
     basic: { placeholder: '11 位手机号', hint: '用于接收审批结果短信' },
     data: { inputType: 'tel' },
+    appearance: { prefix: '+86' },
     validation: [rule({ kind: 'required' }), rule({ kind: 'pattern', pattern: '^1\\d{10}$', message: '请输入 11 位手机号' })],
   })
   const department = field('select', 'department', '部门', { basic: { placeholder: '请选择部门' }, data: { optionSource: 'departments' }, validation: [rule({ kind: 'required' })] })
@@ -108,7 +109,7 @@ export function expenseForm(): FormDocument {
   const basicCard = container('card', [[basics, reason, attachments]], { basic: { title: '基本信息' } })
 
   const details = container('subform', [[
-    container('grid', [[field('text', 'item', '名目', { validation: [rule({ kind: 'required' })] })], [field('number', 'cost', '金额（元）', { data: { precision: 2 } })]], { regionProps: [{ span: 6 }, { span: 6 }] }),
+    container('grid', [[field('text', 'item', '名目', { validation: [rule({ kind: 'required' })] })], [field('number', 'cost', '金额', { data: { precision: 2 }, appearance: { suffix: '元' } })]], { regionProps: [{ span: 6 }, { span: 6 }] }),
   ]], { key: 'details', basic: { title: '费用明细' }, data: { initialRows: 1 }, validation: [rule({ kind: 'required', message: '至少填写一条明细' })] })
   const companions = container('subtable', [[field('text', 'name', '姓名'), field('text', 'phone', '手机号')]], { key: 'companions', basic: { title: '同行人员' }, data: { movable: false } })
 
