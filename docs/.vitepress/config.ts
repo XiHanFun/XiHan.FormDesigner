@@ -33,6 +33,7 @@ const guideSidebar: DefaultTheme.SidebarItem[] = [
       { text: '渲染器', link: '/guide/renderer' },
       { text: '设计器', link: '/guide/designer' },
       { text: '扩展', link: '/guide/extensions' },
+      { text: '与宿主集成', link: '/guide/host' },
     ],
   },
 ]

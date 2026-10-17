@@ -96,4 +96,4 @@ document.body.append(renderer)
 
 <<< @/examples/snippets/controller.ts#controller
 
-只做校验时，也可以直接用 `@xihan-form/core` 的 `validateValues`，见「与宿主集成」一章。
+只做校验时，也可以直接用 `@xihan-form/core` 的 `validateValues`，见[与宿主集成](./host#服务端复核)。
