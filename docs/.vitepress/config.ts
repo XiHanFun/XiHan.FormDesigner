@@ -30,6 +30,7 @@ const guideSidebar: DefaultTheme.SidebarItem[] = [
     items: [
       { text: '模板结构', link: '/guide/template' },
       { text: '校验与联动', link: '/guide/validation' },
+      { text: '渲染器', link: '/guide/renderer' },
     ],
   },
 ]
