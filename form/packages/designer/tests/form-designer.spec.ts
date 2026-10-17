@@ -8,7 +8,7 @@ import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { defineXhElements } from '@xihan-ui/web-components/define'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { defineFormDesigner, FORM_DESIGNER_TAG } from '../src'
 
 defineXhElements()
@@ -17,39 +17,12 @@ defineFormDesigner()
 // jsdom 没有 scrollIntoView。
 Element.prototype.scrollIntoView ??= function scrollIntoView() {}
 
-// jsdom 不排版：多行文本框自动增高要读的计算样式与内容高度给出浏览器里的缺省值
-const STYLE_FALLBACK: Readonly<Record<string, string>> = {
-  'writing-mode': 'horizontal-tb',
-  'box-sizing': 'border-box',
-  'max-block-size': 'none',
-  'padding-top': '0px',
-  'padding-bottom': '0px',
-  'border-top-width': '0px',
-  'border-bottom-width': '0px',
-  'font-size': '14px',
-  'line-height': '20px',
-}
-
-beforeEach(() => {
-  const real = window.getComputedStyle.bind(window)
-  vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => new Proxy(real(element, pseudo), {
-    get(target, key) {
-      if (key === 'getPropertyValue')
-        return (name: string) => target.getPropertyValue(name) || STYLE_FALLBACK[name] || ''
-      const value = Reflect.get(target, key) as unknown
-      return typeof value === 'function' ? (value as (...args: unknown[]) => unknown).bind(target) : value
-    },
-  }))
-  vi.spyOn(HTMLTextAreaElement.prototype, 'scrollHeight', 'get').mockReturnValue(20)
-})
-
 const registry = createBuiltinKindRegistry()
 const mounted: Element[] = []
 
 afterEach(() => {
   for (const element of mounted.splice(0))
     element.remove()
-  vi.restoreAllMocks()
 })
 
 function sample(): { document: FormDocument, name: FieldNode, card: ContainerNode, inner: FieldNode } {
