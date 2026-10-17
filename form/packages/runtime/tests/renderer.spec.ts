@@ -4,7 +4,7 @@ import type { ContainerNode, FieldNode, FormDocument, StaticNode } from '@xihan-
 import type { JsonValue } from '@xihan-ui/core/json'
 import type { FieldRenderer, FormRendererEventMap, FormRuntimeExtension, XhFormRenderer } from '../src'
 import { BUILTIN_FIELDS, createFormModel, createNode, EMPTY_PROPERTY_SCHEMA, instanceKey } from '@xihan-form/core'
-import { onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
+import { GHOST_ATTR, onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { getFormPathValue } from '@xihan-ui/headless'
 import { mergeXhConfig, setXhConfig } from '@xihan-ui/web-components'
@@ -52,6 +52,44 @@ function events<K extends keyof FormRendererEventMap>(target: EventTarget, type:
 
 function group(renderer: XhFormRenderer, path: readonly (string | number)[]): HTMLElement {
   return renderer.querySelector<HTMLElement>(`[data-xh-part="field-group"][data-path='${JSON.stringify(path)}']`)!
+}
+
+/** 让行有排布位、删掉的行身上有一段在播的退场动画，删行时字段数组在原处放下替身并留到退场播完；返回还原的函数。 */
+function stubListExit(): () => void {
+  const offsetParent = vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(function (this: HTMLElement) {
+    return this.parentElement
+  })
+  const animation = { animationName: 'xh-fade-out', playState: 'running', finished: new Promise<void>(() => {}), effect: { getComputedTiming: () => ({ endTime: 120 }) } }
+  const original = window.getComputedStyle.bind(window)
+  const computed = vi.spyOn(window, 'getComputedStyle').mockImplementation((element: Element, pseudo?: string | null) => {
+    const style = original(element, pseudo)
+    return (element as HTMLElement).dataset?.state === 'closed'
+      ? new Proxy(style, { get: (target, key) => (key === 'animationName' ? animation.animationName : Reflect.get(target, key)) })
+      : style
+  })
+  const animations = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'getAnimations')
+  Object.defineProperty(HTMLElement.prototype, 'getAnimations', {
+    configurable: true,
+    value(this: HTMLElement) {
+      return this.dataset.state === 'closed' ? [animation] : []
+    },
+  })
+  return () => {
+    offsetParent.mockRestore()
+    computed.mockRestore()
+    if (animations === undefined)
+      delete (HTMLElement.prototype as Partial<HTMLElement>).getAnimations
+    else
+      Object.defineProperty(HTMLElement.prototype, 'getAnimations', animations)
+  }
+}
+
+/** 字段数组里删行留下的替身，及其中各输入框显示的值。 */
+function ghostValues(array: HTMLElement): string[] | undefined {
+  const ghost = array.querySelector<HTMLElement>(`[${GHOST_ATTR}]`)
+  if (ghost === null || ghost.getAttribute('data-state') !== 'closed')
+    return undefined
+  return [...ghost.querySelectorAll<HTMLInputElement>('input:not([type="hidden"])')].map(input => input.value)
 }
 
 describe('<xh-form-renderer>：结构', () => {
@@ -385,6 +423,19 @@ describe('<xh-form-renderer>：列表容器', () => {
     expect(renderer.querySelectorAll('[data-xh-part="error-summary-item"]')).toHaveLength(1 + 2 * 2)
   })
 
+  it('删掉一行时，原处淡出的替身显示删除前的值', async () => {
+    const restore = stubListExit()
+    try {
+      const { array } = await mountLines({ lines: [{ name: '甲', qty: 1 }, { name: '乙', qty: 2 }] })
+      items(array)[0]!.querySelector<HTMLButtonElement>('[data-xh-part="item-delete-trigger"]')!.click()
+      await array.updateComplete
+      expect(ghostValues(array)).toEqual(['甲', '1'])
+    }
+    finally {
+      restore()
+    }
+  })
+
   it('宿主改整份数据时按行数截短或补齐，行内字段跟着刷新', async () => {
     const { renderer, array } = await mountLines({ lines: [{ name: '甲', qty: 1 }] })
     renderer.setFormData({ lines: [{ name: '丙', qty: 3 }, { name: '丁', qty: 4 }, { name: '戊', qty: 5 }] })
@@ -416,10 +467,12 @@ describe('<xh-form-renderer>：列表容器', () => {
 describe('<xh-form-renderer>：子表的表格排布', () => {
   type FieldArray = HTMLElement & { value?: unknown[], layout?: string, columns?: unknown[], updateComplete: Promise<boolean> }
 
-  async function mountTable(values: Record<string, JsonValue>): Promise<{ renderer: XhFormRenderer, array: FieldArray, name: FieldNode, qty: FieldNode }> {
+  /** 子表里放姓名与数量两列，`sizes` 是两列各自写的尺寸。 */
+  async function mountTable(values: Record<string, JsonValue>, sizes: { name?: string, qty?: string } = {}): Promise<{ renderer: XhFormRenderer, array: FieldArray, name: FieldNode, qty: FieldNode }> {
     const { registry, ids } = setup()
-    const name = field(registry, ids, 'text', 'name', { basic: { label: '姓名' } })
-    const qty = field(registry, ids, 'number', 'qty', { basic: { label: '数量' } })
+    const sized = (node: FieldNode, size: string | undefined): FieldNode => (size === undefined ? node : { ...node, appearance: { ...node.appearance, size } })
+    const name = sized(field(registry, ids, 'text', 'name', { basic: { label: '姓名' } }), sizes.name)
+    const qty = sized(field(registry, ids, 'number', 'qty', { basic: { label: '数量' } }), sizes.qty)
     const list = container(registry, ids, 'subtable', [name, qty], { key: 'people', basic: { title: '人员' } })
     const renderer = await mount((element) => {
       element.values = values
@@ -474,6 +527,36 @@ describe('<xh-form-renderer>：子表的表格排布', () => {
     await array.updateComplete
     expect(renderer.getFormData().people).toEqual([{ name: '乙', qty: 2 }, { name: '', qty: null }])
     expect(rows(array).map(row => row.querySelector('[data-xh-part="item-label"]')!.textContent)).toEqual(['1', '2'])
+  })
+
+  it('删掉一行时，原处淡出的替身显示删除前的值', async () => {
+    const restore = stubListExit()
+    try {
+      const { array } = await mountTable({ people: [{ name: '甲', qty: 1 }, { name: '乙', qty: 2 }] })
+      rows(array)[0]!.querySelector<HTMLButtonElement>('[data-xh-part="item-delete-trigger"]')!.click()
+      await array.updateComplete
+      expect(ghostValues(array)).toEqual(['甲', '1'])
+    }
+    finally {
+      restore()
+    }
+  })
+
+  /** 皮肤里收起表格格子中字段错误文案占位的那条规则所选中的节点（不论此刻收没收起）。 */
+  const CELL_ERROR_TEXT = '[data-scope="field-array"][data-part="item"][data-layout="table"] > [data-scope="field-array"][data-part="item-cell"][data-layout="table"] [data-scope="field"][data-part="root"] > [data-scope="field"][data-part="error-text"]'
+
+  it('格里字段的错误文案落在皮肤收起格子占位的规则里，md 档时行号与把手按缺省控件高居中', async () => {
+    const { array, qty } = await mountTable({ people: [{ name: '甲', qty: 1 }] })
+    const cell = rows(array)[0]!.querySelector(`[data-xh-part="item-cell"][value="${qty.id}"]`)!
+    expect(cell.querySelector('[data-scope="field"][data-part="error-text"]')!.matches(CELL_ERROR_TEXT)).toBe(true)
+    expect(array.style.getPropertyValue('--xh-field-array-cell-control-h')).toBe('')
+  })
+
+  it('各列字段最高一档不是 md 时，行号与把手按这一档的控件高居中', async () => {
+    const { array: small } = await mountTable({ people: [{ name: '甲', qty: 1 }] }, { name: 'sm', qty: 'sm' })
+    expect(small.style.getPropertyValue('--xh-field-array-cell-control-h')).toBe('var(--xh-control-h-sm)')
+    const { array: mixed } = await mountTable({ people: [{ name: '甲', qty: 1 }] }, { name: 'sm', qty: 'lg' })
+    expect(mixed.style.getPropertyValue('--xh-field-array-cell-control-h')).toBe('var(--xh-control-h-lg)')
   })
 })
 

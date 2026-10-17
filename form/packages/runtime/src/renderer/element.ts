@@ -512,7 +512,7 @@ export class XhFormRenderer extends XhReactiveElement {
   #renderList(node: ContainerNode, scope: RowScope, key: string, into?: Owned): HTMLElement {
     const path = [...scope.prefix, node.key!]
     const { group, summary } = this.#group(path)
-    const shell = createListShell(this.ownerDocument, node)
+    const shell = createListShell(this.ownerDocument, node, (this.schema?.settings.size ?? 'md') as FieldSize)
     group.append(shell.element)
     const list: ListEntry = { node, path, key, rowPath: scope.rowPath, group, summary, shell, rows: new Map(), tokens: [] }
     const array = shell.array as HTMLElement & { createItem?: () => unknown }
