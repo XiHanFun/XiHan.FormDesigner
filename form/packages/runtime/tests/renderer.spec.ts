@@ -2,7 +2,9 @@
 
 import type { FormDocument } from '@xihan-form/core'
 import type { FieldRenderer, FormRendererEventMap, XhFormRenderer } from '../src'
+import { createBuiltinKindRegistry } from '@xihan-form/core'
 import { onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
+import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { getFormPathValue } from '@xihan-ui/headless'
 import { mergeXhConfig, setXhConfig } from '@xihan-ui/web-components'
 import { defineXhElements } from '@xihan-ui/web-components/define'
@@ -251,14 +253,21 @@ describe('<xh-form-renderer>：值与事件', () => {
     expect(input.getAttribute('aria-invalid')).toBe('true')
   })
 
-  it('名字链与描述链只引用在场的节点：没有提示的字段不带提示 id，控件不再引用自己没写的标签', async () => {
+  it('名字链与描述链只引用在场的节点：没有提示的字段不带提示 id，控件与没有说明的字段集不引用没写的部件', async () => {
     const { document } = sample()
+    const registry = createBuiltinKindRegistry()
+    const own = createIdAllocator('fs')
+    const agree = field(registry, own, 'checkbox', 'agree', { validation: [{ id: 'fs-r', kind: 'accepted' }] })
+    const confirm = container(registry, own, 'fieldset', [agree], { basic: { legend: '确认' } })
     const renderer = await mount((element) => {
-      element.schema = document
+      element.schema = documentOf([...document.children, confirm])
     })
     await Promise.all([...renderer.querySelectorAll('xh-field')].map(shell => (shell as HTMLElement & { updateComplete?: Promise<boolean> }).updateComplete))
     const trigger = group(renderer, ['level']).querySelector('[data-xh-part="trigger"]')!
     expect(trigger.hasAttribute('aria-describedby')).toBe(false)
+    const fieldset = renderer.querySelector('xh-fieldset fieldset')!
+    expect(fieldset).not.toBeNull()
+    expect(fieldset.hasAttribute('aria-describedby')).toBe(false)
     const references = [...renderer.querySelectorAll('[aria-labelledby], [aria-describedby]')].flatMap(node => [
       ...(node.getAttribute('aria-labelledby') ?? '').split(' '),
       ...(node.getAttribute('aria-describedby') ?? '').split(' '),
