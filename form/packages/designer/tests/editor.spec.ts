@@ -49,6 +49,19 @@ describe('新建节点', () => {
     expect(() => editor.addNode('nope')).toThrow(RangeError)
   })
 
+  it('片段按粘贴的规则判断能否放下：子表只收字段，种类要已登记，空片段放不下', () => {
+    const { document, name, card, lines } = sample()
+    const editor = editorOf(document)
+    const into = { parent: lines.regions[0]!.id }
+    expect(editor.canPasteAt({ nodes: [name] }, into)).toBe(true)
+    expect(editor.canPasteAt({ nodes: [card] }, into)).toBe(false)
+    expect(editor.canPasteAt({ nodes: [{ ...name, kind: 'nope' }] }, { parent: null })).toBe(false)
+    expect(editor.canPasteAt({ nodes: [] }, { parent: null })).toBe(false)
+    const pasted = editor.paste({ nodes: [name] }, { ...into, index: 0 })
+    expect(findNode(editor.document, pasted.nodes[0]!)!.region!.id).toBe(lines.regions[0]!.id)
+    expect(pasted.nodes[0]).not.toBe(name.id)
+  })
+
   it('撤销后选择里不再含已不存在的节点', () => {
     const { document } = sample()
     const editor = editorOf(document)

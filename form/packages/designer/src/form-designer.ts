@@ -19,7 +19,7 @@ import type { FormDesignerContext } from './commands'
 import type { FormClipboard, FormDropTarget, FormEditor, FormSelection } from './editor'
 import type { FormDesignerExtension, FormDesignerModel } from './extensions'
 import type { FormDesignerMode } from './internals'
-import type { FormCanvasDragPayload } from './palette'
+import type { FormCanvasDragPayload, FormDragSubject } from './palette'
 import type { PropertyView } from './properties'
 import { createDocument, findNode, findRegion, PROPERTY_GROUPS, validateDocument } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
@@ -32,13 +32,13 @@ import { createPointerSession } from '@xihan-ui/pointer'
 import { createAuthoredElement, emitEvent, registerElement, setAttributes, setText, SVG_NS, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { defineXhElement, XhButtonElement, XhContextMenuElement, XhExpressionInputElement, XhIconElement, XhMenuElement, XhToolbarElement } from '@xihan-ui/web-components/define'
 import { DesignCanvas, spanColumns } from './canvas'
-import { readFormClipboard, writeFormClipboard } from './clipboard'
+import { checkFormClipboard, readFormClipboard, writeFormClipboard } from './clipboard'
 import { DANGER_COMMANDS, FORM_MENU_LAYOUTS, FORM_TOOLBAR_LAYOUT, menuSubject } from './commands'
 import { createFormEditor } from './editor'
 import { createFormDesignerModel, FORM_DESIGNER_EXTENSION } from './extensions'
 import { provideInternals } from './internals'
 import { issueFocus, issueItems } from './issues'
-import { dragSubject, paletteGroups, paletteKind } from './palette'
+import { dragSubject, paletteGroups, paletteSubject } from './palette'
 import { propertyErrors, propertyOperations, propertyView } from './properties'
 import { RuleLists } from './rule-lists'
 import { hasRuleList } from './rules'
@@ -187,6 +187,8 @@ export class XhFormDesigner extends XhReactiveElement {
   #dropList: HTMLElement | undefined
   #suppressClick = false
   #issuesShown: readonly FormSchemaIssue[] | undefined
+  /** 拖来的片段按哪一组扩展检查过、结果如何：拖动中反复悬停不重复校验。 */
+  #fragments = new WeakMap<object, { readonly extensions: readonly FormDesignerExtension[] | undefined, readonly clipboard: FormClipboard | undefined }>()
 
   constructor() {
     super()
@@ -756,9 +758,31 @@ export class XhFormDesigner extends XhReactiveElement {
       return { accept: false }
     }
     const drop = this.#canvas.dropAt(point)
-    const accept = 'kind' in subject ? this.#editor.canAdd(subject.kind, drop.target) : this.#editor.canDrop(subject.nodes, drop.target)
+    const accept = this.#accepts(subject, drop.target)
     this.#showDrop(accept ? drop : undefined)
     return { accept }
+  }
+
+  /** 拖来的东西能否放到目标位置；片段按当前扩展检查过才算数。 */
+  #accepts(subject: FormDragSubject, target: FormDropTarget): boolean {
+    if ('kind' in subject)
+      return this.#editor.canAdd(subject.kind, target)
+    if ('nodes' in subject)
+      return this.#editor.canDrop(subject.nodes, target)
+    const fragment = this.#fragment(subject.clipboard)
+    return fragment !== undefined && this.#editor.canPasteAt(fragment, target)
+  }
+
+  /** 片段按当前扩展检查一次后记下；不合规时为 undefined。 */
+  #fragment(content: unknown): FormClipboard | undefined {
+    if (typeof content !== 'object' || content === null)
+      return undefined
+    const cached = this.#fragments.get(content)
+    if (cached !== undefined && cached.extensions === this.#extensions)
+      return cached.clipboard
+    const clipboard = checkFormClipboard(content, this.#extensions)
+    this.#fragments.set(content, { extensions: this.#extensions, clipboard })
+    return clipboard
   }
 
   #drop(point: { readonly x: number, readonly y: number }, payload: unknown): void {
@@ -772,8 +796,15 @@ export class XhFormDesigner extends XhReactiveElement {
       if (node !== undefined)
         this.revealNode(node.id)
     }
-    else if (this.#editor.moveNodes(subject.nodes, target)) {
-      this.#editor.select({ nodes: subject.nodes })
+    else if ('nodes' in subject) {
+      if (this.#editor.moveNodes(subject.nodes, target))
+        this.#editor.select({ nodes: subject.nodes })
+    }
+    else {
+      const fragment = this.#fragment(subject.clipboard)
+      const first = fragment === undefined ? undefined : this.#editor.paste(fragment, target).nodes[0]
+      if (first !== undefined)
+        this.revealNode(first)
     }
     this.#parts?.canvas.focus({ preventScroll: true })
   }
@@ -986,13 +1017,16 @@ export class XhFormDesigner extends XhReactiveElement {
     inspector.focusField(path)
   }
 
-  /** 点按物料：在缺省位置新建并选中，滚到它。 */
+  /** 点按物料：在缺省位置新建或插入片段并选中，滚到它。 */
   readonly #onPaletteActivate = (event: Event): void => {
     event.stopPropagation()
-    const kind = paletteKind((event as DesignerPaletteEventMap['item-activate']).detail.payload)
-    const node = kind === undefined ? undefined : this.addNode(kind)
-    if (node !== undefined)
-      this.revealNode(node.id)
+    const subject = paletteSubject((event as DesignerPaletteEventMap['item-activate']).detail.payload)
+    if (subject === undefined)
+      return
+    const fragment = 'kind' in subject ? undefined : this.#fragment(subject.clipboard)
+    const first = 'kind' in subject ? this.addNode(subject.kind)?.id : fragment === undefined ? undefined : this.paste(fragment).nodes[0]
+    if (first !== undefined)
+      this.revealNode(first)
   }
 
   /** 按住节点拖动：拖的是选中的那组节点（按住的节点不在选择里时只拖它）。 */
