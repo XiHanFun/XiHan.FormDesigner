@@ -7,11 +7,24 @@
 
 import type { FieldNode, NodeState } from '@xihan-form/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
+import type { FileUploadRequest, FileUploadResult } from '@xihan-ui/headless'
 import type { OptionsState } from '../state/options'
 import type { FormRendererTranslations } from '../translations'
 
 /** 字段的尺寸档。 */
 export type FieldSize = 'sm' | 'md' | 'lg'
+
+/** 交给宿主上传函数的请求：UI 的单个文件上传请求，加上所属字段。 */
+export interface UploadRequest extends FileUploadRequest {
+  /** 字段的 `data.uploadTarget`。 */
+  readonly target: string | undefined
+  readonly nodeId: string
+  /** 字段实例的数据路径。 */
+  readonly path: JsonPath
+}
+
+/** 宿主提供的上传函数：返回带 `id` 的结果时，这个文件转成附件记录写进字段值。 */
+export type FileUploader = (request: UploadRequest) => FileUploadResult | undefined | void | Promise<FileUploadResult | undefined | void>
 
 /** 交给字段渲染器的上下文。 */
 export interface FieldRendererContext {
@@ -30,6 +43,8 @@ export interface FieldRendererContext {
   readonly size: FieldSize
   /** 渲染器当前的文案。 */
   readonly translations: FormRendererTranslations
+  /** 上传一个文件，请求里已带上本字段；宿主没给 `uploadFile` 时为 `undefined`。 */
+  readonly uploadFile: ((request: FileUploadRequest) => ReturnType<FileUploader>) | undefined
   /** 写值，交给控制器的 setValue；值的形状由种类登记的 valueKind 把关，不符时抛 `XH_FORM_RT_INVALID_VALUE`。 */
   readonly setValue: (value: JsonValue) => void
   /** 一次编辑结束（如失焦）。 */

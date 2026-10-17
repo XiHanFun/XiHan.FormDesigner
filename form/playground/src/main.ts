@@ -13,7 +13,7 @@ import { formZhCN } from '@xihan-form/runtime/locale'
 import { mergeXhConfig, setXhConfig } from '@xihan-ui/web-components'
 import { defineXhElements } from '@xihan-ui/web-components/define'
 import { zhCN } from '@xihan-ui/web-components/locale'
-import { expenseForm, loadOptions } from './sample'
+import { expenseForm, loadOptions, uploadFile } from './sample'
 import '@xihan-ui/styles/index.css'
 import '@xihan-ui/designer-shell/style.css'
 import '@xihan-form/runtime/style.css'
@@ -55,6 +55,7 @@ on('invalid', event => write(`invalid ${event.detail.issues.length} 处`))
 on('linkage-error', event => write(`linkage-error ${event.detail.issues.map(issue => issue.code).join(', ')}`))
 
 renderer.loadOptions = loadOptions
+renderer.uploadFile = uploadFile
 renderer.schema = expenseForm()
 
 document.querySelector('[aria-label="表单操作"]')!.addEventListener('click', (event) => {

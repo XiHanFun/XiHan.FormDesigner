@@ -7,6 +7,7 @@
 
 import type { FieldRenderer } from '../types'
 import { checkboxField, checkboxGroupField, radioGroupField, selectField, switchField, toggleGroupField } from './choice'
+import { fileField } from './file'
 import { ratingField, sliderField } from './measure'
 import { numberField, passwordField, pinField, textareaField, textField } from './text'
 
@@ -25,4 +26,5 @@ export const FORM_FIELD_RENDERERS: Readonly<Record<string, FieldRenderer>> = Obj
   'switch': switchField,
   'slider': sliderField,
   'rating': ratingField,
+  'file': fileField,
 })
