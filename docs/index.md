@@ -12,6 +12,10 @@ hero:
     alt: 曦寒表单设计器
   actions:
     - theme: brand
+      text: 快速开始
+      link: /quickstart
+
+    - theme: alt
       text: 介绍
       link: /introduction
 
@@ -25,14 +29,14 @@ features:
   - title: 模板即数据
     icon: 📄
     details: 模板是纯 JSON，不含也不执行任何代码；需要计算的地方用受限表达式，导入模板不会带来脚本注入。
-    link: /introduction
-    linkText: 了解包与入口
+    link: /guide/template
+    linkText: 了解模板结构
 
   - title: 排布与列表
     icon: 🧱
     details: 栅格、标签页、卡片、折叠面板、分组与表格布局排出版面；子表单与子表按行录入，行可增删换序。
-    link: /introduction
-    linkText: 了解能做什么
+    link: /guide/template
+    linkText: 了解布局与列表
 
   - title: 校验与联动
     icon: ✅
