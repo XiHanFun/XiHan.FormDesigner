@@ -1,10 +1,10 @@
 import type { ContainerNode, FieldNode, FormDocument } from '@xihan-form/core'
-import { applyOperations, createBuiltinKindRegistry, createDocument, createNode, validateDocument } from '@xihan-form/core'
+import { applyOperations, createDocument, createFormModel, createNode, validateDocument } from '@xihan-form/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { describe, expect, it } from 'vitest'
 import { propertyErrors, propertyOperations, propertyView } from '../src/properties'
 
-const registry = createBuiltinKindRegistry()
+const registry = createFormModel().registry
 
 function sample(): { document: FormDocument, name: FieldNode, age: FieldNode, grid: ContainerNode } {
   const ids = createIdAllocator('p')
@@ -84,7 +84,7 @@ describe('propertyErrors', () => {
       { type: 'setProperty', nodeId: name.id, group: 'basic', name: 'hidden', value: 'yes' },
     ]).document
     const view = propertyView(next, registry, { nodes: [name.id] })
-    const errors = propertyErrors(next, view, validateDocument(next, registry), message)
+    const errors = propertyErrors(next, view, validateDocument(next), message)
     expect(errors).toContainEqual({ target: { kind: 'text', id: name.id }, path: ['key'], message: 'invalid-value' })
     expect(errors).toContainEqual({ target: { kind: 'text', id: name.id }, path: ['basic', 'hidden'], message: 'invalid-type' })
   })
@@ -98,7 +98,7 @@ describe('propertyErrors', () => {
       { type: 'setProperty', nodeId: select.id, group: 'data', name: 'optionDependencies', value: ['missing'] },
     ]).document
     const view = propertyView(document, registry, { nodes: [select.id] })
-    const errors = propertyErrors(document, view, validateDocument(document, registry), message)
+    const errors = propertyErrors(document, view, validateDocument(document), message)
     expect(errors).toEqual([{ target: { kind: 'select', id: select.id }, path: ['data', 'optionDependencies'], message: 'field.unknownDependency' }])
   })
 
@@ -109,7 +109,7 @@ describe('propertyErrors', () => {
       { type: 'setRegionProperty', regionId: region, name: 'span', value: 99 },
       { type: 'setSetting', name: 'size', value: 'huge' },
     ]).document
-    const issues = validateDocument(next, registry)
+    const issues = validateDocument(next)
     const regionView = propertyView(next, registry, { nodes: [], regions: [region] })
     expect(propertyErrors(next, regionView, issues, message)).toEqual([{ target: { kind: 'region', id: region }, path: ['span'], message: 'out-of-range' }])
     const settingsView = propertyView(next, registry, { nodes: [] })

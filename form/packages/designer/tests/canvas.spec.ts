@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import type { ContainerNode, FieldNode, FormDocument } from '@xihan-form/core'
-import { createBuiltinKindRegistry, createDocument, createNode } from '@xihan-form/core'
-import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS } from '@xihan-form/runtime'
+import { createDocument, createFormModel, createNode } from '@xihan-form/core'
+import { createFormRuntimeModel, DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS } from '@xihan-form/runtime'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { defineXhElements } from '@xihan-ui/web-components/define'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -10,7 +10,7 @@ import { DesignCanvas } from '../src/canvas'
 
 defineXhElements()
 
-const registry = createBuiltinKindRegistry()
+const registry = createFormModel().registry
 
 function sample(): { document: FormDocument, a: FieldNode, b: FieldNode, card: ContainerNode, inner: FieldNode, grid: ContainerNode } {
   const ids = createIdAllocator('c')
@@ -26,8 +26,7 @@ function sample(): { document: FormDocument, a: FieldNode, b: FieldNode, card: C
 function mount(document: FormDocument): DesignCanvas {
   const canvas = new DesignCanvas({
     ownerDocument: window.document,
-    registry: () => registry,
-    fieldRenderers: () => undefined,
+    model: () => createFormRuntimeModel(),
     translations: () => DEFAULT_FORM_DESIGNER_TRANSLATIONS,
     rendererTranslations: () => DEFAULT_FORM_RENDERER_TRANSLATIONS,
   })

@@ -42,8 +42,11 @@ export type FormSchemaProductCode
 /** 模板结构问题的问题码：通用问题码加表单专属问题码。 */
 export type FormSchemaIssueCode = CommonIssueCode | FormSchemaProductCode
 
-/** 一条模板结构问题：路径从文档根算起，节点、区域、规则用 target 标出（kind 为 node、region、rule）。 */
-export type FormSchemaIssue = SchemaIssue<FormSchemaIssueCode>
+/**
+ * 一条模板结构问题：路径从文档根算起，节点、区域、规则用 target 标出（kind 为 node、region、rule）。
+ * 问题码除了 FormSchemaIssueCode，还有扩展给出的：扩展规则的问题码以「扩展 id 末段.」开头，扩展登记的编辑方式由它自己的 check 给出。
+ */
+export type FormSchemaIssue = SchemaIssue<FormSchemaIssueCode | (string & {})>
 
 /**
  * 值校验与联动的问题码：

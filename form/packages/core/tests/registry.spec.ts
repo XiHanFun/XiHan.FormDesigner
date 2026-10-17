@@ -6,7 +6,7 @@ import {
   BUILTIN_FIELDS,
   BUILTIN_KINDS,
   checkFormPropertyValue,
-  createBuiltinKindRegistry,
+  createFormModel,
   createKindRegistry,
   EMPTY_PROPERTY_SCHEMA,
   FORM_PROPERTY_EDITORS,
@@ -17,7 +17,7 @@ import {
 
 describe('种类登记表', () => {
   it('内置种类按登记顺序列出，名字唯一', () => {
-    const registry = createBuiltinKindRegistry()
+    const registry = createFormModel().registry
     const names = registry.list().map(definition => definition.kind)
     expect(names).toEqual(BUILTIN_KINDS.map(definition => definition.kind))
     expect(new Set(names).size).toBe(names.length)
@@ -39,7 +39,7 @@ describe('种类登记表', () => {
   })
 
   it('多选开关改变值形状与空值', () => {
-    const select = createBuiltinKindRegistry().get('select')
+    const select = createFormModel().registry.get('select')
     if (select?.type !== 'field')
       throw new Error('select 应是字段')
     expect(select.valueKind({ multiple: false })).toBe('string')
@@ -53,8 +53,8 @@ describe('种类登记表', () => {
     expect(() => createKindRegistry([{ ...base, kind: 'Bad' }])).toThrow(TypeError)
     expect(() => createKindRegistry([{ ...base, kind: 'a--b' }])).toThrow(TypeError)
     expect(() => createKindRegistry([{ ...base, kind: 'a' }, { ...base, kind: 'a' }])).toThrow(TypeError)
-    expect(() => createBuiltinKindRegistry([{ ...base, kind: 'text' }])).toThrow(TypeError)
-    expect(createBuiltinKindRegistry([{ ...base, kind: 'qr-code' }]).get('qr-code')?.kind).toBe('qr-code')
+    expect(() => createFormModel([{ id: 'bad', kinds: [{ ...base, kind: 'Bad' }] }])).toThrow(TypeError)
+    expect(createFormModel([{ id: 'qr', kinds: [{ ...base, kind: 'qr-code' }] }]).registry.get('qr-code')?.kind).toBe('qr-code')
   })
 
   it('容器的区域上下限与初始区域个数要自洽', () => {
@@ -66,7 +66,7 @@ describe('种类登记表', () => {
   })
 
   it('表格布局的单元格必须落在表内、互不重叠且铺满', () => {
-    const registry = createBuiltinKindRegistry()
+    const registry = createFormModel().registry
     const table = registry.get('table')
     if (table?.type !== 'container' || table.check === undefined)
       throw new Error('table 应是带结构检查的容器')

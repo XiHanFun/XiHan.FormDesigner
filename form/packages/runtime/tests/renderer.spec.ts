@@ -2,8 +2,8 @@
 
 import type { ContainerNode, FieldNode, FormDocument, StaticNode } from '@xihan-form/core'
 import type { JsonValue } from '@xihan-ui/core/json'
-import type { FieldRenderer, FormRendererEventMap, XhFormRenderer } from '../src'
-import { BUILTIN_KINDS, createBuiltinKindRegistry, createKindRegistry, createNode, EMPTY_PROPERTY_SCHEMA, instanceKey } from '@xihan-form/core'
+import type { FieldRenderer, FormRendererEventMap, FormRuntimeExtension, XhFormRenderer } from '../src'
+import { BUILTIN_FIELDS, createFormModel, createNode, EMPTY_PROPERTY_SCHEMA, instanceKey } from '@xihan-form/core'
 import { onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { getFormPathValue } from '@xihan-ui/headless'
@@ -142,11 +142,11 @@ describe('<xh-form-renderer>：结构', () => {
   })
 
   it('没有渲染方式的种类派发 schema-error，元素清空；方法在此时抛 XH_FORM_RT_NOT_READY', async () => {
-    const registry = createKindRegistry([...BUILTIN_KINDS, { type: 'static', kind: 'banner', category: 'static', element: 'div', properties: EMPTY_PROPERTY_SCHEMA }])
-    const banner = createNode(registry, 'banner', createIdAllocator('b'))
+    const extensions = [{ id: 'banner', kinds: [{ type: 'static', kind: 'banner', category: 'static', element: 'div', properties: EMPTY_PROPERTY_SCHEMA } as const] }]
+    const banner = createNode(createFormModel(extensions).registry, 'banner', createIdAllocator('b'))
     const renderer = window.document.createElement(FORM_RENDERER_TAG)
     const errors = events(renderer, 'schema-error')
-    renderer.registry = registry
+    renderer.extensions = extensions
     renderer.schema = documentOf([banner])
     window.document.body.append(renderer)
     mounted.push(renderer)
@@ -270,7 +270,7 @@ describe('<xh-form-renderer>：值与事件', () => {
 
   it('名字链与描述链只引用在场的节点：没有提示的字段不带提示 id，控件与没有说明的字段集不引用没写的部件', async () => {
     const { document } = sample()
-    const registry = createBuiltinKindRegistry()
+    const registry = createFormModel().registry
     const own = createIdAllocator('fs')
     const agree = field(registry, own, 'checkbox', 'agree', { validation: [{ id: 'fs-r', kind: 'accepted' }] })
     const confirm = container(registry, own, 'fieldset', [agree], { basic: { legend: '确认' } })
@@ -892,29 +892,65 @@ describe('<xh-form-renderer>：文件字段', () => {
   })
 })
 
-describe('<xh-form-renderer>：自定义字段', () => {
-  it('fieldRenderers 按种类覆盖内置渲染器，上下文带值、状态与写值函数', async () => {
-    const { document } = sample()
-    const seen: unknown[] = []
-    const custom: FieldRenderer = (context) => {
-      const element = context.document.createElement('input')
-      element.addEventListener('input', () => context.setValue(element.value))
-      return {
-        element,
-        update: (next) => {
-          seen.push(next.value)
-          element.value = typeof next.value === 'string' ? next.value : ''
-        },
-      }
+describe('<xh-form-renderer>：扩展', () => {
+  const text = BUILTIN_FIELDS.find(definition => definition.kind === 'text')!
+  const seen: unknown[] = []
+  const custom: FieldRenderer = (context) => {
+    const element = context.document.createElement('input')
+    element.addEventListener('input', () => context.setValue(element.value))
+    return {
+      element,
+      update: (next) => {
+        seen.push(next.value)
+        element.value = typeof next.value === 'string' ? next.value : ''
+      },
     }
+  }
+  const slug: FormRuntimeExtension = { id: '@acme/slug', kinds: [{ ...text, kind: 'slug' }], fieldRenderers: { slug: custom } }
+
+  function slugDocument(): FormDocument {
+    return documentOf([createNode(createFormModel([slug]).registry, 'slug', createIdAllocator('s'), { key: 'path' })])
+  }
+
+  it('扩展登记的种类按它给的渲染方式渲染，上下文带值、状态与写值函数', async () => {
     const renderer = await mount((element) => {
-      element.fieldRenderers = { text: custom }
-      element.schema = document
+      element.extensions = [slug]
+      element.schema = slugDocument()
     })
-    const input = group(renderer, ['name']).querySelector('input')!
+    const input = group(renderer, ['path']).querySelector('input')!
     input.value = 'x'
     input.dispatchEvent(new Event('input'))
-    expect(renderer.getFormData().name).toBe('x')
+    expect(renderer.getFormData().path).toBe('x')
     expect(seen).toContain('x')
+  })
+
+  it('种类或渲染与内置的重名时赋值就抛扩展冲突，extensions 保持原值', async () => {
+    const renderer = await mount((element) => {
+      element.extensions = [slug]
+      element.schema = slugDocument()
+    })
+    const clash: FormRuntimeExtension = { id: 'clash', fieldRenderers: { text: custom } }
+    expect(() => {
+      renderer.extensions = [clash]
+    }).toThrow(expect.objectContaining({ code: 'designer.extension-conflict', space: 'field-renderer', key: 'text' }))
+    expect(renderer.extensions).toEqual([slug])
+    expect(renderer.controller).not.toBeNull()
+  })
+
+  it('去掉扩展时模板里它的种类照样保留，自校验报 node.unknownKind；再装上就恢复', async () => {
+    const document = slugDocument()
+    const renderer = await mount((element) => {
+      element.extensions = [slug]
+      element.schema = document
+    })
+    const errors = events(renderer, 'schema-error')
+    renderer.extensions = []
+    await renderer.updateComplete
+    expect(renderer.controller).toBeNull()
+    expect(errors.map(error => [error.code, error.issues.map(issue => issue.code)])).toEqual([['XH_FORM_RT_INVALID_DOCUMENT', ['node.unknownKind']]])
+    expect(renderer.schema).toBe(document)
+    renderer.extensions = [slug]
+    await renderer.updateComplete
+    expect(renderer.getFormData()).toEqual({ path: '' })
   })
 })

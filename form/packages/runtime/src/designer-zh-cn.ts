@@ -255,6 +255,8 @@ function issue(found: FormSchemaIssue): string {
       return `找不到依赖的字段 ${param(found, 'key')}`
     case 'field.selfDependency':
       return '字段不能依赖自己'
+    default:
+      return found.code
   }
 }
 
@@ -276,6 +278,8 @@ export const formDesignerZhCN: FormDesignerTranslations = {
   selectParent: '选中上一级',
   moveUp: '上移',
   moveDown: '下移',
+  selectAll: '全选',
+  save: '保存',
   clear: '清空',
   design: '设计',
   preview: '预览',

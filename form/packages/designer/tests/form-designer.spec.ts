@@ -2,8 +2,8 @@
 
 import type { ContainerNode, FieldNode, FormDocument } from '@xihan-form/core'
 import type { XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
-import type { FormDesignerEventMap, XhFormDesigner } from '../src'
-import { createBuiltinKindRegistry, createDocument, createNode, findNode, findRegion } from '@xihan-form/core'
+import type { FormDesignerEventMap, FormDesignerExtension, XhFormDesigner } from '../src'
+import { BUILTIN_FIELDS, createDocument, createFormModel, createNode, findNode, findRegion } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
@@ -17,7 +17,7 @@ defineFormDesigner()
 // jsdom 没有 scrollIntoView。
 Element.prototype.scrollIntoView ??= function scrollIntoView() {}
 
-const registry = createBuiltinKindRegistry()
+const registry = createFormModel().registry
 const mounted: Element[] = []
 
 afterEach(() => {
@@ -432,7 +432,7 @@ describe('<xh-form-designer>：右键菜单', () => {
     const designer = await mount((element) => {
       element.schema = document
     })
-    const menu = designer.querySelector('xh-context-menu') as HTMLElement & { collection?: { value: string, disabled: boolean }[], updateComplete: Promise<unknown> }
+    const menu = designer.querySelector('xh-context-menu') as HTMLElement & { updateComplete: Promise<unknown> }
     const opened = events(designer, 'node-contextmenu')
     const right = (target: Element): MouseEvent => {
       const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 20 })
@@ -444,8 +444,11 @@ describe('<xh-form-designer>：右键菜单', () => {
     expect(designer.getSelection()).toEqual({ nodes: [name.id] })
     expect(opened).toEqual([{ id: name.id, x: 10, y: 20 }])
     await menu.updateComplete
-    expect(menu.collection!.map(entry => entry.value)).toContain('move-down')
-    expect(menu.querySelectorAll('[data-xh-part="item"], [data-part="item"]')).toHaveLength(menu.collection!.length)
+    const items = [...menu.querySelectorAll<HTMLElement>('[data-xh-part="item"]')]
+    expect(items.map(item => item.getAttribute('value'))).toEqual(['copy', 'cut', 'paste', 'duplicate', 'select-parent', 'move-up', 'move-down', 'delete'])
+    expect(items.filter(item => item.getAttribute('aria-disabled') === 'true').map(item => item.getAttribute('value'))).toEqual(['paste', 'select-parent', 'move-up'])
+    expect(items.at(-1)!.getAttribute('data-tone')).toBe('danger')
+    expect(items.find(item => item.getAttribute('value') === 'duplicate')!.querySelector('[data-xh-part="item-shortcut"]')!.textContent).toBe('Ctrl+D')
     menu.dispatchEvent(new CustomEvent('select', { bubbles: true, detail: { value: 'move-down' } }))
     expect(designer.schema.children.map(node => node.id)).toEqual([card.id, name.id])
   })
@@ -457,9 +460,9 @@ describe('<xh-form-designer>：右键菜单', () => {
     })
     designer.addEventListener('node-contextmenu', event => event.preventDefault())
     block(designer, name.id).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
-    const menu = designer.querySelector('xh-context-menu') as HTMLElement & { collection?: unknown[], updateComplete: Promise<unknown> }
+    const menu = designer.querySelector('xh-context-menu') as HTMLElement & { updateComplete: Promise<unknown> }
     await menu.updateComplete
-    expect(menu.collection!.map(entry => (entry as { value: string }).value)).toEqual(['paste'])
+    expect([...menu.querySelectorAll('[data-xh-part="item"]')].map(item => item.getAttribute('value'))).toEqual(['paste'])
   })
 })
 
@@ -529,5 +532,116 @@ describe('<xh-form-designer>：规则页签', () => {
     field.dispatchEvent(new FocusEvent('blur'))
     await when.updateComplete
     expect(when.querySelectorAll('[data-part="issue"]').length).toBeGreaterThan(0)
+  })
+})
+
+describe('<xh-form-designer>：扩展', () => {
+  const text = BUILTIN_FIELDS.find(definition => definition.kind === 'text')!
+
+  function slugExtension(log: string[], extra: Partial<FormDesignerExtension> = {}): FormDesignerExtension {
+    return {
+      id: '@acme/slug',
+      kinds: [{ ...text, category: 'acme', kind: 'slug' }],
+      fieldRenderers: { slug: context => ({ element: context.document.createElement('input') }) },
+      commands: [{ id: '@acme/slug.ping', label: 'Ping', placement: ['toolbar', 'menu:node'], shortcut: ['Mod', 'Shift', 'P'], run: () => void log.push('ping') }],
+      panels: [{ region: { name: 'acme', position: 'end', label: 'Acme' }, create: () => ({ element: window.document.createElement('section'), destroy: () => void log.push('destroy') }) }],
+      documentProperties: [{ path: ['theme'], control: { kind: 'text' } }],
+      issueText: issue => (issue.code === 'node.unknownKind' ? '种类没装上' : undefined),
+      setup: () => {
+        log.push('setup')
+        return () => void log.push('cleanup')
+      },
+      ...extra,
+    }
+  }
+
+  it('扩展的种类进物料，命令进工具栏与快捷键，面板进外框的命名区，表单设置追加在内置之后', async () => {
+    const log: string[] = []
+    const slug = slugExtension(log)
+    const designer = await mount((element) => {
+      element.extensions = [slug]
+    })
+    const catalog = designer.querySelector('xh-designer-palette') as HTMLElement & { groups?: { id: string, items: { id: string }[] }[] }
+    expect(catalog.groups!.find(group => group.id === 'acme')!.items.map(item => item.id)).toEqual(['slug'])
+    const toolbar = [...designer.querySelectorAll<HTMLButtonElement>('[data-part="toolbar"] button[data-xh-part="item"]')].map(button => button.value)
+    expect(toolbar.at(-1)).toBe('@acme/slug.ping')
+    const frame = designer.querySelector('xh-designer-frame') as HTMLElement & { regions?: { name: string }[] }
+    expect(frame.regions!.at(-1)!.name).toBe('acme')
+    expect(designer.querySelector('xh-designer-frame section[slot="acme"]')).not.toBeNull()
+    designer.querySelector<HTMLElement>('[data-part="canvas"]')!.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'P', code: 'KeyP', ctrlKey: true, shiftKey: true }))
+    expect(log).toEqual(['setup', 'ping'])
+    const inspector = designer.querySelector('xh-designer-properties[data-part="inspector"]') as XhDesignerPropertiesElement
+    await inspector.updateComplete
+    expect(inspector.targets![0]!.descriptors.map(descriptor => descriptor.path[0]).at(-1)).toBe('theme')
+  })
+
+  it('commandLayout 写了的位置只显示列出的命令', async () => {
+    const designer = await mount((element) => {
+      element.commandLayout = { toolbar: [['redo', 'undo']] }
+    })
+    expect([...designer.querySelectorAll<HTMLButtonElement>('[data-part="toolbar"] button[data-xh-part="item"]')].map(button => button.value)).toEqual(['redo', 'undo'])
+  })
+
+  it('与内置重名时赋值就抛扩展冲突，extensions 与界面保持原样', async () => {
+    const log: string[] = []
+    const designer = await mount(() => {})
+    const clash = (extension: FormDesignerExtension): unknown => {
+      try {
+        designer.extensions = [extension]
+      }
+      catch (error) {
+        return error
+      }
+      return undefined
+    }
+    expect(clash({ id: 'a', commands: [{ id: 'undo', label: 'x', run: () => {} }] })).toMatchObject({ code: 'designer.extension-conflict', space: 'command', key: 'undo' })
+    expect(clash(slugExtension(log, { id: 'b', panels: [{ region: { name: 'palette', position: 'start' }, create: () => ({ element: window.document.createElement('div') }) }] }))).toMatchObject({ space: 'panel', key: 'palette' })
+    expect(clash({ id: 'c', kinds: [{ ...text }] })).toMatchObject({ space: 'kind', key: 'text' })
+    expect(designer.extensions).toBeUndefined()
+    expect(log).toEqual([])
+  })
+
+  it('setup 在连上文档时调用、断开时清理；换了引用当作卸下再装上，面板随之撤掉', async () => {
+    const log: string[] = []
+    const designer = await mount((element) => {
+      element.extensions = [slugExtension(log)]
+    })
+    designer.extensions = [slugExtension(log)]
+    expect(log).toEqual(['setup', 'destroy', 'cleanup', 'setup'])
+    designer.remove()
+    expect(log.at(-1)).toBe('cleanup')
+  })
+
+  it('去掉扩展时模板里它的种类照样保留，画布画成占位、问题报 node.unknownKind；再装上就恢复', async () => {
+    const log: string[] = []
+    const slug = slugExtension(log)
+    const node = createNode(createFormModel([slug]).registry, 'slug', createIdAllocator('u'), { key: 'path' })
+    const designer = await mount((element) => {
+      element.extensions = [slug]
+      element.schema = { ...createDocument(), children: [node] }
+    })
+    expect(designer.validate()).toEqual([])
+    designer.extensions = []
+    await settle(designer)
+    expect(findNode(designer.schema, node.id)).toBeDefined()
+    expect(block(designer, node.id).querySelector('[data-part="node-placeholder"]')).not.toBeNull()
+    expect(designer.validate().map(issue => issue.code)).toEqual(['node.unknownKind'])
+    designer.extensions = [slug]
+    await settle(designer)
+    expect(block(designer, node.id).querySelector('[data-part="node-placeholder"]')).toBeNull()
+    expect(designer.validate()).toEqual([])
+  })
+
+  it('问题列表的说明先取扩展的 issueText', async () => {
+    const log: string[] = []
+    const slug = slugExtension(log)
+    const node = createNode(createFormModel([slug]).registry, 'slug', createIdAllocator('u'), { key: 'path' })
+    const keeper: FormDesignerExtension = { id: '@acme/keeper', issueText: slug.issueText }
+    const designer = await mount((element) => {
+      element.extensions = [keeper]
+      element.schema = { ...createDocument(), children: [node] }
+    })
+    const problems = designer.querySelector('xh-designer-issues') as HTMLElement & { items?: { message: string }[] }
+    expect(problems.items!.map(item => item.message)).toEqual(['种类没装上'])
   })
 })

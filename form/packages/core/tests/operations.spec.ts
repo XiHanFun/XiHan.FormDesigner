@@ -39,7 +39,7 @@ describe('编辑操作：节点', () => {
     const node = fieldOf(registry, ids, 'switch', 'active')
     const result = applyOperation(document, { type: 'insertNode', parent: grid.regions[1]!.id, index: 0, node })
     expect(result.inverse).toEqual([{ type: 'removeNode', nodeId: node.id }])
-    expect(validateDocument(result.document, registry)).toEqual([])
+    expect(validateDocument(result.document)).toEqual([])
     roundTrip(document, [{ type: 'insertNode', parent: null, index: 3, node }])
   })
 

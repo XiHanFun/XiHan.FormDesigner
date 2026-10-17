@@ -7,6 +7,7 @@
 
 import type {
   ContainerKindDefinition,
+  FormCoreExtension,
   FormDocument,
   FormNode,
   FormOperation,
@@ -25,7 +26,7 @@ import {
   applyOperation,
   cloneNodesForInsert,
   collectDocumentIds,
-  createBuiltinKindRegistry,
+  createFormModel,
   createNode,
   createRegion,
   descendantsOf,
@@ -33,6 +34,7 @@ import {
   findRegion,
   insertTableLine,
   mergeTableCells,
+  numberControl,
   removeTableLine,
   splitTableCell,
   validateDocument,
@@ -74,8 +76,8 @@ export type FormEditorChange
 
 export interface FormEditorOptions {
   readonly document: FormDocument
-  /** 种类登记表，缺省为内置种类。 */
-  readonly registry?: KindRegistry
+  /** 种类、编辑方式与规则从这组扩展来，内置扩展自动排在最前；与设计器的 extensions 是同一份。 */
+  readonly extensions?: readonly FormCoreExtension[]
   /** 校验时检查表达式用的引擎，不给时不检查表达式内容。 */
   readonly expressionEngine?: ExpressionEngine
   /** 宿主提供给表达式的额外顶层名字。 */
@@ -89,10 +91,12 @@ export interface FormEditorOptions {
 
 export interface FormEditor {
   readonly document: FormDocument
+  /** 按扩展合出的种类登记表。 */
   readonly registry: KindRegistry
   readonly history: History<FormDocument, FormOperation>
   readonly selection: FormSelection
-  readonly setRegistry: (registry: KindRegistry) => void
+  /** 换一组扩展：之后新建、放置与校验都按它；冲突时抛 DesignerExtensionError、什么都不变。 */
+  readonly setExtensions: (extensions: readonly FormCoreExtension[]) => void
   /** 装载新文档：清空历史与选择，剪贴板保留；文档变化的 cause 为 reset。 */
   readonly load: (document: FormDocument) => void
   /** 执行一组操作并记为一步撤销；返回新文档。 */
@@ -183,7 +187,8 @@ function topmost(document: FormDocument, ids: readonly string[]): string[] {
 
 /** 创建表单编辑模型。 */
 export function createFormEditor(options: FormEditorOptions): FormEditor {
-  let registry = options.registry ?? createBuiltinKindRegistry()
+  let extensions = options.extensions ?? []
+  let registry = createFormModel(extensions).registry
   const history = createHistory<FormDocument, FormOperation>({
     document: options.document,
     apply: applyOperation,
@@ -389,7 +394,7 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
     const found = findRegion(history.document, regionId)
     const definition = found === undefined ? undefined : registry.get(found.container.kind)
     const descriptor = definition?.type === 'container' ? definition.regionProperties.find(item => item.path[0] === 'span') : undefined
-    const control = descriptor?.control.kind === 'number' ? descriptor.control : undefined
+    const control = descriptor === undefined ? undefined : numberControl(descriptor.control)
     const min = control?.min ?? 1
     const max = control?.max ?? Number.POSITIVE_INFINITY
     setRegionProperty(regionId, 'span', Math.min(Math.max(Math.round(span), min), max), executeOptions)
@@ -428,8 +433,9 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
     get selection() {
       return selection
     },
-    setRegistry: (next) => {
-      registry = next
+    setExtensions: (next) => {
+      registry = createFormModel(next).registry
+      extensions = next
     },
     load: (document) => {
       history.reset(document)
@@ -514,7 +520,8 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
       const last = findNode(history.document, topmost(history.document, selection.nodes).at(-1)!)!
       return paste(copied, { parent: last.region?.id ?? null, index: last.index + 1 }, executeOptions)
     },
-    validate: () => validateDocument(history.document, registry, {
+    validate: () => validateDocument(history.document, {
+      extensions,
       ...(options.expressionEngine === undefined ? {} : { expressionEngine: options.expressionEngine }),
       ...(options.identifiers === undefined ? {} : { identifiers: options.identifiers }),
     }),

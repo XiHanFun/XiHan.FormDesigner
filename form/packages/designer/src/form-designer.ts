@@ -6,23 +6,26 @@
 // <xh-form-designer>：表单设计器。编辑模型在 editor.ts，画布在 canvas.ts；版式交给 <xh-designer-frame>：
 // 工具栏、物料、属性与问题列表按 panels 显示，画布常驻。预览态换成 <xh-form-renderer>，只留工具栏。
 
-import type { FormDocument, FormNode, FormOperation, FormSchemaIssue, KindRegistry, RuleList } from '@xihan-form/core'
-import type { FieldRenderer, FormDesignerTranslations, FormRendererTranslations, OptionLoader, XhFormRenderer } from '@xihan-form/runtime'
+import type { FormDocument, FormNode, FormOperation, FormSchemaIssue, RuleList } from '@xihan-form/core'
+import type { FormDesignerTranslations, FormRendererTranslations, OptionLoader, XhFormRenderer } from '@xihan-form/runtime'
 import type { IconRecord } from '@xihan-ui/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
-import type { ExecuteOptions } from '@xihan-ui/designer-kit'
-import type { PropertyEditorTable } from '@xihan-ui/designer-kit/properties'
-import type { DesignerFrameRegion, DesignerIssuesEventMap, DesignerPaletteEventMap, DesignerPropertiesEventMap, DesignerPropertyDescriptor, PanRequestDetail } from '@xihan-ui/designer-shell'
+import type { ExecuteOptions, ExtensionHost } from '@xihan-ui/designer-kit'
+import type { CommandToolbar, DesignerCommandLayout, DesignerFrameRegion, DesignerIssuesEventMap, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
 import type { CanvasDrop, CanvasTarget } from './canvas'
-import type { MenuCommand } from './context-menu'
+import type { FormDesignerContext } from './commands'
 import type { FormClipboard, FormDropTarget, FormEditor, FormSelection } from './editor'
+import type { FormDesignerExtension, FormDesignerModel } from './extensions'
+import type { FormDesignerMode } from './internals'
 import type { FormCanvasDragPayload } from './palette'
-import type { FormPropertyEditor, PropertyView } from './properties'
+import type { PropertyView } from './properties'
 import { createDocument, findNode, findRegion, PROPERTY_GROUPS, validateDocument } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
-import { defineDesignerShellElement, DESIGNER_FRAME_REGIONS, parseDesignerPanels, registerDropTarget, startDrag, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
+import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
+import { commandForShortcut, createExtensionHost } from '@xihan-ui/designer-kit'
+import { arrangeCommands, createCommandToolbar, createPanelHost, defineDesignerShellElement, DESIGNER_FRAME_REGIONS, parseDesignerPanels, registerDropTarget, renderCommandMenu, runCommand, startDrag, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { ArrowDownIcon, ArrowUpIcon, ArrowUpLeftIcon, CopyIcon, TrashIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
@@ -30,8 +33,10 @@ import { createAuthoredElement, emitEvent, registerElement, setAttributes, setTe
 import { defineXhElement, XhButtonElement, XhContextMenuElement, XhExpressionInputElement, XhIconElement, XhMenuElement, XhToolbarElement } from '@xihan-ui/web-components/define'
 import { DesignCanvas, spanColumns } from './canvas'
 import { readFormClipboard, writeFormClipboard } from './clipboard'
-import { menuEntries, menuLabel } from './context-menu'
+import { DANGER_COMMANDS, FORM_MENU_LAYOUTS, FORM_TOOLBAR_LAYOUT, menuSubject } from './commands'
 import { createFormEditor } from './editor'
+import { createFormDesignerModel, FORM_DESIGNER_EXTENSION } from './extensions'
+import { provideInternals } from './internals'
 import { issueFocus, issueItems } from './issues'
 import { dragSubject, paletteGroups, paletteKind } from './palette'
 import { propertyErrors, propertyOperations, propertyView } from './properties'
@@ -41,8 +46,7 @@ import { hasRuleList } from './rules'
 /** 设计器的标签名。 */
 export const FORM_DESIGNER_TAG = 'xh-form-designer'
 
-/** 设计态或预览态。 */
-export type FormDesignerMode = 'design' | 'preview'
+export type { FormDesignerMode } from './internals'
 
 /** 预览宽度：全宽、平板、手机，设计态画布同样生效。 */
 export type FormPreviewWidth = 'full' | 'tablet' | 'phone'
@@ -68,26 +72,7 @@ export interface FormDesignerEventMap {
 
 const CLIPBOARD_EVENTS = ['copy', 'cut', 'paste'] as const
 
-type ToolbarCommand = 'undo' | 'redo' | 'delete' | 'duplicate' | 'design' | 'preview' | 'width-full' | 'width-tablet' | 'width-phone'
-
-const TOOLBAR_GROUPS: readonly (readonly ToolbarCommand[])[] = [
-  ['undo', 'redo'],
-  ['delete', 'duplicate'],
-  ['design', 'preview'],
-  ['width-full', 'width-tablet', 'width-phone'],
-]
-
-const TOOLBAR_LABELS: Readonly<Record<ToolbarCommand, keyof FormDesignerTranslations>> = {
-  'undo': 'undo',
-  'redo': 'redo',
-  'delete': 'delete',
-  'duplicate': 'duplicate',
-  'design': 'design',
-  'preview': 'preview',
-  'width-full': 'widthFull',
-  'width-tablet': 'widthTablet',
-  'width-phone': 'widthPhone',
-}
+const NO_EXTENSIONS: readonly FormDesignerExtension[] = Object.freeze([])
 
 type NodeAction = 'parent' | 'up' | 'down' | 'duplicate' | 'delete'
 
@@ -113,7 +98,10 @@ const NODE_ACTIONS: readonly { readonly action: NodeAction, readonly icon: IconR
 /** 设计器的各个部件；面板与画布按 slot 放进外框的同名区。 */
 interface DesignerParts {
   readonly frame: XhDesignerFrameElement
+  /** 扩展登记的面板。 */
+  readonly panels: DesignerPanelHost<FormDesignerContext>
   readonly toolbar: HTMLElement
+  readonly commandBar: CommandToolbar<FormDesignerContext>
   readonly canvas: HTMLElement
   readonly palette: HTMLElement
   readonly catalog: XhDesignerPaletteElement
@@ -129,7 +117,7 @@ interface DesignerParts {
   readonly issues: HTMLElement
   readonly problems: XhDesignerIssuesElement
   /** 内建右键菜单：触发区不可交互，由画布的右键在指针处打开。 */
-  readonly menu: HTMLElement & { collection?: unknown, updateComplete?: Promise<unknown> }
+  readonly menu: HTMLElement & { updateComplete?: Promise<unknown> }
   readonly menuTrigger: HTMLElement
   readonly menuContent: HTMLElement
 }
@@ -140,10 +128,8 @@ function sameIssues(a: readonly FormSchemaIssue[], b: readonly FormSchemaIssue[]
 
 export class XhFormDesigner extends XhReactiveElement {
   static override properties = {
-    registry: { attribute: false },
     expressionEngine: { attribute: false },
-    fieldRenderers: { attribute: false },
-    editors: { attribute: false },
+    commandLayout: { attribute: false },
     previewValues: { attribute: false },
     loadOptions: { attribute: false },
     translations: { attribute: false },
@@ -153,14 +139,13 @@ export class XhFormDesigner extends XhReactiveElement {
     panels: { converter: { fromAttribute: (value: string | null) => value ?? undefined } },
   }
 
-  /** 种类登记表：决定物料、属性与校验，缺省为内置。 */
-  declare registry: KindRegistry | undefined
   /** 校验表达式与预览用，缺省为 createExpressionEngine()。 */
   declare expressionEngine: ExpressionEngine | undefined
-  /** 与 <xh-form-renderer> 同名同义，画布与预览共用。 */
-  declare fieldRenderers: Readonly<Record<string, FieldRenderer>> | undefined
-  /** 自定义属性编辑器，压在内建之上；路径键带分组前缀，如 basic.label，见 FormPropertyEditor。 */
-  declare editors: PropertyEditorTable<FormPropertyEditor> | undefined
+  /**
+   * 工具栏与右键菜单的排列：位置（toolbar、menu:node、menu:region、menu:cell、menu:blank）→ 若干组命令 id，内置命令与扩展命令混排。
+   * 写了某个位置就只显示列出的；没写的位置用内置的缺省排列，再把 placement 含它的扩展命令追加成一组。
+   */
+  declare commandLayout: DesignerCommandLayout | undefined
   /** 预览的示例数据。 */
   declare previewValues: Readonly<Record<string, JsonValue>> | undefined
   /** 预览的选项加载。 */
@@ -184,7 +169,15 @@ export class XhFormDesigner extends XhReactiveElement {
   #issues: readonly FormSchemaIssue[] = []
   #dirty = false
   #parts: DesignerParts | undefined
-  #toolbarItems = new Map<ToolbarCommand, HTMLButtonElement>()
+  #extensions: readonly FormDesignerExtension[] | undefined
+  #model: FormDesignerModel = createFormDesignerModel(NO_EXTENSIONS)
+  readonly #host: ExtensionHost<FormDesignerExtension> = createExtensionHost<FormDesignerExtension, FormDesignerContext>({
+    builtins: [FORM_DESIGNER_EXTENSION],
+    context: () => this.#context(),
+  })
+
+  #platform: 'mac' | 'other' | undefined
+  #frameRegionsKey = ''
   #preview: XhFormRenderer | undefined
   #rendered: FormDocument | undefined
   #clipboard: FormClipboard | undefined
@@ -200,8 +193,7 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#editor = createFormEditor({ document: createDocument() })
     this.#canvas = new DesignCanvas({
       ownerDocument: this.ownerDocument,
-      registry: () => this.#editor.registry,
-      fieldRenderers: () => this.fieldRenderers,
+      model: () => this.#model.runtime,
       translations: () => this.#t(),
       rendererTranslations: () => this.#config.translations<FormRendererTranslations>('xh-form-renderer', DEFAULT_FORM_RENDERER_TRANSLATIONS),
     })
@@ -213,6 +205,43 @@ export class XhFormDesigner extends XhReactiveElement {
       readonly: () => this.readonly === true,
       expressionEngine: () => this.#engine(),
       settled: () => this.updateComplete,
+    })
+    provideInternals(this, {
+      registry: () => this.#editor.registry,
+      setMode: mode => this.#setMode(mode),
+      save: () => void emitEvent(this, 'save', {}),
+      selectParent: () => {
+        const parent = this.#parentOf(this.#editor.selection)
+        if (parent !== undefined)
+          this.#editor.select({ nodes: [parent] })
+      },
+      moveSelected: (step) => {
+        const nodes = this.#editor.selection.nodes
+        if (nodes.length === 1)
+          this.#moveBy(nodes[0]!, step)
+      },
+      mergeCells: () => {
+        const cell = this.#selectedCell()
+        if (cell !== undefined && this.readonly !== true)
+          this.#editor.mergeCells(cell.table, this.#editor.selection.regions ?? [])
+      },
+      splitCell: () => {
+        const cell = this.#selectedCell()
+        if (cell !== undefined && this.readonly !== true)
+          this.#editor.splitCell(cell.table, cell.region)
+      },
+      insertTableLine: (axis, after) => {
+        const cell = this.#selectedCell()
+        if (cell === undefined || this.readonly === true)
+          return
+        const at = axis === 'row' ? cell.row + (after ? cell.rowSpan : 0) : cell.column + (after ? cell.columnSpan : 0)
+        this.#editor.insertTableLine(cell.table, axis, at)
+      },
+      removeTableLine: (axis) => {
+        const cell = this.#selectedCell()
+        if (cell !== undefined && this.readonly !== true)
+          this.#editor.removeTableLine(cell.table, axis, axis === 'row' ? cell.row : cell.column)
+      },
     })
     this.#editor.subscribe((change) => {
       if (change.kind === 'selection') {
@@ -239,6 +268,30 @@ export class XhFormDesigner extends XhReactiveElement {
     if (value === this.#editor.document)
       return
     this.#editor.load(value)
+  }
+
+  /**
+   * 扩展：种类、渲染、属性编辑器、编辑方式、规则、命令与面板都从这里来，内置扩展自动排在最前；画布、预览与校验用同一份。
+   * 赋值时当场合并查重，冲突抛 DesignerExtensionError、什么都不变；各扩展的 setup 在元素连上文档时调用、断开时清理。
+   * 同一个扩展对象换了引用当作卸下再装上，宿主要保持引用稳定。
+   */
+  get extensions(): readonly FormDesignerExtension[] | undefined {
+    return this.#extensions
+  }
+
+  set extensions(value: readonly FormDesignerExtension[] | undefined) {
+    if (value === this.#extensions)
+      return
+    const model = createFormDesignerModel(value ?? NO_EXTENSIONS)
+    this.#ensureParts().panels.assign(model.extensions, this.#context())
+    if (this.isConnected)
+      this.#host.assign(value ?? NO_EXTENSIONS)
+    const old = this.#extensions
+    this.#extensions = value
+    this.#model = model
+    this.#editor.setExtensions(value ?? NO_EXTENSIONS)
+    this.#documentChanged()
+    this.requestUpdate('extensions', old)
   }
 
   get canUndo(): boolean {
@@ -268,6 +321,7 @@ export class XhFormDesigner extends XhReactiveElement {
       drop: (point, payload) => this.#drop(point, payload),
       leave: () => this.#showDrop(undefined),
     })
+    this.#host.assign(this.#extensions ?? NO_EXTENSIONS)
   }
 
   override disconnectedCallback(): void {
@@ -276,12 +330,11 @@ export class XhFormDesigner extends XhReactiveElement {
       this.removeEventListener(type, this.#onClipboard)
     this.#releaseDropTarget?.()
     this.#releaseDropTarget = undefined
+    this.#host.dispose()
   }
 
   protected override update(changed: PropertyValues): void {
     super.update(changed)
-    if (changed.has('registry'))
-      this.#editor.setRegistry(this.registry ?? this.#editor.registry)
     const parts = this.#ensureParts()
     const mode = this.mode ?? 'design'
     const t = this.#t()
@@ -290,15 +343,16 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#syncRegions(parts.frame, t)
     if (changed.has('mode'))
       this.#syncMode()
-    if (this.#rendered !== this.#editor.document || changed.has('fieldRenderers') || changed.has('translations') || changed.size === 0)
+    if (this.#rendered !== this.#editor.document || changed.has('extensions') || changed.has('translations') || changed.size === 0)
       this.#renderCanvas()
     this.#syncPreview()
-    this.#syncToolbar()
+    this.#syncToolbar(t)
     this.#syncProperties(changed, t)
     this.#syncPalette(changed, t)
     this.#syncIssues(changed, t)
     this.#syncNodeToolbar(t)
     this.#syncRuleTabs(t)
+    parts.panels.update(this.#context(t))
   }
 
   /** 页签文案与可用：校验规则只给登记了校验种类的单个字段或容器，联动规则只给单个节点；当前页签不可用时回到属性页签。 */
@@ -400,7 +454,7 @@ export class XhFormDesigner extends XhReactiveElement {
 
   /** 检查模板结构，规则里的表达式用 expressionEngine 检查。 */
   validate(): readonly FormSchemaIssue[] {
-    return validateDocument(this.#editor.document, this.#editor.registry, { expressionEngine: this.#engine() })
+    return validateDocument(this.#editor.document, { extensions: this.#extensions, expressionEngine: this.#engine() })
   }
 
   /** 滚动到节点：必要时先切到所在的标签页、展开所在的折叠项。 */
@@ -419,6 +473,39 @@ export class XhFormDesigner extends XhReactiveElement {
     return this.#config.translations<FormDesignerTranslations>('xh-form-designer', DEFAULT_FORM_DESIGNER_TRANSLATIONS, this.translations)
   }
 
+  /** 交给命令、面板与扩展 setup 的上下文。 */
+  #context(t: FormDesignerTranslations = this.#t()): FormDesignerContext {
+    return { designer: this, translations: t }
+  }
+
+  #kbdPlatform(): 'mac' | 'other' {
+    this.#platform ??= detectKbdPlatform()
+    return this.#platform
+  }
+
+  /** 问题的说明：扩展的 issueText 优先，没有时取文案。 */
+  #describe(issue: FormSchemaIssue, t: FormDesignerTranslations): string {
+    return this.#model.runtime.issueText(issue) ?? t.issue(issue)
+  }
+
+  /** 选中的表格单元格（取第一个）所在的表格与它的行列和跨度；没选表格单元格时为 undefined。 */
+  #selectedCell(): { table: string, region: string, row: number, column: number, rowSpan: number, columnSpan: number } | undefined {
+    const first = this.#editor.selection.regions?.[0]
+    const found = first === undefined ? undefined : findRegion(this.#editor.document, first)
+    if (found === undefined || found.container.kind !== 'table')
+      return undefined
+    const props = found.region.props
+    const number = (value: unknown, fallback: number): number => (typeof value === 'number' ? value : fallback)
+    return {
+      table: found.container.id,
+      region: found.region.id,
+      row: number(props.row, 0),
+      column: number(props.column, 0),
+      rowSpan: number(props.rowSpan, 1),
+      columnSpan: number(props.columnSpan, 1),
+    }
+  }
+
   #engine(): ExpressionEngine {
     return this.expressionEngine ?? (this.#defaultEngine ??= createExpressionEngine())
   }
@@ -427,7 +514,8 @@ export class XhFormDesigner extends XhReactiveElement {
     if (this.#parts !== undefined)
       return this.#parts
     const doc = this.ownerDocument
-    const toolbar = this.#buildToolbar(doc)
+    const commandBar = createCommandToolbar<FormDesignerContext>(doc)
+    const toolbar = createAuthoredElement(doc, 'div', { 'data-part': 'toolbar', 'slot': 'toolbar' }, [commandBar.element])
     const dropIndicator = createAuthoredElement(doc, 'div', { 'data-part': 'drop-indicator', 'aria-hidden': 'true', 'hidden': true })
     const canvas = createAuthoredElement(doc, 'div', { 'data-part': 'canvas', 'slot': 'canvas', 'tabindex': '0' }, [this.#canvas.element, dropIndicator])
     const catalog = createAuthoredElement(doc, 'xh-designer-palette', { 'data-part': 'catalog', 'searchable': true, 'collapsible': true })
@@ -459,7 +547,6 @@ export class XhFormDesigner extends XhReactiveElement {
     const menu = createAuthoredElement(doc, 'xh-context-menu', { 'data-part': 'menu', 'size': 'sm' }, [
       createAuthoredElement(doc, 'div', { 'data-xh-part': 'root' }, [menuTrigger, createAuthoredElement(doc, 'div', { 'data-xh-part': 'positioner' }, [menuContent])]),
     ])
-    this.#fillMenu({ menu, menuContent })
     menu.addEventListener('select', this.#onMenuSelect)
     menu.addEventListener('open-change', this.#onMenuOpenChange)
     const frame = createAuthoredElement(doc, 'xh-designer-frame', { 'data-part': 'frame', 'role': 'application' }, [toolbar, palette, canvas, properties, issues, menu])
@@ -474,7 +561,10 @@ export class XhFormDesigner extends XhReactiveElement {
     inspector.addEventListener('property-change', this.#onPropertyChange)
     inspector.addEventListener('property-commit', this.#onPropertyCommit)
     this.replaceChildren(frame)
-    this.#parts = { frame, toolbar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), properties, inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent }
+    const panels = createPanelHost<FormDesignerContext>(frame)
+    this.#parts = { frame, panels, toolbar, commandBar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), properties, inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent }
+    this.#prepareMenu(this.#parts)
+    panels.assign(this.#model.extensions, this.#context())
     return this.#parts
   }
 
@@ -486,30 +576,18 @@ export class XhFormDesigner extends XhReactiveElement {
     return shown === undefined || shown.has('toolbar') ? 'toolbar' : ''
   }
 
-  /** 外框的区名换成文案，供分隔条的无障碍名称使用；文案没变时不重设。 */
+  /** 外框的区：内置区的名字换成文案（供分隔条的无障碍名称使用），后面接扩展面板的区；文案与面板都没变时不重设。 */
   #syncRegions(frame: XhDesignerFrameElement, t: FormDesignerTranslations): void {
     const labels: Readonly<Record<string, string>> = { toolbar: t.toolbar, palette: t.palette, canvas: t.canvas, properties: t.properties, issues: t.issues }
-    const regions: DesignerFrameRegion[] = DESIGNER_FRAME_REGIONS.map(region => ({ ...region, label: labels[region.name] ?? region.name }))
-    const current = frame.regions
-    if (current !== undefined && current.every((region, index) => region.label === regions[index]?.label))
+    const regions: DesignerFrameRegion[] = [
+      ...DESIGNER_FRAME_REGIONS.map(region => ({ ...region, label: labels[region.name] ?? region.name })),
+      ...this.#model.extensions.flatMap(extension => (extension.panels ?? []).map(panel => panel.region)),
+    ]
+    const key = JSON.stringify(regions)
+    if (key === this.#frameRegionsKey && frame.regions?.length === regions.length)
       return
+    this.#frameRegionsKey = key
     frame.regions = regions
-  }
-
-  #buildToolbar(doc: Document): HTMLElement {
-    const groups: HTMLElement[] = []
-    TOOLBAR_GROUPS.forEach((group, index) => {
-      if (index > 0)
-        groups.push(createAuthoredElement(doc, 'div', { 'data-xh-part': 'separator' }))
-      groups.push(createAuthoredElement(doc, 'div', { 'data-xh-part': 'group' }, group.map((command) => {
-        const item = createAuthoredElement(doc, 'button', { 'data-xh-part': 'item', 'type': 'button', 'value': command })
-        this.#toolbarItems.set(command, item)
-        return item
-      })))
-    })
-    const root = createAuthoredElement(doc, 'div', { 'data-xh-part': 'root' }, groups)
-    root.addEventListener('click', this.#onToolbarClick)
-    return createAuthoredElement(doc, 'div', { 'data-part': 'toolbar', 'slot': 'toolbar' }, [createAuthoredElement(doc, 'xh-toolbar', { size: 'sm' }, [root])])
   }
 
   #buildNodeToolbar(doc: Document): HTMLElement {
@@ -590,70 +668,10 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#parts?.canvas.focus({ preventScroll: true })
   }
 
-  #syncToolbar(): void {
-    const t = this.#t()
-    const readonly = this.readonly === true
-    const mode = this.mode ?? 'design'
-    const width = this.previewWidth ?? 'full'
-    const selected = this.#editor.selection.nodes.length > 0 || (this.#editor.selection.regions?.length ?? 0) > 0
-    const enabled: Readonly<Record<ToolbarCommand, boolean>> = {
-      'undo': !readonly && this.canUndo,
-      'redo': !readonly && this.canRedo,
-      'delete': !readonly && selected && mode === 'design',
-      'duplicate': !readonly && this.#editor.selection.nodes.length > 0 && mode === 'design',
-      'design': true,
-      'preview': true,
-      'width-full': true,
-      'width-tablet': true,
-      'width-phone': true,
-    }
-    const pressed: Partial<Record<ToolbarCommand, boolean>> = {
-      'design': mode === 'design',
-      'preview': mode === 'preview',
-      'width-full': width === 'full',
-      'width-tablet': width === 'tablet',
-      'width-phone': width === 'phone',
-    }
-    this.#parts?.toolbar.querySelector('[data-xh-part="root"]')?.setAttribute('aria-label', t.toolbar)
-    for (const [command, item] of this.#toolbarItems) {
-      setText(item, t[TOOLBAR_LABELS[command]] as string)
-      if (item.disabled !== !enabled[command])
-        item.disabled = !enabled[command]
-      setAttributes(item, { 'aria-pressed': pressed[command] === undefined ? undefined : String(pressed[command]) })
-    }
-  }
-
-  readonly #onToolbarClick = (event: MouseEvent): void => {
-    const item = (event.target as Element | null)?.closest<HTMLButtonElement>('button[value]')
-    if (!item || item.disabled)
-      return
-    switch (item.value as ToolbarCommand) {
-      case 'undo':
-        this.undo()
-        break
-      case 'redo':
-        this.redo()
-        break
-      case 'delete':
-        this.deleteSelection()
-        break
-      case 'duplicate':
-        this.duplicate()
-        break
-      case 'design':
-      case 'preview':
-        this.#setMode(item.value as FormDesignerMode)
-        break
-      case 'width-full':
-        this.previewWidth = 'full'
-        break
-      case 'width-tablet':
-        this.previewWidth = 'tablet'
-        break
-      case 'width-phone':
-        this.previewWidth = 'phone'
-        break
-    }
+  /** 工具栏按 commandLayout 或缺省排列铺命令，文字、可用与选中状态每次刷新。 */
+  #syncToolbar(t: FormDesignerTranslations): void {
+    const { commands } = this.#model
+    this.#ensureParts().commandBar.update(arrangeCommands('toolbar', commands, FORM_TOOLBAR_LAYOUT, this.commandLayout), commands, this.#context(t), t.toolbar)
   }
 
   #setMode(mode: FormDesignerMode): void {
@@ -679,9 +697,8 @@ export class XhFormDesigner extends XhReactiveElement {
     const preview = this.#preview
     if (preview === undefined || (this.mode ?? 'design') !== 'preview')
       return
-    preview.registry = this.#editor.registry
+    preview.extensions = this.#extensions
     preview.expressionEngine = this.#engine()
-    preview.fieldRenderers = this.fieldRenderers
     preview.loadOptions = this.loadOptions
     preview.values = this.previewValues
     preview.schema = this.#editor.document
@@ -693,17 +710,17 @@ export class XhFormDesigner extends XhReactiveElement {
     const selection = this.#editor.selection
     const source = this.#propertySource
     const stale = source?.document !== document || source.selection !== selection
-    if (!stale && !changed.has('readonly') && !changed.has('editors') && !changed.has('translations') && !changed.has('registry') && changed.size > 0)
+    if (!stale && !changed.has('readonly') && !changed.has('extensions') && !changed.has('translations') && changed.size > 0)
       return
     this.#propertySource = { document, selection }
-    const view = propertyView(document, this.#editor.registry, selection)
+    const view = propertyView(document, this.#editor.registry, selection, this.#model.runtime.documentProperties)
     this.#propertyView = view
     const inspector = this.#ensureParts().inspector
     const nameOf = (descriptor: DesignerPropertyDescriptor): { kind: string, group: string, name: string } =>
       view.names.get(descriptor) ?? { kind: '', group: '', name: String(descriptor.path.at(-1)) }
     inspector.targets = view.targets
     inspector.heading = view.scope === 'settings' ? t.settings : view.node ? t.nodeTag(view.node.kind, view.node.key) : view.container === undefined ? undefined : t.group('region')
-    inspector.editors = this.editors
+    inspector.editors = this.#model.editors
     inspector.readonly = this.readonly === true
     inspector.groupOrder = PROPERTY_GROUPS
     inspector.groupLabel = group => t.group(group)
@@ -712,23 +729,23 @@ export class XhFormDesigner extends XhReactiveElement {
       return t.property(name.kind, name.group, name.name)
     }
     inspector.optionLabel = (descriptor, option) => t.option(nameOf(descriptor).name, String(option.value))
-    inspector.errors = propertyErrors(document, view, this.#issues, issue => t.issue(issue))
+    inspector.errors = propertyErrors(document, view, this.#issues, issue => this.#describe(issue, t))
   }
 
-  /** 种类登记表或文案变了时重排物料。 */
+  /** 扩展或文案变了时重排物料。 */
   #syncPalette(changed: PropertyValues, t: FormDesignerTranslations): void {
     const catalog = this.#ensureParts().catalog
-    if (catalog.groups === undefined || changed.has('registry') || changed.has('translations') || changed.size === 0)
+    if (catalog.groups === undefined || changed.has('extensions') || changed.has('translations') || changed.size === 0)
       catalog.groups = paletteGroups(this.#editor.registry, t)
     catalog.readonly = this.readonly === true
   }
 
   /** 问题或文案变了时重列问题。 */
   #syncIssues(changed: PropertyValues, t: FormDesignerTranslations): void {
-    if (this.#issuesShown === this.#issues && !changed.has('translations') && changed.size > 0)
+    if (this.#issuesShown === this.#issues && !changed.has('translations') && !changed.has('extensions') && changed.size > 0)
       return
     this.#issuesShown = this.#issues
-    this.#ensureParts().problems.items = issueItems(this.#editor.document, this.#issues, t)
+    this.#ensureParts().problems.items = issueItems(this.#editor.document, this.#issues, t, issue => this.#describe(issue, t))
   }
 
   /** 拖到画布上：算出放置位置，能放下时画插入线。 */
@@ -894,36 +911,36 @@ export class XhFormDesigner extends XhReactiveElement {
     return rect === undefined ? { x: 0, y: 0 } : { x: rect.left, y: rect.bottom }
   }
 
-  /** 按当前选择列出条目，再在触发区上补一次右键，让菜单在 point 处打开。 */
+  /** 按当前选择列出条目，再在触发区上补一次右键，让菜单在 point 处打开；一条也没有时不打开。 */
   async #openMenu(point: { readonly x: number, readonly y: number }): Promise<void> {
     const parts = this.#ensureParts()
-    this.#fillMenu(parts)
+    if (!this.#prepareMenu(parts))
+      return
     await parts.menu.updateComplete
     parts.menuTrigger.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: point.x, clientY: point.y }))
   }
 
-  /** 按当前选择写出菜单条目与条目数据；菜单元素至少要有一条，建好时也照此填一次。 */
-  #fillMenu(parts: Pick<DesignerParts, 'menu' | 'menuContent'>): void {
-    const t = this.#t()
-    const entries = menuEntries({ document: this.#editor.document, registry: this.#editor.registry, selection: this.#editor.selection, readonly: this.readonly === true, canPaste: this.canPaste })
-    const doc = this.ownerDocument
-    const children: HTMLElement[] = []
-    for (const entry of entries) {
-      if (entry.separatorBefore === true && children.length > 0)
-        children.push(createAuthoredElement(doc, 'div', { 'data-xh-part': 'separator' }))
-      children.push(createAuthoredElement(doc, 'div', { 'data-xh-part': 'item', 'value': entry.value }, [
-        createAuthoredElement(doc, 'span', { 'data-xh-part': 'item-text' }, [menuLabel(entry.value, t)]),
-      ]))
+  /**
+   * 按当前选择的主体（节点、区域、表格单元格、空白处）与 commandLayout 写出菜单条目，删除一类的内置命令带 danger 语气；
+   * 返回有没有条目。建好部件时也照此填一次。
+   */
+  #prepareMenu(parts: Pick<DesignerParts, 'menuContent'>): boolean {
+    const { commands } = this.#model
+    const subject = menuSubject(this.#editor.document, this.#editor.selection)
+    const groups = arrangeCommands(`menu:${subject}`, commands, FORM_MENU_LAYOUTS[subject], this.commandLayout)
+    renderCommandMenu(parts.menuContent, groups, commands, this.#context(), { platform: this.#kbdPlatform() })
+    for (const item of parts.menuContent.querySelectorAll<HTMLElement>('[data-xh-part="item"]')) {
+      if (DANGER_COMMANDS.has(item.getAttribute('value') ?? ''))
+        item.setAttribute('data-tone', 'danger')
     }
-    parts.menuContent.replaceChildren(...children)
-    parts.menu.collection = entries.map(entry => ({ value: entry.value, label: menuLabel(entry.value, t), disabled: entry.disabled, ...(entry.tone === undefined ? {} : { tone: entry.tone }) }))
+    return groups.length > 0
   }
 
   readonly #onMenuSelect = (event: Event): void => {
     if (!(event instanceof CustomEvent))
       return
     event.stopPropagation()
-    this.#runCommand((event as CustomEvent<{ value: string }>).detail.value as MenuCommand)
+    runCommand(this.#model.commands, (event as CustomEvent<{ value: string }>).detail.value, this.#context())
     this.#parts?.canvas.focus({ preventScroll: true })
   }
 
@@ -937,74 +954,6 @@ export class XhFormDesigner extends XhReactiveElement {
       if (active === null || active === this.ownerDocument.body || this.#parts?.menu.contains(active))
         this.#parts?.canvas.focus({ preventScroll: true })
     })
-  }
-
-  /** 执行菜单命令；表格命令作用在选中的单元格所在的表格上。 */
-  #runCommand(command: MenuCommand): void {
-    const selection = this.#editor.selection
-    const node = selection.nodes.at(-1)
-    const regions = selection.regions ?? []
-    const cell = regions[0] === undefined ? undefined : findRegion(this.#editor.document, regions[0])
-    const row = typeof cell?.region.props.row === 'number' ? cell.region.props.row : 0
-    const column = typeof cell?.region.props.column === 'number' ? cell.region.props.column : 0
-    const rowSpan = typeof cell?.region.props.rowSpan === 'number' ? cell.region.props.rowSpan : 1
-    const columnSpan = typeof cell?.region.props.columnSpan === 'number' ? cell.region.props.columnSpan : 1
-    switch (command) {
-      case 'copy':
-        this.copy()
-        return
-      case 'cut':
-        this.cut()
-        return
-      case 'paste':
-        this.paste()
-        return
-      case 'duplicate':
-        this.duplicate()
-        return
-      case 'delete':
-        this.deleteSelection()
-        return
-      case 'select-parent': {
-        const parent = this.#parentOf(selection)
-        if (parent !== undefined)
-          this.#editor.select({ nodes: [parent] })
-        return
-      }
-      case 'move-up':
-      case 'move-down':
-        if (node !== undefined)
-          this.#moveBy(node, command === 'move-up' ? -1 : 1)
-        return
-    }
-    if (cell === undefined || this.readonly === true)
-      return
-    const table = cell.container.id
-    switch (command) {
-      case 'merge-cells':
-        this.#editor.mergeCells(table, regions)
-        return
-      case 'split-cell':
-        this.#editor.splitCell(table, cell.region.id)
-        return
-      case 'insert-row-above':
-        this.#editor.insertTableLine(table, 'row', row)
-        return
-      case 'insert-row-below':
-        this.#editor.insertTableLine(table, 'row', row + rowSpan)
-        return
-      case 'insert-column-left':
-        this.#editor.insertTableLine(table, 'column', column)
-        return
-      case 'insert-column-right':
-        this.#editor.insertTableLine(table, 'column', column + columnSpan)
-        return
-      case 'remove-row':
-        this.#editor.removeTableLine(table, 'row', row)
-        return
-      case 'remove-column':
-        this.#editor.removeTableLine(table, 'column', column)
-    }
   }
 
   /** 点开一条问题：选中它所在的节点、区域或表单设置，滚到它，再把焦点交给属性面板上对应的字段。 */
@@ -1148,7 +1097,7 @@ export class XhFormDesigner extends XhReactiveElement {
     if (!data || !canvas || !canvas.contains(this.ownerDocument.activeElement) || (this.mode ?? 'design') !== 'design')
       return
     if (event.type === 'paste') {
-      const content = this.readonly === true ? undefined : readFormClipboard(data, this.#editor.registry)
+      const content = this.readonly === true ? undefined : readFormClipboard(data, this.#extensions)
       if (content) {
         this.paste(content)
         event.preventDefault()
@@ -1162,7 +1111,10 @@ export class XhFormDesigner extends XhReactiveElement {
     event.preventDefault()
   }
 
-  /** 方向键在同一层里移动选择，Alt 加方向键移动节点，Enter 选第一个子节点，Esc 选上一级再清空；菜单键与 Shift+F10 打开右键菜单。 */
+  /**
+   * 菜单键与 Shift+F10 打开右键菜单；命令的快捷键按平台认 Mod（macOS 上是 ⌘）执行命中的可用命令。
+   * 没有命令占用时：Ctrl / ⌘+Y 重做，Backspace 删除，方向键在同一层里移动选择，Alt 加方向键移动节点，Enter 选第一个子节点，Esc 选上一级再清空。
+   */
   readonly #onKeyDown = (event: KeyboardEvent): void => {
     if ((this.mode ?? 'design') !== 'design')
       return
@@ -1171,44 +1123,28 @@ export class XhFormDesigner extends XhReactiveElement {
       this.#requestMenu(this.#editor.selection.nodes.at(-1), this.#selectionAnchor())
       return
     }
-    const command = event.ctrlKey || event.metaKey
-    if (command && !event.altKey && this.#onCommandKey(event)) {
+    const context = this.#context()
+    const hit = commandForShortcut(this.#model.commands.values(), event, context, this.#kbdPlatform())
+    if (hit !== undefined) {
       event.preventDefault()
+      hit.run(context)
+      return
+    }
+    const command = event.ctrlKey || event.metaKey
+    if (command && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'y') {
+      event.preventDefault()
+      if (this.readonly !== true)
+        this.redo()
       return
     }
     if (!command && this.#onPlainKey(event))
       event.preventDefault()
   }
 
-  #onCommandKey(event: KeyboardEvent): boolean {
-    const key = event.key.toLowerCase()
-    if (key === 's') {
-      emitEvent(this, 'save', {})
-      return true
-    }
-    if (key === 'z' || key === 'y') {
-      if (key === 'y' || event.shiftKey)
-        this.redo()
-      else
-        this.undo()
-      return true
-    }
-    if (key === 'd') {
-      this.duplicate()
-      return true
-    }
-    if (key === 'a') {
-      this.#editor.select({ nodes: this.#editor.document.children.map(node => node.id) })
-      return true
-    }
-    return false
-  }
-
   #onPlainKey(event: KeyboardEvent): boolean {
     const selection = this.#editor.selection
     const current = selection.nodes.at(-1)
     switch (event.key) {
-      case 'Delete':
       case 'Backspace':
         return this.deleteSelection()
       case 'Escape': {

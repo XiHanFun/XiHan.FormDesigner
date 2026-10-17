@@ -1,12 +1,12 @@
 import type { ContainerNode, FieldNode, FormDocument } from '@xihan-form/core'
-import { applyOperations, createBuiltinKindRegistry, createDocument, createNode, validateDocument } from '@xihan-form/core'
+import { applyOperations, createDocument, createFormModel, createNode, validateDocument } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { describe, expect, it } from 'vitest'
 import { issueFocus, issueItems } from '../src/issues'
 
-const registry = createBuiltinKindRegistry()
+const registry = createFormModel().registry
 const t = DEFAULT_FORM_DESIGNER_TRANSLATIONS
 
 function broken(): { document: FormDocument, name: FieldNode, grid: ContainerNode } {
@@ -23,7 +23,7 @@ function broken(): { document: FormDocument, name: FieldNode, grid: ContainerNod
 }
 
 function issuesOf(document: FormDocument): ReturnType<typeof validateDocument> {
-  return validateDocument(document, registry, { expressionEngine: createExpressionEngine() })
+  return validateDocument(document, { expressionEngine: createExpressionEngine() })
 }
 
 describe('issueItems', () => {

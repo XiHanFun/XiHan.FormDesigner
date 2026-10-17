@@ -5,14 +5,14 @@
 
 // 表单控制器：持有表单值，改值后重算联动与状态，按需校验，管理行与选项，并通知订阅者。
 
-import type { ContainerNode, FieldNode, FormDocument, FormIssue, FormNode, KindRegistry, NodeState, StateOverride, ValueIssue } from '@xihan-form/core'
+import type { ContainerNode, FieldNode, FormCoreExtension, FormDocument, FormIssue, FormNode, KindRegistry, NodeState, StateOverride, ValueIssue } from '@xihan-form/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { FormArrayMutation } from '@xihan-ui/headless'
 import type { OptionItem, OptionLoader, OptionRequest, OptionsState } from './options'
 import type { ResolvedPath } from './paths'
 import {
-  createBuiltinKindRegistry,
+  createFormModel,
   createInitialValues,
   descendantsOf,
   findNode,
@@ -38,8 +38,8 @@ const MAX_LINKAGE_PASSES = 10
 /** 创建表单控制器的选项。 */
 export interface FormControllerOptions {
   readonly document: FormDocument
-  /** 种类登记表，缺省为内置种类。 */
-  readonly registry?: KindRegistry
+  /** 种类、编辑方式与规则从这组扩展来，内置扩展自动排在最前；与渲染器的 extensions 是同一份。 */
+  readonly extensions?: readonly FormCoreExtension[]
   /** 表达式引擎；文档里有表达式时必须提供。 */
   readonly expressionEngine?: ExpressionEngine
   /** 宿主提供给表达式的额外变量，名字以 `$` 开头。 */
@@ -200,13 +200,13 @@ class Controller implements FormController {
 
   constructor(options: FormControllerOptions) {
     this.document = options.document
-    this.registry = options.registry ?? createBuiltinKindRegistry()
+    this.registry = createFormModel(options.extensions).registry
     this.engine = options.expressionEngine
     this.loader = options.loadOptions
     this.variables = { ...options.variables }
     if (this.engine === undefined && hasExpressions(this.document))
       throw new FormRuntimeError('XH_FORM_RT_NO_ENGINE')
-    const problems = validateDocument(this.document, this.registry, { expressionEngine: this.engine, identifiers: Object.keys(this.variables) })
+    const problems = validateDocument(this.document, { extensions: options.extensions, expressionEngine: this.engine, identifiers: Object.keys(this.variables) })
     if (hasErrors(problems))
       throw new FormRuntimeError('XH_FORM_RT_INVALID_DOCUMENT', {}, problems)
     this.defaults = createInitialValues(this.document, this.registry)

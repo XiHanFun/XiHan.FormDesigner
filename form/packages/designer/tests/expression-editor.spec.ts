@@ -1,11 +1,11 @@
 import type { ContainerNode, FieldNode, FormDocument } from '@xihan-form/core'
-import { createBuiltinKindRegistry, createDocument, createNode } from '@xihan-form/core'
+import { createDocument, createFormModel, createNode } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { describe, expect, it } from 'vitest'
 import { expressionCompletions } from '../src/expression-editor'
 
-const registry = createBuiltinKindRegistry()
+const registry = createFormModel().registry
 const t = DEFAULT_FORM_DESIGNER_TRANSLATIONS
 
 function labelled<N extends FieldNode | ContainerNode>(node: N, basic: Record<string, string>): N {
