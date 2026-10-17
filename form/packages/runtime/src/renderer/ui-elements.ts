@@ -41,6 +41,7 @@ import {
   XhTagsInputElement,
   XhTextFieldElement,
   XhTimePickerElement,
+  XhTimeRangePickerElement,
   XhToggleGroupElement,
   XhTransferElement,
   XhTreeSelectElement,
@@ -71,6 +72,7 @@ export function defineRendererElements(): void {
   defineXhElement('xh-date-picker', XhDatePickerElement)
   defineXhElement('xh-date-range-picker', XhDateRangePickerElement)
   defineXhElement('xh-time-picker', XhTimePickerElement)
+  defineXhElement('xh-time-range-picker', XhTimeRangePickerElement)
   defineXhElement('xh-slider', XhSliderElement)
   defineXhElement('xh-rating', XhRatingElement)
   defineXhElement('xh-color-picker', XhColorPickerElement)
