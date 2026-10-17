@@ -18,8 +18,11 @@ import { FORM_FIELD_RENDERERS } from './renderer/fields'
  * 列表容器（子表单、子表）由渲染器自己按 xh-field-array 建，不经 containerRenderers。
  */
 export interface FormRuntimeExtension extends FormCoreExtension {
+  /** 字段种类的渲染方式：种类名 → 字段渲染器。 */
   readonly fieldRenderers?: Readonly<Record<string, FieldRenderer>>
+  /** 容器种类的部件树：种类名 → 建出容器元素与各区域放子节点的位置。 */
   readonly containerRenderers?: Readonly<Record<string, ContainerBuilder>>
+  /** 静态元素种类的部件树：种类名 → 建出静态元素。 */
   readonly staticRenderers?: Readonly<Record<string, StaticBuilder>>
 }
 

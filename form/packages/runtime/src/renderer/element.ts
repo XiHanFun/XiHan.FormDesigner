@@ -48,13 +48,21 @@ export type FormSubmitAction = (detail: { readonly values: Record<string, JsonVa
 
 /** 渲染器派发的事件。 */
 export interface FormRendererEventMap {
+  /** 按模板建好控制器、渲染出表单时派发；换了模板、扩展、表达式引擎或选项加载函数后重建，再派发一次。 */
   'ready': CustomEvent<{ controller: FormController }>
+  /** 模板没通过自检或缺少表达式引擎，表单不渲染；`issues` 是全部模板问题。 */
   'schema-error': CustomEvent<{ code: FormRuntimeErrorCode, data: Readonly<Record<string, string | number>>, issues: readonly FormSchemaIssue[] }>
+  /** 表单值变了：用户输入、联动赋值、增删行或宿主赋值；`paths` 是变化的数据路径，`values` 是变化后的整份数据。 */
   'value-change': CustomEvent<{ paths: readonly JsonPath[], values: Record<string, JsonValue> }>
+  /** 字段的校验问题变了；`paths` 是问题有变化的数据路径，`issues` 是当前全部问题。 */
   'issues-change': CustomEvent<{ paths: readonly JsonPath[], issues: readonly ValueIssue[] }>
+  /** 提交通过了校验；`values` 不含隐藏字段的值。 */
   'submit': CustomEvent<{ values: Record<string, JsonValue> }>
+  /** 提交没通过校验，焦点已移到第一个出问题的字段；`issues` 是全部问题。 */
   'invalid': CustomEvent<{ issues: readonly ValueIssue[], values: Record<string, JsonValue> }>
+  /** `submitAction` 返回的 thenable 失败了；`cause` 是失败的原因。 */
   'submit-error': CustomEvent<{ cause: unknown, values: Record<string, JsonValue> }>
+  /** 联动规则求值出了问题，或多轮重算后仍不稳定；问题有变化时派发。 */
   'linkage-error': CustomEvent<{ issues: readonly LinkageIssue[] }>
 }
 
@@ -165,6 +173,10 @@ function related(a: JsonPath, b: JsonPath): boolean {
   return isJsonPathPrefix(a, b) || isJsonPathPrefix(b, a)
 }
 
+/**
+ * `<xh-form-renderer>`：按表单模板渲染出表单，取值、赋值、校验、重置与提交都经它的方法；
+ * 选项加载与附件上传经回调交给宿主，组件自己不发请求。
+ */
 export class XhFormRenderer extends XhReactiveElement {
   static override properties = {
     schema: { attribute: false },

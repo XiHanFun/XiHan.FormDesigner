@@ -16,9 +16,13 @@ import { formIssue } from './issues'
 
 /** 节点实例的状态：已经叠加了祖先容器的隐藏与禁用。 */
 export interface NodeState {
+  /** 隐藏：不显示，不参与校验。 */
   readonly hidden: boolean
+  /** 禁用：不能编辑，不参与校验。 */
   readonly disabled: boolean
+  /** 只读：不能编辑，仍参与校验。 */
   readonly readOnly: boolean
+  /** 必填。 */
   readonly required: boolean
 }
 
@@ -35,7 +39,9 @@ export interface LinkageResult {
   readonly states: ReadonlyMap<string, NodeState>
   /** 执行赋值之后的表单值；输入不会被修改。 */
   readonly values: Record<string, JsonValue>
+  /** 按执行顺序列出的赋值。 */
   readonly assignments: readonly Assignment[]
+  /** 求值中出的问题，如表达式求值失败、条件结果不是布尔。 */
   readonly issues: readonly FormIssue[]
 }
 

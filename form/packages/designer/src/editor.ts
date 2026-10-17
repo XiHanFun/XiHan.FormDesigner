@@ -48,7 +48,9 @@ import { createHistory, createIdAllocator } from '@xihan-ui/designer-kit'
  * 选中区域时 nodes 为空。
  */
 export interface FormSelection {
+  /** 选中节点的 id。 */
   readonly nodes: readonly string[]
+  /** 选中区域的 id，都在同一个容器里。 */
   readonly regions?: readonly string[]
 }
 
@@ -57,12 +59,15 @@ export type FormSelectMode = 'replace' | 'add' | 'toggle'
 
 /** 放置位置：区域 id（`null` 为文档顶层）与放在该区域现有子节点里的第几个之前，缺省放到末尾。 */
 export interface FormDropTarget {
+  /** 区域 id；`null` 为文档顶层。 */
   readonly parent: string | null
+  /** 放在该区域现有子节点里的第几个之前，从 0 起；缺省放到末尾。 */
   readonly index?: number
 }
 
 /** 剪贴板内容：被复制的节点，按文档顺序，不含被选中节点的后代里重复选中的那些。 */
 export interface FormClipboard {
+  /** 被复制的节点，粘贴时 id 全部换新。 */
   readonly nodes: readonly FormNode[]
 }
 
@@ -74,7 +79,9 @@ export type FormEditorChange
   = | { readonly kind: 'document', readonly cause: HistoryChangeKind, readonly document: FormDocument, readonly operations: readonly FormOperation[] }
     | { readonly kind: 'selection', readonly selection: FormSelection }
 
+/** 创建编辑模型的选项。 */
 export interface FormEditorOptions {
+  /** 初始文档。 */
   readonly document: FormDocument
   /** 种类、编辑方式与规则从这组扩展来，内置扩展自动排在最前；与设计器的 extensions 是同一份。 */
   readonly extensions?: readonly FormCoreExtension[]
@@ -86,14 +93,19 @@ export interface FormEditorOptions {
   readonly historyLimit?: number
   /** 同一合并键相隔多少毫秒内并入上一步，缺省 1000。 */
   readonly mergeWithin?: number
+  /** 取当前时间（毫秒），合并相邻修改时用；缺省 `Date.now`。 */
   readonly now?: () => number
 }
 
+/** 表单编辑模型：当前文档、撤销历史与选择，以及各种编辑操作；不碰 DOM。 */
 export interface FormEditor {
+  /** 当前文档。 */
   readonly document: FormDocument
   /** 按扩展合出的种类登记表。 */
   readonly registry: KindRegistry
+  /** 撤销历史：能否撤销、重做，是否有未保存的修改。 */
   readonly history: History<FormDocument, FormOperation>
+  /** 当前的选择。 */
   readonly selection: FormSelection
   /** 换一组扩展：之后新建、放置与校验都按它；冲突时抛 DesignerExtensionError、什么都不变。 */
   readonly setExtensions: (extensions: readonly FormCoreExtension[]) => void
@@ -101,15 +113,19 @@ export interface FormEditor {
   readonly load: (document: FormDocument) => void
   /** 执行一组操作并记为一步撤销；返回新文档。 */
   readonly execute: (operations: readonly FormOperation[], options?: ExecuteOptions) => FormDocument
+  /** 撤销一步；没有可撤销的时返回 false。 */
   readonly undo: () => boolean
+  /** 重做一步；没有可重做的时返回 false。 */
   readonly redo: () => boolean
   /** 封口：此后带同一合并键的修改另起一步。 */
   readonly seal: () => void
   /** 把 run 里的全部修改合为一步撤销。 */
   readonly transact: <T>(run: () => T, label?: string) => T
+  /** 把当前文档记为已保存，此后 `history.dirty` 为 false，直到再改。 */
   readonly markSaved: () => void
   /** 选中节点或区域：给了非空的 regions 就选区域（只留与第一个同一容器的），否则选 nodes。 */
   readonly select: (selection: Partial<FormSelection>, mode?: FormSelectMode) => void
+  /** 清空选择。 */
   readonly clearSelection: () => void
   /** 节点能否放到目标位置：目标区域存在，不放进自己或自己的后代，目标区域收这种节点（如子表只收字段）。 */
   readonly canDrop: (nodeIds: readonly string[], target: FormDropTarget) => boolean
@@ -121,7 +137,6 @@ export interface FormEditor {
   readonly addNode: (kind: string, target?: FormDropTarget, options?: ExecuteOptions) => FormNode | undefined
   /** 移动一组节点到目标位置，保持它们在文档里的先后；放不下时返回 false。 */
   readonly moveNodes: (nodeIds: readonly string[], target: FormDropTarget, options?: ExecuteOptions) => boolean
-  /** 删除选中的节点；没有选中时返回 false。 */
   /**
    * 删除选中的节点；选中区域时删除这些区域，删完要少于容器的区域下限或容器是表格布局时不删。
    * 什么都没删时返回 false。
@@ -139,11 +154,15 @@ export interface FormEditor {
   readonly addRule: (nodeId: string, list: RuleList, rule: FormRuleInit | Omit<LinkageRule, 'id'>, index?: number, options?: ExecuteOptions) => ValidationRule | LinkageRule
   /** 整条替换规则，连续替换同一条规则合为一步。 */
   readonly updateRule: (nodeId: string, list: RuleList, rule: ValidationRule | LinkageRule, options?: ExecuteOptions) => void
+  /** 删除一条规则。 */
   readonly removeRule: (nodeId: string, list: RuleList, ruleId: string, options?: ExecuteOptions) => void
+  /** 把一条规则移到 index 处。 */
   readonly moveRule: (nodeId: string, list: RuleList, ruleId: string, index: number, options?: ExecuteOptions) => void
   /** 给容器新增一个区域并返回它；index 缺省为末尾，props 覆盖区域属性的缺省值。 */
   readonly addRegion: (containerId: string, index?: number, props?: Readonly<Record<string, JsonValue>>, options?: ExecuteOptions) => Region
+  /** 删除一个区域，连同其中的节点。 */
   readonly removeRegion: (regionId: string, options?: ExecuteOptions) => void
+  /** 把一个区域移到容器里的 index 处。 */
   readonly moveRegion: (regionId: string, index: number, options?: ExecuteOptions) => void
   /** 设栅格区域的跨度：取整并夹在属性描述的上下限之间。 */
   readonly setGridSpan: (regionId: string, span: number, options?: ExecuteOptions) => void
@@ -168,6 +187,7 @@ export interface FormEditor {
   readonly duplicate: (options?: ExecuteOptions) => FormSelection
   /** 按当前登记表做 schema 自校验。 */
   readonly validate: () => readonly FormSchemaIssue[]
+  /** 订阅文档与选择的变化，返回取消函数。 */
   readonly subscribe: (listener: (change: FormEditorChange) => void) => () => void
 }
 

@@ -13,12 +13,12 @@ import { deepFreeze } from '@xihan-ui/core/json'
 import { applyDefaults } from '@xihan-ui/designer-kit/properties'
 import { FORM_SCHEMA_VERSION } from './schema'
 
-/** 表单级设置的属性描述。 */
 /** 按描述取出缺省值组成的属性包。 */
 function defaultsOf(descriptors: readonly FormPropertyDescriptor[]): PropertyBag {
   return applyDefaults<PropertyBag>({}, descriptors)
 }
 
+/** 表单设置的属性描述：标签位置、尺寸、整表禁用与只读，存放在文档的 `settings` 里。 */
 export const FORM_SETTING_PROPERTIES: readonly FormPropertyDescriptor[] = Object.freeze([
   { path: ['labelPlacement'], control: { kind: 'select', options: [{ value: 'top' }, { value: 'start' }] }, default: 'top' },
   { path: ['size'], control: { kind: 'select', options: [{ value: 'sm' }, { value: 'md' }, { value: 'lg' }] }, default: 'md' },

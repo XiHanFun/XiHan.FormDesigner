@@ -37,6 +37,7 @@ const MAX_LINKAGE_PASSES = 10
 
 /** 创建表单控制器的选项。 */
 export interface FormControllerOptions {
+  /** 表单模板。 */
   readonly document: FormDocument
   /** 种类、编辑方式与规则从这组扩展来，内置扩展自动排在最前；与渲染器的 extensions 是同一份。 */
   readonly extensions?: readonly FormCoreExtension[]
@@ -58,7 +59,9 @@ export type LinkageIssue = FormIssue | { readonly code: 'XH_FORM_RT_LINKAGE_UNST
 
 /** 校验结果。 */
 export interface ValidationOutcome {
+  /** 没有问题。 */
   readonly valid: boolean
+  /** 校验出的问题。 */
   readonly issues: readonly ValueIssue[]
 }
 
@@ -98,6 +101,7 @@ export interface AddRowOptions {
 
 /** 表单控制器。 */
 export interface FormController {
+  /** 创建时传入的表单模板。 */
   readonly document: FormDocument
   /** 当前表单值的副本，已含联动赋值。 */
   readonly getFormData: (options?: GetFormDataOptions) => Record<string, JsonValue>
@@ -126,11 +130,15 @@ export interface FormController {
   readonly isDirty: () => boolean
   /** 强制隐藏、禁用、只读：`true` / `false` 强制，`null` 撤销强制。 */
   readonly setHidden: (target: FormTarget, hidden: boolean | null) => void
+  /** 强制禁用：`true` / `false` 强制，`null` 撤销强制。 */
   readonly setDisabled: (target: FormTarget, disabled: boolean | null) => void
+  /** 强制只读：`true` / `false` 强制，`null` 撤销强制。 */
   readonly setReadOnly: (target: FormTarget, readOnly: boolean | null) => void
   /** 列表容器的行：新增、删除、移动。行级的强制设定、选项与校验进度跟着行走。 */
   readonly addRow: (listPath: JsonPath, options?: AddRowOptions) => void
+  /** 删掉列表容器的第 `index` 行（从 0 起）。 */
   readonly removeRow: (listPath: JsonPath, index: number) => void
+  /** 把列表容器的第 `from` 行移到第 `to` 行（从 0 起）。 */
   readonly moveRow: (listPath: JsonPath, from: number, to: number) => void
   /**
    * 重新加载选项：不给目标时加载全部带选项来源的字段实例。

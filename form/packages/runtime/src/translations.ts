@@ -19,18 +19,29 @@ export interface FormRendererTranslations {
   readonly fileDropzone: string
   /** 文件字段打开选择框的按钮。 */
   readonly fileTrigger: string
-  /** 值校验问题的文案，按问题码取。 */
+  /** 值校验问题的文案，按问题码取：`XH_FORM_VALUE_REQUIRED`。规则写了 message 时用规则的。 */
   readonly valueRequired: string
+  /** `XH_FORM_VALUE_NOT_ACCEPTED`。 */
   readonly valueNotAccepted: string
+  /** `XH_FORM_VALUE_TOO_SHORT`，参数是长度下限。 */
   readonly valueTooShort: (min: number) => string
+  /** `XH_FORM_VALUE_TOO_LONG`，参数是长度上限。 */
   readonly valueTooLong: (max: number) => string
+  /** `XH_FORM_VALUE_TOO_SMALL`，参数是下限。 */
   readonly valueTooSmall: (min: number) => string
+  /** `XH_FORM_VALUE_TOO_LARGE`，参数是上限。 */
   readonly valueTooLarge: (max: number) => string
+  /** `XH_FORM_VALUE_PATTERN_MISMATCH`。 */
   readonly valuePatternMismatch: string
+  /** `XH_FORM_VALUE_EXPRESSION_FALSE`。 */
   readonly valueExpressionFalse: string
+  /** `XH_FORM_VALUE_TYPE_MISMATCH`。 */
   readonly valueTypeMismatch: string
+  /** `XH_FORM_INVALID_PATTERN`。 */
   readonly invalidPattern: string
+  /** `XH_FORM_EXPRESSION_FAILED`。 */
   readonly expressionFailed: string
+  /** `XH_FORM_CONDITION_NOT_BOOLEAN`。 */
   readonly conditionNotBoolean: string
 }
 
