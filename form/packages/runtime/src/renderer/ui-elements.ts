@@ -11,6 +11,7 @@ import {
   XhAlertElement,
   XhBarCodeElement,
   XhCardElement,
+  XhCascaderElement,
   XhCheckboxElement,
   XhCheckboxGroupElement,
   XhColorPickerElement,
@@ -60,6 +61,7 @@ export function defineRendererElements(): void {
   defineXhElement('xh-select', XhSelectElement)
   defineXhElement('xh-combobox', XhComboboxElement)
   defineXhElement('xh-tree-select', XhTreeSelectElement)
+  defineXhElement('xh-cascader', XhCascaderElement)
   defineXhElement('xh-radio-group', XhRadioGroupElement)
   defineXhElement('xh-checkbox-group', XhCheckboxGroupElement)
   defineXhElement('xh-toggle-group', XhToggleGroupElement)

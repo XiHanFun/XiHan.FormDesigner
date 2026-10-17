@@ -781,6 +781,7 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['color', 'xh-color-picker', 'trigger'],
     ['signature', 'xh-signature-pad', 'control'],
     ['transfer', 'xh-transfer', 'item'],
+    ['cascader', 'xh-cascader', 'trigger'],
   ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
     const { registry, ids } = setup()
     const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]
@@ -1082,6 +1083,73 @@ describe('<xh-form-renderer>：树选择字段', () => {
     await vi.waitFor(() => expect(element.collection).toEqual([{ value: 'zj', label: '浙江', hasChildren: true }]))
     expect(element.multiple).toBe(true)
     expect(await element.loadChildren!({ node: { value: 'zj' }, signal: new AbortController().signal })).toEqual([{ value: 'hz', label: '杭州' }])
+    expect(parents).toEqual([undefined, 'zj'])
+  })
+})
+
+describe('<xh-form-renderer>：级联字段', () => {
+  type Cascader = HTMLElement & { collection?: unknown[], value?: unknown, multiple?: boolean, placeholder?: string, loading?: boolean, loadChildren?: (request: { node: { value: string }, path: string[], signal: AbortSignal }) => Promise<unknown[]>, updateComplete: Promise<boolean> }
+  const options = [{ value: 'zj', label: '浙江', children: [{ value: 'hz', label: '杭州' }, { value: 'nb', label: '宁波', disabled: true }] }, { value: 'js', label: '江苏', children: [{ value: 'nj', label: '南京' }] }]
+
+  function cascader(renderer: XhFormRenderer): Cascader {
+    return group(renderer, ['region']).querySelector('xh-cascader') as Cascader
+  }
+
+  function pick(element: HTMLElement, value: string[][]): void {
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value }, bubbles: true, composed: true }))
+  }
+
+  it('单选：值是一条路径，静态选项树写成 collection；选中写回路径，清空写回空数组；占位符照写', async () => {
+    const { registry, ids } = setup()
+    const renderer = await mount((element) => {
+      element.values = { region: ['zj', 'hz'] }
+      element.schema = documentOf([field(registry, ids, 'cascader', 'region', { basic: { placeholder: '请选择地区' }, data: { options } })])
+    })
+    const element = cascader(renderer)
+    await element.updateComplete
+    expect([element.collection, element.value, element.placeholder, element.multiple, element.loadChildren]).toEqual([options, ['zj', 'hz'], '请选择地区', undefined, undefined])
+    pick(element, [['js', 'nj']])
+    expect(renderer.getFormData().region).toEqual(['js', 'nj'])
+    await element.updateComplete
+    expect(element.value).toEqual(['js', 'nj'])
+    pick(element, [])
+    expect(renderer.getFormData().region).toEqual([])
+  })
+
+  it('多选：值是路径数组，元素拿到同样的路径集合；选中写回路径数组', async () => {
+    const { registry, ids } = setup()
+    const renderer = await mount((element) => {
+      element.values = { region: [['zj', 'hz']] }
+      element.schema = documentOf([field(registry, ids, 'cascader', 'region', { data: { options, multiple: true } })])
+    })
+    const element = cascader(renderer)
+    await element.updateComplete
+    expect([element.multiple, element.value]).toEqual([true, [['zj', 'hz']]])
+    pick(element, [['zj', 'hz'], ['js', 'nj']])
+    expect(renderer.getFormData().region).toEqual([['zj', 'hz'], ['js', 'nj']])
+  })
+
+  it('有选项来源时顶层在途报 loading；带 hasChildren 的节点经 loadChildren 懒加载，请求带上 parent', async () => {
+    const { registry, ids } = setup()
+    const parents: (string | undefined)[] = []
+    let release!: () => void
+    const renderer = await mount((element) => {
+      element.loadOptions = (request) => {
+        parents.push(request.parent)
+        if (request.parent !== undefined)
+          return [{ value: 'hz', label: '杭州' }]
+        return new Promise((resolve) => {
+          release = () => resolve([{ value: 'zj', label: '浙江', hasChildren: true }])
+        })
+      }
+      element.schema = documentOf([field(registry, ids, 'cascader', 'region', { data: { optionSource: 'regions' } })])
+    })
+    const element = cascader(renderer)
+    await vi.waitFor(() => expect(element.loading).toBe(true))
+    release()
+    await vi.waitFor(() => expect(element.collection).toEqual([{ value: 'zj', label: '浙江', hasChildren: true }]))
+    expect(element.loading).toBeUndefined()
+    expect(await element.loadChildren!({ node: { value: 'zj' }, path: ['zj'], signal: new AbortController().signal })).toEqual([{ value: 'hz', label: '杭州' }])
     expect(parents).toEqual([undefined, 'zj'])
   })
 })
