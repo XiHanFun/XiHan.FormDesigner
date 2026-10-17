@@ -98,7 +98,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
 ```
 
-内置命令的 id：`undo`、`redo`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`。扩展可以登记自己的命令，见「扩展」一章。
+内置命令的 id：`undo`、`redo`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
 
 ## 示例
 
