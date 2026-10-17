@@ -147,7 +147,10 @@ interface RowEntry {
   placed: boolean
 }
 
-/** 列表容器的实例：令牌数组即 xh-field-array 的值，与列表的行一一对应。 */
+/**
+ * 列表容器的实例：令牌数组即 xh-field-array 的值，与列表的行一一对应。
+ * `departing` 是删掉的行留下的内容节点，等它们回到 xh-field-array 的直接子节点下再摘掉；`observer` 盯着那一层。
+ */
 interface ListEntry {
   readonly node: ContainerNode
   readonly path: JsonPath
@@ -157,6 +160,8 @@ interface ListEntry {
   readonly summary: HTMLElement
   readonly shell: ListShell
   readonly rows: Map<object, RowEntry>
+  readonly departing: Set<HTMLElement>
+  readonly observer: MutationObserver
   tokens: object[]
 }
 
@@ -380,6 +385,8 @@ export class XhFormRenderer extends XhReactiveElement {
     this.#formRoot = undefined
     this.#summaryTitle = undefined
     this.#summary = undefined
+    for (const list of this.#lists.values())
+      list.observer.disconnect()
     this.#lists = new Map()
     this.#linkageIssues = []
     this.replaceChildren()
@@ -529,7 +536,8 @@ export class XhFormRenderer extends XhReactiveElement {
     const { group, summary } = this.#group(path)
     const shell = createListShell(this.ownerDocument, node, (this.schema?.settings.size ?? 'md') as FieldSize)
     group.append(shell.element)
-    const list: ListEntry = { node, path, key, rowPath: scope.rowPath, group, summary, shell, rows: new Map(), tokens: [] }
+    const list: ListEntry = { node, path, key, rowPath: scope.rowPath, group, summary, shell, rows: new Map(), departing: new Set(), observer: new MutationObserver(() => this.#dropDeparted(list)), tokens: [] }
+    list.observer.observe(shell.array, { childList: true })
     const array = shell.array as HTMLElement & { createItem?: () => unknown }
     array.createItem = () => ({})
     array.addEventListener('value-change', (event) => {
@@ -578,8 +586,7 @@ export class XhFormRenderer extends XhReactiveElement {
     for (const [token, entry] of list.rows) {
       if (!alive.has(token)) {
         this.#release(entry.owned)
-        for (const node of entry.row.nodes)
-          node.remove()
+        this.#depart(list, entry)
         list.rows.delete(token)
       }
     }
@@ -640,6 +647,30 @@ export class XhFormRenderer extends XhReactiveElement {
     })
   }
 
+  /**
+   * 删掉的行的内容节点：还没写上行 key 的当场摘掉；已在行里的先留着，离场的替身要克隆它，
+   * 等元素把它放回自己的直接子节点下再摘掉（元素不在文档里时不会再放回，当场摘掉）。
+   */
+  #depart(list: ListEntry, entry: RowEntry): void {
+    for (const node of entry.row.nodes) {
+      if (entry.placed && list.shell.array.isConnected)
+        list.departing.add(node)
+      else
+        node.remove()
+    }
+    this.#dropDeparted(list)
+  }
+
+  /** 摘掉已回到 xh-field-array 直接子节点下的离场内容。 */
+  #dropDeparted(list: ListEntry): void {
+    for (const node of list.departing) {
+      if (node.parentElement !== list.shell.array)
+        continue
+      node.remove()
+      list.departing.delete(node)
+    }
+  }
+
   /** 收回一段内容建出的登记项：字段实例销毁、摘要条目移除，内嵌的列表连同它的行一并收回。 */
   #release(items: Owned): void {
     for (const key of items.fields) {
@@ -659,6 +690,7 @@ export class XhFormRenderer extends XhReactiveElement {
         continue
       for (const entry of list.rows.values())
         this.#release(entry.owned)
+      list.observer.disconnect()
       list.summary.remove()
       this.#lists.delete(key)
     }

@@ -433,14 +433,14 @@ describe('<xh-form-renderer>：列表容器', () => {
     expect(renderer.querySelectorAll('[data-xh-part="error-summary-item"]')).toHaveLength(1 + 2 * 2)
   })
 
-  // UI 缺口 23：标准结构下字段数组删行的离场替身里没有行内容；UI 修好后这条会变红，去掉 fails
-  it.fails('删掉一行时，原处淡出的替身显示删除前的值', async () => {
+  it('删掉一行时，原处淡出的替身显示删除前的值；那一行的内容随后从 xh-field-array 下摘掉', async () => {
     const restore = stubListExit()
     try {
       const { array } = await mountLines({ lines: [{ name: '甲', qty: 1 }, { name: '乙', qty: 2 }] })
       items(array)[0]!.querySelector<HTMLButtonElement>('[data-xh-part="item-delete-trigger"]')!.click()
       await array.updateComplete
       expect(ghostValues(array)).toEqual(['甲', '1'])
+      await vi.waitFor(() => expect([...array.children].filter(child => child.hasAttribute('slot'))).toEqual([]))
     }
     finally {
       restore()
@@ -567,14 +567,14 @@ describe('<xh-form-renderer>：子表的表格排布', () => {
     expect(rows(array).map(row => row.querySelector('[data-xh-part="item-label"]')!.textContent)).toEqual(['1', '2'])
   })
 
-  // UI 缺口 23：标准结构下字段数组删行的离场替身里没有行内容；UI 修好后这条会变红，去掉 fails
-  it.fails('删掉一行时，原处淡出的替身显示删除前的值', async () => {
+  it('删掉一行时，原处淡出的替身显示删除前的值；那一行的内容随后从 xh-field-array 下摘掉', async () => {
     const restore = stubListExit()
     try {
       const { array } = await mountTable({ people: [{ name: '甲', qty: 1 }, { name: '乙', qty: 2 }] })
       rows(array)[0]!.querySelector<HTMLButtonElement>('[data-xh-part="item-delete-trigger"]')!.click()
       await array.updateComplete
       expect(ghostValues(array)).toEqual(['甲', '1'])
+      await vi.waitFor(() => expect([...array.children].filter(child => child.hasAttribute('slot'))).toEqual([]))
     }
     finally {
       restore()
