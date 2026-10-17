@@ -117,6 +117,19 @@ describe('<xh-form-renderer>：结构', () => {
     expect(grid.querySelector('[data-xh-part="item"]')!.getAttribute('span')).toBe('3')
   })
 
+  it('表格布局显示格线时用栅格的 ruled，关掉 bordered 就不画', async () => {
+    const { registry, ids } = setup()
+    const table = container(registry, ids, 'table', [])
+    const bordered = await mount((element) => {
+      element.schema = documentOf([table])
+    })
+    expect(bordered.querySelector('xh-grid')!.hasAttribute('ruled')).toBe(true)
+    const plain = await mount((element) => {
+      element.schema = documentOf([{ ...table, appearance: { ...table.appearance, bordered: false } }])
+    })
+    expect(plain.querySelector('xh-grid')!.hasAttribute('ruled')).toBe(false)
+  })
+
   it('联动隐藏落在字段组的 hidden 上，条件变了随之显隐', async () => {
     const { document } = sample()
     const renderer = await mount((element) => {
