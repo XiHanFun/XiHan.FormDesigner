@@ -15,6 +15,7 @@ import {
   XhCheckboxGroupElement,
   XhComboboxElement,
   XhDatePickerElement,
+  XhDateRangePickerElement,
   XhFieldArrayElement,
   XhFieldElement,
   XhFieldsetElement,
@@ -61,6 +62,7 @@ export function defineRendererElements(): void {
   defineXhElement('xh-checkbox', XhCheckboxElement)
   defineXhElement('xh-switch', XhSwitchElement)
   defineXhElement('xh-date-picker', XhDatePickerElement)
+  defineXhElement('xh-date-range-picker', XhDateRangePickerElement)
   defineXhElement('xh-slider', XhSliderElement)
   defineXhElement('xh-rating', XhRatingElement)
   defineXhElement('xh-file-upload', XhFileUploadElement)

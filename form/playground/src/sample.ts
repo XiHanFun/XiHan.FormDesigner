@@ -100,6 +100,7 @@ export function expenseForm(): FormDocument {
     linkage: [linkage('hide', 'type != \'travel\'')],
   })
   const departDate = field('date', 'departDate', '出发日期', { basic: { placeholder: '选择日期' }, linkage: [linkage('hide', 'type != \'travel\'')] })
+  const tripDates = field('date-range', 'tripDates', '行程起止', { basic: { placeholder: '选择日期' }, linkage: [linkage('hide', 'type != \'travel\'')] })
   const amount = field('number', 'amount', '金额（元）', { basic: { placeholder: '例如 1280.50' }, data: { precision: 2, step: 100 }, validation: [rule({ kind: 'required' }), rule({ kind: 'range', min: 0.01, max: 100000 })] })
   const vendor = field('combobox', 'vendor', '开票单位', { basic: { placeholder: '输入名称搜索', hint: '按名称搜索，结果来自宿主' }, data: { optionSource: 'vendors' } })
   const bank = field('select', 'bank', '收款银行', { basic: { placeholder: '请选择银行', hint: '首次加载会失败，展开后点重试' }, data: { optionSource: 'banks' } })
@@ -115,10 +116,13 @@ export function expenseForm(): FormDocument {
   const urgent = field('switch', 'urgent', '加急处理')
   const urgentNote = field('text', 'urgentNote', '加急原因', { linkage: [linkage('hide', 'urgent != true'), linkage('require', 'urgent == true')] })
 
-  const basics = container('grid', [[applicant], [phone], [department], [type], [province], [city], [departDate], [amount], [invoices], [vendor], [bank], [account]], {
-    regionProps: [{ span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }],
+  const cells = [[applicant], [phone], [department], [type], [amount], [invoices], [vendor], [bank], [account]]
+  const travelCells = [[province], [city], [departDate], [tripDates]]
+  const travel = container('grid', travelCells, { regionProps: travelCells.map(() => ({ span: 6 })) })
+  const basics = container('grid', cells, {
+    regionProps: cells.map(() => ({ span: 6 })),
   })
-  const basicCard = container('card', [[basics, reason, attachments]], { basic: { title: '基本信息' } })
+  const basicCard = container('card', [[basics, travel, reason, attachments]], { basic: { title: '基本信息' } })
 
   const details = container('subform', [[
     container('grid', [[field('text', 'item', '名目', { validation: [rule({ kind: 'required' })] })], [field('number', 'cost', '金额', { data: { precision: 2 }, appearance: { suffix: '元' } })]], { regionProps: [{ span: 6 }, { span: 6 }] }),
