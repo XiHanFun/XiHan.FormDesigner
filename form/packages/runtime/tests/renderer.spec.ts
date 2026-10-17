@@ -356,6 +356,7 @@ describe('<xh-form-renderer>：列表容器', () => {
     const { renderer, array } = await mountLines({ lines: [{ name: '甲', qty: 1 }, { name: '乙', qty: 2 }] })
     expect(group(renderer, ['lines']).querySelector('xh-field > [data-xh-part="root"] > label')!.textContent).toBe('明细')
     expect(array.movable).toBe(true)
+    expect(array.querySelector('[data-xh-part="table"]')).toBeNull()
     expect(items(array).map(item => item.querySelector('[data-xh-part="item-label"]')!.textContent)).toEqual(['1', '2'])
     expect(names(renderer, 2)).toEqual(['甲', '乙'])
     expect(array.querySelector('[data-xh-part="add-trigger"]')!.textContent).toBe('Add row')
@@ -409,6 +410,70 @@ describe('<xh-form-renderer>：列表容器', () => {
     await renderer.updateComplete
     expect(group(renderer, ['lines']).querySelector('xh-field > [data-xh-part="root"] > [data-xh-part="error-text"]')!.textContent).toBe('至少填一行')
     expect(renderer.querySelector(`[data-xh-part="error-summary-item"][data-path='${JSON.stringify(['lines'])}']`)!.textContent).toBe('明细: 至少填一行')
+  })
+})
+
+describe('<xh-form-renderer>：子表的表格排布', () => {
+  type FieldArray = HTMLElement & { value?: unknown[], layout?: string, columns?: unknown[], updateComplete: Promise<boolean> }
+
+  async function mountTable(values: Record<string, JsonValue>): Promise<{ renderer: XhFormRenderer, array: FieldArray, name: FieldNode, qty: FieldNode }> {
+    const { registry, ids } = setup()
+    const name = field(registry, ids, 'text', 'name', { basic: { label: '姓名' } })
+    const qty = field(registry, ids, 'number', 'qty', { basic: { label: '数量' } })
+    const list = container(registry, ids, 'subtable', [name, qty], { key: 'people', basic: { title: '人员' } })
+    const renderer = await mount((element) => {
+      element.values = values
+      element.schema = documentOf([list])
+    })
+    const array = group(renderer, ['people']).querySelector('xh-field-array') as FieldArray
+    await array.updateComplete
+    return { renderer, array, name, qty }
+  }
+
+  function rows(array: FieldArray): HTMLElement[] {
+    return [...array.querySelectorAll<HTMLElement>(':scope > [data-xh-part="root"] > [data-xh-part="table"] > [data-xh-part="item"]')]
+  }
+
+  function parts(element: Element): (string | null)[] {
+    return [...element.children].map(child => child.getAttribute('data-xh-part'))
+  }
+
+  it('列取行内字段的 id 与标签；表头在前、行在后，新增把手排在表格之后', async () => {
+    const { array, name, qty } = await mountTable({ people: [{ name: '甲', qty: 1 }] })
+    expect(array.layout).toBe('table')
+    expect(array.columns).toEqual([{ id: name.id, label: '姓名' }, { id: qty.id, label: '数量' }])
+    const root = array.querySelector(':scope > [data-xh-part="root"]')!
+    expect(parts(root)).toEqual(['table', 'add-trigger'])
+    const table = root.firstElementChild!
+    expect(table.getAttribute('role')).toBe('table')
+    expect(parts(table)).toEqual(['header', 'item'])
+    expect([...table.querySelectorAll('[data-xh-part="column-header"]')].map(cell => [cell.getAttribute('value'), cell.textContent])).toEqual([[name.id, '姓名'], [qty.id, '数量']])
+  })
+
+  it('一格一个字段：标签只在视觉上隐藏，路径带行号', async () => {
+    const { renderer, array, qty } = await mountTable({ people: [{ name: '甲', qty: 1 }, { name: '乙', qty: 2 }] })
+    const [first] = rows(array)
+    expect(parts(first!)).toEqual(['item-label', 'item-cell', 'item-cell', 'item-action'])
+    const cell = first!.querySelector(`[data-xh-part="item-cell"][value="${qty.id}"]`)!
+    expect(cell.querySelector('[data-xh-part="field-group"]')!.getAttribute('data-path')).toBe(JSON.stringify(['people', 0, 'qty']))
+    expect(cell.querySelector('xh-field label')!.classList.contains('xh-visually-hidden')).toBe(true)
+    expect((group(renderer, ['people', 1, 'name']).querySelector('xh-text-field') as HTMLElement & { value?: string }).value).toBe('乙')
+  })
+
+  it('新增、换序与删除照旧交给控制器，行排在表格里', async () => {
+    const { renderer, array } = await mountTable({ people: [{ name: '甲', qty: 1 }, { name: '乙', qty: 2 }] })
+    const [first, second] = rows(array)
+    array.querySelector<HTMLButtonElement>('[data-xh-part="add-trigger"]')!.click()
+    await array.updateComplete
+    expect(renderer.getFormData().people).toEqual([{ name: '甲', qty: 1 }, { name: '乙', qty: 2 }, { name: '', qty: null }])
+    expect(rows(array)).toHaveLength(3)
+    second!.querySelector<HTMLButtonElement>('[data-xh-part="move-up-trigger"]')!.click()
+    await array.updateComplete
+    expect(rows(array).slice(0, 2)).toEqual([second, first])
+    first!.querySelector<HTMLButtonElement>('[data-xh-part="item-delete-trigger"]')!.click()
+    await array.updateComplete
+    expect(renderer.getFormData().people).toEqual([{ name: '乙', qty: 2 }, { name: '', qty: null }])
+    expect(rows(array).map(row => row.querySelector('[data-xh-part="item-label"]')!.textContent)).toEqual(['1', '2'])
   })
 })
 

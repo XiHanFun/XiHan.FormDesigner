@@ -19,13 +19,13 @@ export interface FieldShell {
   readonly update: (context: FieldRendererContext) => void
 }
 
-/** 用 `<xh-field>` 包住控件：标签取 `basic.label`（`labelHidden` 时只在视觉上隐藏），有 `basic.hint` 时带提示。 */
-export function createFieldShell(doc: Document, node: FieldNode, control: HTMLElement): FieldShell {
+/** 用 `<xh-field>` 包住控件：标签取 `basic.label`（`labelHidden` 或 `options.labelHidden` 时只在视觉上隐藏），有 `basic.hint` 时带提示。 */
+export function createFieldShell(doc: Document, node: FieldNode, control: HTMLElement, options: { readonly labelHidden?: boolean } = {}): FieldShell {
   const element = host(doc, 'xh-field')
   const root = make(doc, 'div', 'root')
   const label = make(doc, 'label', 'label')
   text(label, stringOf(node.basic.label) ?? '')
-  label.classList.toggle(VISUALLY_HIDDEN, node.appearance.labelHidden === true)
+  label.classList.toggle(VISUALLY_HIDDEN, options.labelHidden === true || node.appearance.labelHidden === true)
   control.setAttribute('data-xh-part', 'control')
   root.append(label, control)
   const hint = stringOf(node.basic.hint) ?? ''

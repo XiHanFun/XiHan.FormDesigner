@@ -118,6 +118,8 @@ interface NodeEntry {
 interface RowScope {
   readonly prefix: JsonPath
   readonly rowPath: readonly number[]
+  /** 在表格排布的格子里：列头已给出字段名，字段标签只在视觉上隐藏。 */
+  readonly cell?: boolean
 }
 
 /** 一段内容建出的登记项，删行时一并收回。 */
@@ -425,7 +427,7 @@ export class XhFormRenderer extends XhReactiveElement {
     for (const node of nodes) {
       const key = instanceKey(node.id, scope.rowPath)
       if (node.type === 'field') {
-        parent.append(this.#renderField(node, [...scope.prefix, node.key], key, into))
+        parent.append(this.#renderField(node, [...scope.prefix, node.key], key, into, scope.cell === true))
         continue
       }
       if (node.type === 'static') {
@@ -474,7 +476,7 @@ export class XhFormRenderer extends XhReactiveElement {
     return { group, summary }
   }
 
-  #renderField(node: FieldNode, path: JsonPath, key: string, into?: Owned): HTMLElement {
+  #renderField(node: FieldNode, path: JsonPath, key: string, into: Owned | undefined, labelHidden: boolean): HTMLElement {
     const renderer = (this.fieldRenderers && Object.hasOwn(this.fieldRenderers, node.kind) ? this.fieldRenderers[node.kind] : undefined)
       ?? (Object.hasOwn(FORM_FIELD_RENDERERS, node.kind) ? FORM_FIELD_RENDERERS[node.kind] : undefined)
     if (renderer === undefined)
@@ -482,7 +484,7 @@ export class XhFormRenderer extends XhReactiveElement {
     const { group, summary } = this.#group(path)
     const context = this.#contextOf(node, path)
     const instance = renderer(context)
-    const shell = createFieldShell(this.ownerDocument, node, instance.element)
+    const shell = createFieldShell(this.ownerDocument, node, instance.element, { labelHidden })
     shell.update(context)
     group.append(shell.element)
     const entry: FieldEntry = { node, path, key, group, summary, instance, shell }
@@ -533,7 +535,7 @@ export class XhFormRenderer extends XhReactiveElement {
 
   /**
    * 按控制器里的行数对行：令牌数与行数不符时按位置截短或补齐；
-   * 行号变了的行重建行内容，各行按令牌顺序排在新增把手前面，再把令牌数组交给 xh-field-array。
+   * 行号变了的行重建行内容（表格排布逐格重建），各行按令牌顺序排进行容器，再把令牌数组交给 xh-field-array。
    */
   #reconcileList(list: ListEntry): void {
     if (!this.#lists.has(pathKey(list.path)))
@@ -552,11 +554,12 @@ export class XhFormRenderer extends XhReactiveElement {
       }
     }
     const movable = list.node.data.movable !== false
-    let cursor = list.shell.root.firstElementChild
+    const { columns, rows: container } = list.shell
+    let cursor = list.shell.firstRow()
     list.tokens.forEach((token, index) => {
       let entry = list.rows.get(token)
       if (entry === undefined) {
-        entry = { row: createListRow(doc, movable), index: -1, owned: owned() }
+        entry = { row: createListRow(doc, movable, columns), index: -1, owned: owned() }
         list.rows.set(token, entry)
       }
       if (entry.index !== index) {
@@ -564,14 +567,25 @@ export class XhFormRenderer extends XhReactiveElement {
         entry.owned = owned()
         entry.index = index
         text(entry.row.label, String(index + 1))
-        const slot = make(doc, 'div', undefined, { 'data-form-region': '' })
-        entry.row.content.replaceChildren(slot)
-        this.#renderNodes(list.node.regions[0]!.children, slot, { prefix: [...list.path, index], rowPath: [...list.rowPath, index] }, entry.owned)
+        const scope: RowScope = { prefix: [...list.path, index], rowPath: [...list.rowPath, index] }
+        const content = entry.row.content
+        if (content === undefined) {
+          for (const child of list.node.regions[0]!.children) {
+            const cell = entry.row.cells.get(child.id)!
+            cell.replaceChildren()
+            this.#renderNodes([child], cell, { ...scope, cell: true }, entry.owned)
+          }
+        }
+        else {
+          const slot = make(doc, 'div', undefined, { 'data-form-region': '' })
+          content.replaceChildren(slot)
+          this.#renderNodes(list.node.regions[0]!.children, slot, scope, entry.owned)
+        }
       }
       if (entry.row.item === cursor)
         cursor = cursor.nextElementSibling
       else
-        list.shell.root.insertBefore(entry.row.item, cursor)
+        container.insertBefore(entry.row.item, cursor)
     })
     const array = list.shell.array as HTMLElement & { value?: unknown }
     if (array.value !== list.tokens)
