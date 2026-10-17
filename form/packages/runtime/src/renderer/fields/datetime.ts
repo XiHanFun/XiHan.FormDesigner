@@ -59,6 +59,25 @@ export const dateRangeField: FieldRenderer = (context) => {
   return { element, update }
 }
 
+/**
+ * 时间范围：`xh-time-range-picker`，值是起止两个 ISO 时间串，精确到分（`withSeconds` 时到秒）；
+ * 还没选时是空数组，只填一端时另一端是空串。
+ */
+export const timeRangeField: FieldRenderer = (context) => {
+  const element = host(context.document, 'xh-time-range-picker')
+  if (context.node.data.withSeconds === true)
+    assign(element, 'granularity', 'second')
+  const ref: ContextRef = { current: context }
+  on<{ value: string[] }>(element, 'value-change', detail => ref.current.setValue(rangeOf(detail.value)))
+  const update = (next: FieldRendererContext): void => {
+    ref.current = next
+    paintCommon(element, next)
+    assign(element, 'value', bothEnds(toList(next.value)))
+  }
+  update(context)
+  return { element, update }
+}
+
 /** 时间：`xh-time-picker`，值是 ISO 时间串，精确到分（`withSeconds` 时到秒）；UI 交回数组，取第一项，空时为 `null`。 */
 export const timeField: FieldRenderer = (context) => {
   const element = host(context.document, 'xh-time-picker')

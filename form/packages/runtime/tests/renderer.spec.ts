@@ -778,6 +778,7 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['date', 'xh-date-picker', 'trigger'],
     ['date-range', 'xh-date-range-picker', 'trigger'],
     ['time', 'xh-time-picker', 'trigger'],
+    ['time-range', 'xh-time-range-picker', 'trigger'],
     ['color', 'xh-color-picker', 'trigger'],
     ['signature', 'xh-signature-pad', 'control'],
     ['transfer', 'xh-transfer', 'item'],
@@ -935,6 +936,33 @@ describe('<xh-form-renderer>：日期时间字段', () => {
     expect(renderer.getFormData().when).toBe('13:45')
     pick(time, [])
     expect(renderer.getFormData().when).toBeNull()
+  })
+
+  it('时间范围：值是起止两个 ISO 时间串，没选时元素拿到两端空串；只填一端时补成两端，两端都清空写回空数组', async () => {
+    const { renderer, element } = await mountField('time-range', {})
+    const range = element as Picker & { granularity?: string }
+    expect(range.localName).toBe('xh-time-range-picker')
+    expect([range.value, range.granularity]).toEqual([['', ''], undefined])
+    pick(range, ['09:00', '18:00'])
+    expect(renderer.getFormData().when).toEqual(['09:00', '18:00'])
+    await range.updateComplete
+    expect(range.value).toEqual(['09:00', '18:00'])
+    pick(range, ['', '18:00'])
+    expect(renderer.getFormData().when).toEqual(['', '18:00'])
+    pick(range, ['09:00'])
+    expect(renderer.getFormData().when).toEqual(['09:00', ''])
+    await range.updateComplete
+    expect(range.value).toEqual(['09:00', ''])
+    pick(range, ['', ''])
+    expect(renderer.getFormData().when).toEqual([])
+  })
+
+  it('时间范围：带秒时精确到秒', async () => {
+    const { renderer, element } = await mountField('time-range', { data: { withSeconds: true } }, { when: ['09:00:00', '18:00:30'] })
+    const range = element as Picker & { granularity?: string }
+    expect([range.value, range.granularity]).toEqual([['09:00:00', '18:00:30'], 'second'])
+    pick(range, ['09:00:15', '18:00:30'])
+    expect(renderer.getFormData().when).toEqual(['09:00:15', '18:00:30'])
   })
 
   it('时间：带秒时精确到秒，值是带秒的 ISO 时间串', async () => {
