@@ -139,11 +139,12 @@ interface Owned {
   readonly lists: string[]
 }
 
-/** 列表里的一行：身份是令牌，行号变了时重建行内容。 */
+/** 列表里的一行：身份是令牌，行号变了时重建行内容；`placed` 是内容节点已按行 key 写上 slot。 */
 interface RowEntry {
   readonly row: ListRow
   index: number
   owned: Owned
+  placed: boolean
 }
 
 /** 列表容器的实例：令牌数组即 xh-field-array 的值，与列表的行一一对应。 */
@@ -447,6 +448,8 @@ export class XhFormRenderer extends XhReactiveElement {
     this.#syncFormValues()
     this.#syncErrors()
     this.replaceChildren(form)
+    for (const list of this.#lists.values())
+      this.#placeRows(list, false)
   }
 
   #renderNodes(nodes: readonly FormNode[], parent: HTMLElement, scope: RowScope = TOP, into?: Owned): void {
@@ -560,8 +563,8 @@ export class XhFormRenderer extends XhReactiveElement {
   }
 
   /**
-   * 按控制器里的行数对行：令牌数与行数不符时按位置截短或补齐；
-   * 行号变了的行重建行内容（表格排布逐格重建），各行按令牌顺序排进行容器，再把令牌数组交给 xh-field-array。
+   * 按控制器里的行数对行：令牌数与行数不符时按位置截短或补齐；删掉的行连内容节点一起摘掉，
+   * 行号变了的行重建行内容（表格排布逐格重建），再把令牌数组交给 xh-field-array，按它的行 key 给新行写上 slot。
    */
   #reconcileList(list: ListEntry): void {
     if (!this.#lists.has(pathKey(list.path)))
@@ -575,24 +578,22 @@ export class XhFormRenderer extends XhReactiveElement {
     for (const [token, entry] of list.rows) {
       if (!alive.has(token)) {
         this.#release(entry.owned)
-        entry.row.item.remove()
+        for (const node of entry.row.nodes)
+          node.remove()
         list.rows.delete(token)
       }
     }
-    const movable = list.node.data.movable !== false
-    const { columns, rows: container } = list.shell
-    let cursor = list.shell.firstRow()
+    const { array, columns } = list.shell
     list.tokens.forEach((token, index) => {
       let entry = list.rows.get(token)
       if (entry === undefined) {
-        entry = { row: createListRow(doc, movable, columns), index: -1, owned: owned() }
+        entry = { row: createListRow(doc, array, columns), index: -1, owned: owned(), placed: false }
         list.rows.set(token, entry)
       }
       if (entry.index !== index) {
         this.#release(entry.owned)
         entry.owned = owned()
         entry.index = index
-        text(entry.row.label, String(index + 1))
         const scope: RowScope = { prefix: [...list.path, index], rowPath: [...list.rowPath, index] }
         const content = entry.row.content
         if (content === undefined) {
@@ -603,19 +604,40 @@ export class XhFormRenderer extends XhReactiveElement {
           }
         }
         else {
-          const slot = make(doc, 'div', undefined, { 'data-form-region': '' })
-          content.replaceChildren(slot)
-          this.#renderNodes(list.node.regions[0]!.children, slot, scope, entry.owned)
+          content.replaceChildren()
+          this.#renderNodes(list.node.regions[0]!.children, content, scope, entry.owned)
         }
       }
-      if (entry.row.item === cursor)
-        cursor = cursor.nextElementSibling
-      else
-        container.insertBefore(entry.row.item, cursor)
     })
-    const array = list.shell.array as HTMLElement & { value?: unknown }
-    if (array.value !== list.tokens)
-      array.value = list.tokens
+    const host = array as HTMLElement & { value?: unknown }
+    if (host.value !== list.tokens)
+      host.value = list.tokens
+    this.#placeRows(list, false)
+  }
+
+  /**
+   * 按 xh-field-array 的行 key 给还没写上 slot 的行写上：它的 items 与令牌逐个对上时才写。
+   * 增删换序的 value-change 里 items 已是新的一份；外部改了行时元素要等下一轮更新才换上，
+   * 这时等它更新完再对一次。
+   */
+  #placeRows(list: ListEntry, deferred: boolean): void {
+    if (this.#lists.get(pathKey(list.path)) !== list)
+      return
+    const array = list.shell.array as HTMLElement & { items?: readonly { key: string, value: unknown }[], updateComplete?: Promise<unknown> }
+    const items = array.items ?? []
+    const aligned = items.length === list.tokens.length && items.every((item, index) => item.value === list.tokens[index])
+    if (!aligned) {
+      if (!deferred)
+        void array.updateComplete?.then(() => this.#placeRows(list, true))
+      return
+    }
+    list.tokens.forEach((token, index) => {
+      const entry = list.rows.get(token)
+      if (entry === undefined || entry.placed)
+        return
+      entry.row.place(items[index]!.key)
+      entry.placed = true
+    })
   }
 
   /** 收回一段内容建出的登记项：字段实例销毁、摘要条目移除，内嵌的列表连同它的行一并收回。 */
