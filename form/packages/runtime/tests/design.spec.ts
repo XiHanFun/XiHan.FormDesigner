@@ -8,16 +8,18 @@ import { CONTAINER_BUILDERS, createFieldShell, issueMessage, STATIC_BUILDERS } f
 import { DEFAULT_FORM_RENDERER_TRANSLATIONS } from '../src/translations'
 
 describe('设计态出口', () => {
-  it('字段外壳包住控件，标题与提示取节点', () => {
+  it('字段外壳只建宿主：标题与提示取节点写到属性上，错误文案常挂，控件写成 slot="control" 放进去', () => {
     const registry = createFormModel().registry
     const node = createNode(registry, 'text', createIdAllocator('d'), { key: 'name' }) as FieldNode
     const labelled = { ...node, basic: { ...node.basic, label: '姓名', hint: '与证件一致' } }
     const control = document.createElement('input')
     const shell = createFieldShell(document, labelled, control)
-    expect(shell.element.tagName).toBe('XH-FIELD')
-    expect(control.getAttribute('data-xh-part')).toBe('control')
-    expect(shell.element.querySelector('[data-xh-part="label"]')!.textContent).toBe('姓名')
-    expect(shell.element.querySelector('[data-xh-part="description"]')!.textContent).toBe('与证件一致')
+    const field = shell.element as HTMLElement & { label?: string, description?: string, errorText?: string }
+    expect(field.tagName).toBe('XH-FIELD')
+    expect([field.label, field.description, field.errorText]).toEqual(['姓名', '与证件一致', ''])
+    expect([...field.children]).toEqual([control])
+    expect(control.getAttribute('slot')).toBe('control')
+    expect(field.querySelector('[data-xh-part]')).toBeNull()
   })
 
   it('容器与静态元素的部件树与值问题的文案都能取到', () => {

@@ -503,14 +503,32 @@ describe('<xh-form-renderer>：子表的表格排布', () => {
     expect([...table.querySelectorAll('[data-xh-part="column-header"]')].map(cell => [cell.getAttribute('value'), cell.textContent])).toEqual([[name.id, '姓名'], [qty.id, '数量']])
   })
 
-  it('一格一个字段：标签只在视觉上隐藏，路径带行号', async () => {
+  it('一格一个字段：不铺标题，标题文字写成控件的名字，路径带行号', async () => {
     const { renderer, array, qty } = await mountTable({ people: [{ name: '甲', qty: 1 }, { name: '乙', qty: 2 }] })
     const [first] = rows(array)
     expect(parts(first!)).toEqual(['item-label', 'item-cell', 'item-cell', 'item-action'])
     const cell = first!.querySelector(`[data-xh-part="item-cell"][value="${qty.id}"]`)!
     expect(cell.querySelector('[data-xh-part="field-group"]')!.getAttribute('data-path')).toBe(JSON.stringify(['people', 0, 'qty']))
-    expect(cell.querySelector('xh-field label')!.classList.contains('xh-visually-hidden')).toBe(true)
+    const control = cell.querySelector('xh-number-field') as HTMLElement & { updateComplete: Promise<boolean> }
+    await control.updateComplete
+    expect(cell.querySelector('[data-scope="field"][data-part="label"]')).toBeNull()
+    expect(control.getAttribute('aria-label')).toBe('数量')
+    expect(control.querySelector('[data-scope="number-field"][data-part="input"]')!.getAttribute('aria-label')).toBe('数量')
     expect((group(renderer, ['people', 1, 'name']).querySelector('xh-text-field') as HTMLElement & { value?: string }).value).toBe('乙')
+  })
+
+  it('格里的字段带前后缀时，名字写在输入组里面的控件上', async () => {
+    const { registry, ids } = setup()
+    const plain = field(registry, ids, 'number', 'cost', { basic: { label: '金额' } })
+    const cost = { ...plain, appearance: { ...plain.appearance, suffix: '元' } }
+    const list = container(registry, ids, 'subtable', [cost], { key: 'rows', basic: { title: '明细' } })
+    const renderer = await mount((element) => {
+      element.values = { rows: [{ cost: 1 }] }
+      element.schema = documentOf([list])
+    })
+    const cell = group(renderer, ['rows', 0, 'cost'])
+    expect(cell.querySelector('xh-input-group')!.hasAttribute('aria-label')).toBe(false)
+    expect(cell.querySelector('xh-number-field')!.getAttribute('aria-label')).toBe('金额')
   })
 
   it('新增、换序与删除照旧交给控制器，行排在表格里', async () => {
@@ -769,6 +787,34 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     expect(element.querySelector('[data-xh-part]:not([data-xh-gen])')).toBeNull()
     const scope = tag.slice('xh-'.length)
     expect(element.querySelectorAll(`[data-scope="${scope}"][data-part="${part}"]`).length).toBeGreaterThan(0)
+  })
+
+  it('字段外壳只建宿主：xh-field 铺出标题、提示与常挂的错误文案，控件原样放在标题之后，标题与提示接到控件可聚焦的部件', async () => {
+    const { registry, ids } = setup()
+    const node = field(registry, ids, 'text', 'name', { basic: { label: '姓名', hint: '与证件一致' }, validation: [{ id: 'r', kind: 'required' }] })
+    const renderer = await mount((element) => {
+      element.schema = documentOf([node])
+    })
+    const shell = group(renderer, ['name']).querySelector('xh-field') as HTMLElement & { updateComplete: Promise<boolean> }
+    const control = shell.querySelector('xh-text-field') as HTMLElement & { updateComplete: Promise<boolean> }
+    await shell.updateComplete
+    await control.updateComplete
+    expect([...shell.children].map(child => child.getAttribute('data-xh-gen'))).toEqual(['structure'])
+    const root = shell.firstElementChild!
+    expect([...root.children].map(child => child.getAttribute('data-part') ?? child.localName)).toEqual(['label', 'xh-text-field', 'description', 'error-text'])
+    const input = control.querySelector<HTMLInputElement>('[data-scope="text-field"][data-part="input"]')!
+    const label = root.querySelector('[data-part="label"]')!
+    const description = root.querySelector('[data-part="description"]')!
+    expect(input.getAttribute('aria-labelledby')).toBe(label.id)
+    expect(input.getAttribute('aria-describedby')).toBe(description.id)
+    expect(description.textContent).toBe('与证件一致')
+    expect(root.querySelector('[data-part="error-text"]')!.textContent).toBe('')
+
+    renderer.validate()
+    await renderer.updateComplete
+    await shell.updateComplete
+    expect(root.querySelector('[data-part="error-text"]')!.textContent).toBe('This field is required')
+    expect(input.getAttribute('aria-invalid')).toBe('true')
   })
 
   it('卡片、分组与分隔线只建宿主：标题与区域放进带 slot 的子节点，元素按标准结构铺出部件并把它们搬进去', async () => {
