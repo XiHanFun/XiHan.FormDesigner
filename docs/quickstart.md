@@ -8,7 +8,7 @@
 pnpm add @xihan-form/runtime @xihan-ui/web-components @xihan-ui/styles
 ```
 
-`@xihan-form/runtime` 会带上 `@xihan-form/core` 与它用到的 `@xihan-ui/*` 包。只在需要编辑模板的地方再装设计器 `@xihan-form/designer`。
+`@xihan-form/runtime` 会带上 `@xihan-form/core` 与它用到的 `@xihan-ui/*` 包。只在需要编辑模板的地方再装设计器 `@xihan-form/designer`，见[设计器](./guide/designer)。
 
 ## 写一份模板
 
