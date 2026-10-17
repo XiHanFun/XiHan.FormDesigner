@@ -771,6 +771,29 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     expect(element.querySelectorAll(`[data-scope="${scope}"][data-part="${part}"]`).length).toBeGreaterThan(0)
   })
 
+  it('卡片、分组与分隔线只建宿主：标题与区域放进带 slot 的子节点，元素按标准结构铺出部件并把它们搬进去', async () => {
+    const { registry, ids } = setup()
+    const card = container(registry, ids, 'card', [field(registry, ids, 'text', 'name')], { basic: { title: '基本信息' } })
+    const set = container(registry, ids, 'fieldset', [field(registry, ids, 'checkbox', 'agree')], { basic: { legend: '确认' } })
+    const titled = createNode(registry, 'divider', ids) as StaticNode
+    const renderer = await mount((element) => {
+      element.schema = documentOf([card, set, { ...titled, basic: { ...titled.basic, label: '附加' } }, createNode(registry, 'divider', ids)])
+    })
+    const hosts = [...renderer.querySelectorAll<HTMLElement & { updateComplete: Promise<boolean> }>('xh-card, xh-fieldset, xh-separator')]
+    await Promise.all(hosts.map(element => element.updateComplete))
+    // 宿主下只剩元素生成的 root，渲染器写的带 slot 子节点都已搬进部件
+    expect(hosts.map(element => [...element.children].map(child => child.getAttribute('data-xh-gen')))).toEqual([['structure'], ['structure'], ['structure'], ['structure']])
+    const [cardHost, setHost, titledHost, plainHost] = hosts
+    expect(cardHost!.querySelector('[data-scope="card"][data-part="title"]')!.textContent).toBe('基本信息')
+    expect(group(renderer, ['name']).closest('[data-scope="card"][data-part="content"]')).not.toBeNull()
+    expect(setHost!.querySelector('[data-scope="fieldset"][data-part="legend"]')!.textContent).toBe('确认')
+    expect(group(renderer, ['agree']).closest('[data-scope="fieldset"][data-part="field-group"]')).not.toBeNull()
+    const parts = (element: Element): (string | null)[] => [...element.querySelectorAll('[data-scope="separator"]')].map(node => node.getAttribute('data-part'))
+    expect(parts(titledHost!)).toEqual(['root', 'line', 'content', 'line'])
+    expect(titledHost!.querySelector('[data-part="content"]')!.textContent).toBe('附加')
+    expect(parts(plainHost!)).toEqual(['root'])
+  })
+
   it('多行文本的输入框是 textarea；下拉的空态文字取表单的 optionsEmpty，选项写成 collection', async () => {
     const { registry, ids } = setup()
     const renderer = await mount((element) => {
