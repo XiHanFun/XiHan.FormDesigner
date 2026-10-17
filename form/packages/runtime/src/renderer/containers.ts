@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 容器与静态元素的部件树：栅格、标签页、卡片、折叠、分组、表格布局，以及分隔线、段落、标题、提示、图片、条码与二维码，照 UI 文档的写法。
+// 容器与静态元素的部件树：栅格、标签页、卡片、折叠、分组、表格布局，以及分隔线、段落、标题、提示、图片、条码与二维码。
+// 标签页与折叠只建宿主元素加 collection，区域内容放进带 slot 的子节点，由元素搬进对应的面板；其余照 UI 文档写部件树。
 // 每个区域给出一个放子节点的位置；状态只管隐藏与分组的禁用，字段自己的状态由字段处理。
 
 import type { ContainerNode, NodeState, StaticNode } from '@xihan-form/core'
@@ -53,23 +54,21 @@ const grid: ContainerBuilder = (doc, node) => {
   return { element, slots, update: hiding(element) }
 }
 
-const tabs: ContainerBuilder = (doc, node) => {
-  const element = host(doc, 'xh-tabs')
-  const list = make(doc, 'div', 'list')
-  const root = make(doc, 'div', 'root')
-  root.append(list)
+/** 每个区域一个带 slot 的子节点，slot 名是前缀加区域 id；collection 的值同样是区域 id，标题取区域的 title。 */
+function slotted(doc: Document, element: HTMLElement, node: ContainerNode, prefix: string): Map<string, HTMLElement> {
   const slots = new Map<string, HTMLElement>()
   for (const region of node.regions) {
-    const trigger = make(doc, 'button', 'trigger', { type: 'button', value: region.id })
-    text(trigger, stringOf(region.props.title) ?? '')
-    list.append(trigger)
-    const content = make(doc, 'div', 'content', { value: region.id })
-    root.append(content)
-    slots.set(region.id, content)
+    const slot = make(doc, 'div', undefined, { slot: `${prefix}:${region.id}` })
+    element.append(slot)
+    slots.set(region.id, slot)
   }
-  list.append(make(doc, 'div', 'indicator'))
-  attr(list, 'aria-label', stringOf(node.basic.title) ?? '')
-  element.append(root)
+  assign(element, 'collection', node.regions.map(region => ({ value: region.id, label: stringOf(region.props.title) ?? '' })))
+  return slots
+}
+
+const tabs: ContainerBuilder = (doc, node) => {
+  const element = host(doc, 'xh-tabs')
+  const slots = slotted(doc, element, node, 'panel')
   assign(element, 'defaultValue', node.regions[0]?.id)
   return { element, slots, update: hiding(element) }
 }
@@ -93,22 +92,7 @@ const card: ContainerBuilder = (doc, node) => {
 
 const collapse: ContainerBuilder = (doc, node) => {
   const element = host(doc, 'xh-accordion')
-  const root = make(doc, 'div', 'root')
-  const slots = new Map<string, HTMLElement>()
-  for (const region of node.regions) {
-    const item = make(doc, 'div', 'item', { value: region.id })
-    const trigger = make(doc, 'button', 'trigger', { type: 'button' })
-    const caption = make(doc, 'span')
-    text(caption, stringOf(region.props.title) ?? '')
-    trigger.append(caption, make(doc, 'span', 'indicator'))
-    const header = make(doc, 'h3', 'header')
-    header.append(trigger)
-    const content = make(doc, 'div', 'content')
-    item.append(header, content)
-    root.append(item)
-    slots.set(region.id, content)
-  }
-  element.append(root)
+  const slots = slotted(doc, element, node, 'content')
   if (node.appearance.multiple !== false)
     assign(element, 'multiple', true)
   assign(element, 'collapsible', true)
