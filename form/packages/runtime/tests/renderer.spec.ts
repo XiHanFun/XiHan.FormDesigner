@@ -317,6 +317,26 @@ describe('<xh-form-renderer>：值与事件', () => {
   })
 })
 
+describe('<xh-form-renderer>：标签字段', () => {
+  it('值写成 xh-tags-input 的 value，一个值一个标签；改值后标签按值增删，已在的节点原地保留', async () => {
+    const { registry, ids } = setup()
+    const renderer = await mount((element) => {
+      element.values = { tags: ['甲', '乙'] }
+      element.schema = documentOf([field(registry, ids, 'tags', 'tags', { data: { max: 5 } })])
+    })
+    const element = group(renderer, ['tags']).querySelector('xh-tags-input') as HTMLElement & { value?: string[], max?: number }
+    const items = (): Element[] => [...element.querySelectorAll('[data-xh-part="item"]')]
+    expect([element.value, element.max]).toEqual([['甲', '乙'], 5])
+    expect(items().map(item => item.getAttribute('value'))).toEqual(['甲', '乙'])
+    const second = items()[1]
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value: ['乙', '丙'] }, bubbles: true, composed: true }))
+    expect(renderer.getFormData().tags).toEqual(['乙', '丙'])
+    expect(items().map(item => item.getAttribute('value'))).toEqual(['乙', '丙'])
+    expect(items()[0]).toBe(second)
+    expect(element.querySelector('[data-xh-part="input"]')!.previousElementSibling).toBe(items()[1])
+  })
+})
+
 describe('<xh-form-renderer>：文件字段', () => {
   type Upload = HTMLElement & {
     remoteFiles?: unknown

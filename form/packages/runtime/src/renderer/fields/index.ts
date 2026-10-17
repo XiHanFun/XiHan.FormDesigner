@@ -9,7 +9,7 @@ import type { FieldRenderer } from '../types'
 import { checkboxField, checkboxGroupField, radioGroupField, selectField, switchField, toggleGroupField } from './choice'
 import { fileField } from './file'
 import { ratingField, sliderField } from './measure'
-import { numberField, passwordField, pinField, textareaField, textField } from './text'
+import { numberField, passwordField, pinField, tagsField, textareaField, textField } from './text'
 
 /** 内置字段种类的渲染器。 */
 export const FORM_FIELD_RENDERERS: Readonly<Record<string, FieldRenderer>> = Object.freeze({
@@ -26,5 +26,6 @@ export const FORM_FIELD_RENDERERS: Readonly<Record<string, FieldRenderer>> = Obj
   'switch': switchField,
   'slider': sliderField,
   'rating': ratingField,
+  'tags': tagsField,
   'file': fileField,
 })

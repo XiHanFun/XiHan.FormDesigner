@@ -26,6 +26,7 @@ import {
   XhSliderElement,
   XhSwitchElement,
   XhTabsElement,
+  XhTagsInputElement,
   XhTextFieldElement,
   XhToggleGroupElement,
   XhTypographyElement,
@@ -39,6 +40,7 @@ export function defineRendererElements(): void {
   defineXhElement('xh-password-input', XhPasswordInputElement)
   defineXhElement('xh-number-field', XhNumberFieldElement)
   defineXhElement('xh-pin-input', XhPinInputElement)
+  defineXhElement('xh-tags-input', XhTagsInputElement)
   defineXhElement('xh-select', XhSelectElement)
   defineXhElement('xh-radio-group', XhRadioGroupElement)
   defineXhElement('xh-checkbox-group', XhCheckboxGroupElement)
