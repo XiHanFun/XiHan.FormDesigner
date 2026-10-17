@@ -778,6 +778,7 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['date', 'xh-date-picker', 'trigger'],
     ['date-range', 'xh-date-range-picker', 'trigger'],
     ['time', 'xh-time-picker', 'trigger'],
+    ['color', 'xh-color-picker', 'trigger'],
   ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
     const { registry, ids } = setup()
     const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]
@@ -926,6 +927,36 @@ describe('<xh-form-renderer>：日期时间字段', () => {
     expect([time.value, time.granularity]).toEqual([[], 'second'])
     pick(time, ['13:45:30'])
     expect(renderer.getFormData().when).toBe('13:45:30')
+  })
+})
+
+describe('<xh-form-renderer>：颜色字段', () => {
+  type Picker = HTMLElement & { value?: unknown, format?: string, updateComplete: Promise<boolean> }
+
+  async function mountColor(data: Record<string, JsonValue>, values: Record<string, JsonValue> = {}): Promise<{ renderer: XhFormRenderer, element: Picker }> {
+    const { registry, ids } = setup()
+    const renderer = await mount((element) => {
+      element.values = values
+      element.schema = documentOf([field(registry, ids, 'color', 'tint', { data })])
+    })
+    const element = group(renderer, ['tint']).querySelector<Picker>('[slot="control"]')!
+    await element.updateComplete
+    return { renderer, element }
+  }
+
+  it('值是颜色串，写给元素时是数组；format 照写；选中写回字符串，空数组写回 null', async () => {
+    const { renderer, element } = await mountColor({ format: 'rgba' }, { tint: 'rgba(255, 0, 0, 1)' })
+    expect(element.localName).toBe('xh-color-picker')
+    expect([element.value, element.format]).toEqual([['rgba(255, 0, 0, 1)'], 'rgba'])
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value: ['rgba(0, 128, 255, 1)'] }, bubbles: true }))
+    expect(renderer.getFormData().tint).toBe('rgba(0, 128, 255, 1)')
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value: [] }, bubbles: true }))
+    expect(renderer.getFormData().tint).toBeNull()
+  })
+
+  it('新建的颜色字段 format 是 hex；字段值为 null 时元素拿到空数组', async () => {
+    const { element } = await mountColor({})
+    expect([element.value, element.format]).toEqual([[], 'hex'])
   })
 })
 

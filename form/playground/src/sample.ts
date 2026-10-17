@@ -135,7 +135,8 @@ export function expenseForm(): FormDocument {
   const channels = field('checkbox-group', 'channels', '审批结果通知', { data: { options: [{ value: 'mail', label: '邮件' }, { value: 'sms', label: '短信' }, { value: 'im', label: '即时消息' }] } })
   const tags = field('toggle-group', 'tags', '标签', { data: { multiple: true, options: [{ value: 'project', label: '项目' }, { value: 'client', label: '客户' }, { value: 'internal', label: '内部' }] } })
   const keywords = field('tags', 'keywords', '关键词', { basic: { placeholder: '输入后回车' }, data: { max: 5 } })
-  const extra = container('collapse', [[satisfaction, share], [channels, tags, keywords]], {
+  const tagColor = field('color', 'tagColor', '标签颜色', { basic: { hint: '列表里按这个颜色标出这张单据' } })
+  const extra = container('collapse', [[satisfaction, share], [channels, tags, keywords, tagColor]], {
     regionProps: [{ title: '反馈', expanded: true }, { title: '通知与标签', expanded: false }],
   })
 
