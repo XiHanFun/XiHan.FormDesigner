@@ -219,6 +219,8 @@ function issue(found: FormSchemaIssue): string {
       return `数据键 ${param(found, 'key')} 重复`
     case 'duplicate-id':
       return `id ${param(found, 'id')} 重复`
+    case 'unknown-control':
+      return '没有登记这种编辑方式'
     case 'document.unsupportedVersion':
       return `不支持的模板版本 ${param(found, 'version')}`
     case 'document.tooDeep':

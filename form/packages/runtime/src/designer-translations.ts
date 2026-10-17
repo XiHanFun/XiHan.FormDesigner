@@ -122,6 +122,8 @@ function englishIssue(issue: FormSchemaIssue): string {
       return `The data key ${param(issue, 'key')} is used more than once`
     case 'duplicate-id':
       return `The id ${param(issue, 'id')} is used more than once`
+    case 'unknown-control':
+      return 'This kind of editor is not registered'
     case 'document.unsupportedVersion':
       return `Unsupported schema version ${param(issue, 'version')}`
     case 'document.tooDeep':
