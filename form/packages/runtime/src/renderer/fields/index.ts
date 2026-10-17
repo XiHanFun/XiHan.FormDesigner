@@ -6,7 +6,7 @@
 // 内置字段渲染器表：按种类取；扩展经 fieldRenderers 给新种类登记渲染，种类名与这里的重名时合并报冲突。
 
 import type { FieldRenderer } from '../types'
-import { checkboxField, checkboxGroupField, comboboxField, radioGroupField, selectField, switchField, toggleGroupField, transferField, treeSelectField } from './choice'
+import { cascaderField, checkboxField, checkboxGroupField, comboboxField, radioGroupField, selectField, switchField, toggleGroupField, transferField, treeSelectField } from './choice'
 import { colorField } from './color'
 import { dateField, dateRangeField, timeField } from './datetime'
 import { fileField } from './file'
@@ -24,6 +24,7 @@ export const FORM_FIELD_RENDERERS: Readonly<Record<string, FieldRenderer>> = Obj
   'select': selectField,
   'combobox': comboboxField,
   'tree-select': treeSelectField,
+  'cascader': cascaderField,
   'radio-group': radioGroupField,
   'checkbox-group': checkboxGroupField,
   'toggle-group': toggleGroupField,

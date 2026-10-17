@@ -106,6 +106,7 @@ export function expenseForm(): FormDocument {
   const vendor = field('combobox', 'vendor', '开票单位', { basic: { placeholder: '输入名称搜索', hint: '按名称搜索，结果来自宿主' }, data: { optionSource: 'vendors' } })
   const bank = field('select', 'bank', '收款银行', { basic: { placeholder: '请选择银行', hint: '首次加载会失败，展开后点重试' }, data: { optionSource: 'banks' } })
   const account = field('tree-select', 'account', '费用科目', { basic: { placeholder: '请选择科目', hint: '展开一级科目时才向宿主要下级' }, data: { optionSource: 'accounts' } })
+  const invoiceRegion = field('cascader', 'invoiceRegion', '开票地', { basic: { placeholder: '选择省市', hint: '展开省份时才向宿主要城市，广东首次会失败' }, data: { optionSource: 'regions' } })
   const invoices = field('number', 'invoices', '发票张数', { data: { precision: 0 }, validation: [rule({ kind: 'expression', expression: '$value == null || $value <= 20', message: '一次最多报销 20 张发票' })] })
   const reason = field('textarea', 'reason', '事由', {
     basic: { placeholder: '金额超过 5000 元时必填', hint: '写清费用用途，财务审核时会对照发票' },
@@ -117,7 +118,7 @@ export function expenseForm(): FormDocument {
   const urgent = field('switch', 'urgent', '加急处理')
   const urgentNote = field('text', 'urgentNote', '加急原因', { linkage: [linkage('hide', 'urgent != true'), linkage('require', 'urgent == true')] })
 
-  const cells = [[applicant], [phone], [department], [type], [amount], [invoices], [vendor], [bank], [account]]
+  const cells = [[applicant], [phone], [department], [type], [amount], [invoices], [vendor], [bank], [account], [invoiceRegion]]
   const travelCells = [[province], [city], [departDate], [departTime], [tripDates]]
   const travel = container('grid', travelCells, { regionProps: travelCells.map(() => ({ span: 6 })) })
   const basics = container('grid', cells, {
@@ -213,8 +214,9 @@ const CITIES: Readonly<Record<string, readonly OptionItem[]>> = {
 }
 
 let bankAttempts = 0
+let regionAttempts = 0
 
-/** 模拟的异步选项加载：部门与同事延迟返回，开票单位按搜索串筛，银行首次失败、重试后返回，费用科目按父节点逐级返回，城市按省份返回。 */
+/** 模拟的异步选项加载：部门与同事延迟返回，开票单位按搜索串筛，银行首次失败、重试后返回，费用科目按父节点逐级返回，开票地先给省份、展开时按省份给城市（广东首次失败），城市按省份返回。 */
 export const loadOptions: OptionLoader = request => new Promise((resolve, reject) => {
   setTimeout(() => {
     if (request.source === 'departments')
@@ -225,6 +227,12 @@ export const loadOptions: OptionLoader = request => new Promise((resolve, reject
       resolve(BANKS)
     else if (request.source === 'accounts')
       resolve(ACCOUNTS[request.parent ?? ''] ?? [])
+    else if (request.source === 'regions' && request.parent === undefined)
+      resolve(PROVINCES.map(province => ({ ...province, hasChildren: true })))
+    else if (request.source === 'regions' && request.parent === 'gd' && regionAttempts++ === 0)
+      reject(new Error('网络不可用'))
+    else if (request.source === 'regions')
+      resolve(CITIES[request.parent ?? ''] ?? [])
     else if (request.source === 'colleagues')
       resolve(COLLEAGUES)
     else if (request.source === 'vendors')

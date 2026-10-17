@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 选择类字段：下拉、组合框、树选择、单选组、多选组、按钮组、穿梭框、勾选框、开关。
+// 选择类字段：下拉、组合框、树选择、级联、单选组、多选组、按钮组、穿梭框、勾选框、开关。
 // 都只建宿主元素，部件由元素按标准结构生成；有选项的写成元素的 collection。
 // 选项来自上下文的 options：静态选项或加载结果。
 
@@ -167,6 +167,52 @@ export const treeSelectField: FieldRenderer = (context) => {
       assign(element, 'collection', treeOf(items))
     }
     assign(element, 'value', toList(next.value))
+  }
+  update(context)
+  return { element, update }
+}
+
+/** 一条路径：全是字符串的数组，否则为 `undefined`。 */
+function pathOf(value: unknown): string[] | undefined {
+  return Array.isArray(value) && value.every(item => typeof item === 'string') ? [...value] : undefined
+}
+
+/** 级联的字段值写给 UI：单选是一条路径，多选是路径数组；形状不对的路径不写。 */
+function cascaderValueOf(value: unknown, multiple: boolean): string[] | string[][] {
+  if (!multiple)
+    return pathOf(value) ?? []
+  return Array.isArray(value) ? value.map(pathOf).filter((path): path is string[] => path !== undefined && path.length > 0) : []
+}
+
+/**
+ * 级联：`xh-cascader`，选项树是 collection；单选的值是从根到所选节点的一条路径，多选是路径数组，没选时都是空数组。
+ * 带 hasChildren 的节点首次展开时经 loadChildren 向宿主要它的直接子项，在途、失败与重试由元素在那一列末尾给出。
+ */
+export const cascaderField: FieldRenderer = (context) => {
+  const element = host(context.document, 'xh-cascader') as HTMLElement & { loadChildren?: (request: { node: { value: string } }) => Promise<TreeNodeData[]> }
+  const multiple = context.node.data.multiple === true
+  if (multiple)
+    assign(element, 'multiple', true)
+  const ref: ContextRef = { current: context }
+  if (context.loadChildren !== undefined)
+    element.loadChildren = request => ref.current.loadChildren!(request.node.value).then(treeOf)
+  on<{ value: string[][] }>(element, 'value-change', (detail) => {
+    ref.current.setValue(multiple ? detail.value.map(path => [...path]) : [...(detail.value[0] ?? [])])
+  })
+  let items: readonly OptionItem[] | undefined
+  let shown: { value: unknown } | undefined
+  const update = (next: FieldRendererContext): void => {
+    ref.current = next
+    paintCommon(element, next, { placeholder: true })
+    assign(element, 'loading', next.options?.status === 'loading' ? true : undefined)
+    if (itemsOf(next) !== items) {
+      items = itemsOf(next)
+      assign(element, 'collection', treeOf(items))
+    }
+    if (shown === undefined || shown.value !== next.value) {
+      shown = { value: next.value }
+      assign(element, 'value', cascaderValueOf(next.value, multiple))
+    }
   }
   update(context)
   return { element, update }
