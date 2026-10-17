@@ -545,6 +545,29 @@ describe('<xh-form-renderer>：控件状态', () => {
   })
 })
 
+describe('<xh-form-renderer>：标签页与折叠只建宿主', () => {
+  it.each([
+    ['tabs', 'xh-tabs', 'trigger'],
+    ['collapse', 'xh-accordion', 'trigger'],
+  ])('%s：渲染器不写部件，%s 按区域生成，区域内容经插槽进对应的面板', async (kind, tag, triggerPart) => {
+    const { registry, ids } = setup()
+    const base = container(registry, ids, kind, [field(registry, ids, 'text', 'a')])
+    const node = { ...base, regions: [base.regions[0]!, { ...base.regions[0]!, id: `${base.regions[0]!.id}-2`, props: { ...base.regions[0]!.props, title: '第二页' }, children: [field(registry, ids, 'text', 'b')] }] }
+    const renderer = await mount((element) => {
+      element.schema = documentOf([{ ...node, regions: [{ ...node.regions[0]!, props: { ...node.regions[0]!.props, title: '第一页' } }, node.regions[1]!] }])
+    })
+    const element = renderer.querySelector(tag) as HTMLElement & { collection?: { value: string, label: string }[], updateComplete: Promise<boolean> }
+    await element.updateComplete
+    const scope = tag.slice('xh-'.length)
+    expect(element.querySelector(`[data-scope="${scope}"]:not([data-xh-gen])`)).toBeNull()
+    expect(element.collection!.map(item => item.label)).toEqual(['第一页', '第二页'])
+    expect([...element.querySelectorAll(`[data-scope="${scope}"][data-part="${triggerPart}"]`)].map(trigger => trigger.textContent)).toEqual(['第一页', '第二页'])
+    const panels = [...element.querySelectorAll<HTMLElement>(`[data-scope="${scope}"][data-part="content"]`)]
+    expect(panels.map(panel => [...panel.querySelectorAll('input')].length)).toEqual([1, 1])
+    expect(panels[1]!.querySelector('[slot]')!.getAttribute('slot')).toMatch(/:.+-2$/)
+  })
+})
+
 describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
   it.each([
     ['text', 'xh-text-field', 'input'],
