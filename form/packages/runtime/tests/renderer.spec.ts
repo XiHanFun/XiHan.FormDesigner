@@ -913,6 +913,19 @@ describe('<xh-form-renderer>：日期时间字段', () => {
     expect(renderer.getFormData().when).toEqual([])
   })
 
+  it('日期范围：UI 去掉末尾空端交回的只有起点，写成两端，元素拿回同样的两端，不清掉已填的起点', async () => {
+    const { renderer, element } = await mountField('date-range', {})
+    const range = element as Picker
+    pick(range, ['2026-11-01'])
+    expect(renderer.getFormData().when).toEqual(['2026-11-01', ''])
+    await range.updateComplete
+    expect(range.value).toEqual(['2026-11-01', ''])
+    pick(range, [])
+    expect(renderer.getFormData().when).toEqual([])
+    await range.updateComplete
+    expect(range.value).toEqual(['', ''])
+  })
+
   it('时间：值是 ISO 时间串，写给元素时是数组，缺省精确到分；选中写回字符串，清空写回 null', async () => {
     const { renderer, element } = await mountField('time', {}, { when: '09:30' })
     const time = element as Picker & { granularity?: string }

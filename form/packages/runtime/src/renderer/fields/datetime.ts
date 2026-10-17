@@ -26,9 +26,15 @@ export const dateField: FieldRenderer = (context) => {
   return { element, update }
 }
 
-/** 两端都空时是空数组，否则原样保留两端（只填一端时另一端是空串）。 */
+/** 补成起止两端：缺的一端是空串。 */
+function bothEnds(value: readonly string[]): string[] {
+  return [value[0] ?? '', value[1] ?? '']
+}
+
+/** UI 交回的区间写成字段值：两端都空时是空数组，否则是两端（只填一端时另一端是空串）。UI 交回时会去掉末尾的空端。 */
 function rangeOf(value: readonly string[]): string[] {
-  return value.every(item => item === '') ? [] : [...value]
+  const ends = bothEnds(value)
+  return ends.every(item => item === '') ? [] : ends
 }
 
 /**
@@ -47,8 +53,7 @@ export const dateRangeField: FieldRenderer = (context) => {
     const placeholder = stringOf(next.node.basic.placeholder)
     assign(element, 'startPlaceholder', placeholder)
     assign(element, 'endPlaceholder', placeholder)
-    const value = toList(next.value)
-    assign(element, 'value', value.length === 2 ? value : ['', ''])
+    assign(element, 'value', bothEnds(toList(next.value)))
   }
   update(context)
   return { element, update }
