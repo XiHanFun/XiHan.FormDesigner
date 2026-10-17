@@ -53,3 +53,19 @@ export const dateRangeField: FieldRenderer = (context) => {
   update(context)
   return { element, update }
 }
+
+/** 时间：`xh-time-picker`，值是 ISO 时间串，精确到分（`withSeconds` 时到秒）；UI 交回数组，取第一项，空时为 `null`。 */
+export const timeField: FieldRenderer = (context) => {
+  const element = host(context.document, 'xh-time-picker')
+  if (context.node.data.withSeconds === true)
+    assign(element, 'granularity', 'second')
+  const ref: ContextRef = { current: context }
+  on<{ value: string[] }>(element, 'value-change', detail => ref.current.setValue(detail.value[0] ?? null))
+  const update = (next: FieldRendererContext): void => {
+    ref.current = next
+    paintCommon(element, next)
+    assign(element, 'value', toList(next.value))
+  }
+  update(context)
+  return { element, update }
+}
