@@ -493,4 +493,41 @@ describe('<xh-form-designer>：规则页签', () => {
     await settle(designer)
     expect(tabs.value).toBe('properties')
   })
+
+  it('联动规则的条件与赋值用表达式输入框：输入写回规则，补全列出可引用的名字，编译问题由输入框报出', async () => {
+    const { document, name } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    designer.select({ nodes: [name.id] })
+    await settle(designer)
+    const tabs = designer.querySelector('[data-part="inspector-tabs"]') as HTMLElement & { value?: string }
+    tabs.value = 'linkage'
+    const list = designer.querySelector('[data-part="rule-list"][data-list="linkage"]')!
+    list.querySelector('xh-menu')!.dispatchEvent(new CustomEvent('select', { bubbles: true, detail: { value: 'assign' } }))
+    await settle(designer)
+    const panel = list.querySelector('xh-designer-properties[data-part="rule"]') as XhDesignerPropertiesElement
+    await panel.updateComplete
+    type ExpressionInput = HTMLElement & { completions?: (query: { source: string, caret: number, word: string, member: string | null }) => readonly { label: string, description?: string }[], updateComplete: Promise<boolean> }
+    const inputs = [...panel.querySelectorAll<ExpressionInput>('xh-expression-input')]
+    expect(inputs).toHaveLength(2)
+    const [when] = inputs as [ExpressionInput, ExpressionInput]
+    await when.updateComplete
+    const completions = when.completions!({ source: '', caret: 0, word: '', member: null })
+    expect(completions.map(item => item.label)).toEqual(['name', 'age', '$value'])
+    expect(completions.find(item => item.label === '$value')!.description).toBe(DEFAULT_FORM_DESIGNER_TRANSLATIONS.variableValue)
+    const field = when.querySelector<HTMLInputElement>('[data-part="input"]')!
+    field.value = 'name =='
+    field.setSelectionRange(7, 7)
+    field.dispatchEvent(new Event('input', { bubbles: true }))
+    const rule = (): unknown => (findNode(designer.schema, name.id)!.node as FieldNode).linkage[0]
+    expect(rule()).toEqual({ id: expect.any(String), action: 'assign', when: 'name ==' })
+    await settle(designer)
+    expect(tabs.value).toBe('linkage')
+    await panel.updateComplete
+    expect((panel.errors ?? []).filter(error => error.path[0] === 'when')).toEqual([])
+    field.dispatchEvent(new FocusEvent('blur'))
+    await when.updateComplete
+    expect(when.querySelectorAll('[data-part="issue"]').length).toBeGreaterThan(0)
+  })
 })

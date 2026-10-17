@@ -27,7 +27,7 @@ import { createExpressionEngine } from '@xihan-ui/expression'
 import { ArrowDownIcon, ArrowUpIcon, ArrowUpLeftIcon, CopyIcon, TrashIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
 import { createAuthoredElement, emitEvent, registerElement, setAttributes, setText, SVG_NS, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
-import { defineXhElement, XhButtonElement, XhContextMenuElement, XhIconElement, XhMenuElement, XhToolbarElement } from '@xihan-ui/web-components/define'
+import { defineXhElement, XhButtonElement, XhContextMenuElement, XhExpressionInputElement, XhIconElement, XhMenuElement, XhToolbarElement } from '@xihan-ui/web-components/define'
 import { DesignCanvas, spanColumns } from './canvas'
 import { readFormClipboard, writeFormClipboard } from './clipboard'
 import { menuEntries, menuLabel } from './context-menu'
@@ -211,6 +211,7 @@ export class XhFormDesigner extends XhReactiveElement {
       registry: () => this.#editor.registry,
       translations: () => this.#t(),
       readonly: () => this.readonly === true,
+      expressionEngine: () => this.#engine(),
       settled: () => this.updateComplete,
     })
     this.#editor.subscribe((change) => {
@@ -445,6 +446,8 @@ export class XhFormDesigner extends XhReactiveElement {
     ])
     inspectorTabs.value = 'properties'
     inspectorTabs.addEventListener('value-change', (event) => {
+      if (event.target !== inspectorTabs)
+        return
       event.stopPropagation()
       inspectorTabs.value = (event as CustomEvent<{ value: string }>).detail.value
     })
@@ -1287,6 +1290,7 @@ export function defineFormDesigner(): void {
   defineXhElement('xh-icon', XhIconElement)
   defineXhElement('xh-menu', XhMenuElement)
   defineXhElement('xh-context-menu', XhContextMenuElement)
+  defineXhElement('xh-expression-input', XhExpressionInputElement)
   defineDesignerShellElement('xh-designer-frame', XhDesignerFrameElement)
   defineDesignerShellElement('xh-designer-properties', XhDesignerPropertiesElement)
   defineDesignerShellElement('xh-designer-palette', XhDesignerPaletteElement)

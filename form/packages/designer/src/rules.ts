@@ -12,6 +12,7 @@ import type { JsonValue } from '@xihan-ui/core/json'
 import type { DesignerPropertyDescriptor, DesignerPropertyError, DesignerPropertyTarget } from '@xihan-ui/designer-shell'
 import type { FormRuleInit } from './editor'
 import { LINKAGE_ACTIONS } from '@xihan-form/core'
+import { EXPRESSION_CONTROL } from './expression-editor'
 import { locations } from './properties'
 
 /** 规则作为编辑对象时的种类。 */
@@ -22,6 +23,7 @@ export type FormRule = ValidationRule | LinkageRule
 const MESSAGE: DesignerPropertyDescriptor = { path: ['message'], control: { kind: 'text' } }
 const BOUND: DesignerPropertyDescriptor['control'] = { kind: 'number' }
 const LENGTH: DesignerPropertyDescriptor['control'] = { kind: 'number', integer: true, min: 0 }
+const EXPRESSION: DesignerPropertyDescriptor['control'] = { kind: EXPRESSION_CONTROL }
 
 const VALIDATION_PARAMS: Readonly<Record<ValidationKind, readonly DesignerPropertyDescriptor[]>> = {
   required: [MESSAGE],
@@ -29,7 +31,7 @@ const VALIDATION_PARAMS: Readonly<Record<ValidationKind, readonly DesignerProper
   length: [{ path: ['min'], control: LENGTH }, { path: ['max'], control: LENGTH }, MESSAGE],
   range: [{ path: ['min'], control: BOUND }, { path: ['max'], control: BOUND }, MESSAGE],
   pattern: [{ path: ['pattern'], control: { kind: 'text' }, required: true }, { path: ['flags'], control: { kind: 'text' } }, MESSAGE],
-  expression: [{ path: ['expression'], control: { kind: 'text' }, required: true }, MESSAGE],
+  expression: [{ path: ['expression'], control: EXPRESSION, required: true }, MESSAGE],
 }
 
 const LABELS: Readonly<Record<string, keyof FormDesignerTranslations>> = {
@@ -88,8 +90,8 @@ export function ruleDescriptors(node: FormNode, list: RuleList, rule: FormRule):
     return VALIDATION_PARAMS[(rule as ValidationRule).kind] ?? [MESSAGE]
   return [
     { path: ['action'], control: { kind: 'select', options: LINKAGE_ACTIONS[node.type].map(value => ({ value })) }, required: true },
-    { path: ['when'], control: { kind: 'text' } },
-    { path: ['value'], control: { kind: 'text' }, required: true, visibleWhen: { path: ['action'], equals: 'assign' } },
+    { path: ['when'], control: EXPRESSION },
+    { path: ['value'], control: EXPRESSION, required: true, visibleWhen: { path: ['action'], equals: 'assign' } },
   ]
 }
 
@@ -122,7 +124,10 @@ export function nextRule<R extends FormRule>(list: RuleList, rule: R, name: stri
   return next as R
 }
 
-/** 规则上的结构问题换成面板字段上的错误：问题落在某个参数上就用它，落在整条规则上时落到第一个参数上。 */
+/**
+ * 规则上的结构问题换成面板字段上的错误：问题落在某个参数上就用它，落在整条规则上时落到第一个参数上。
+ * 表达式参数上的编译问题不在此列，由表达式输入框自己报出。
+ */
 export function ruleErrors(
   document: FormDocument,
   node: FormNode,
@@ -146,7 +151,7 @@ export function ruleErrors(
     const rest = prefix.every((segment, at) => issue.path[at] === segment) ? issue.path.slice(prefix.length) : []
     const descriptors = ruleDescriptors(node, list, rule)
     const field = descriptors.find(descriptor => descriptor.path[0] === rest[0]) ?? descriptors[0]
-    if (field === undefined)
+    if (field === undefined || (issue.code === 'expression.invalid' && field.control.kind === EXPRESSION_CONTROL))
       continue
     const errors = out.get(rule.id) ?? []
     errors.push({ target: { kind: RULE_TARGET_KIND, id: rule.id }, path: field.path, message: message(issue) })

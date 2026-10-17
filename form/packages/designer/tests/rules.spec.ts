@@ -41,7 +41,7 @@ describe('规则列表', () => {
     expect(nextRule('linkage', linkage, 'action', 'hide')).toEqual({ id: 'l', action: 'hide', when: 'a > 1' })
   })
 
-  it('规则上的问题落到对应参数上，落在整条规则上时落到第一个参数', () => {
+  it('规则上的问题落到对应参数上，落在整条规则上时落到第一个参数；表达式的编译问题留给表达式输入框', () => {
     const { document, text } = sample()
     const next = applyOperations(document, [
       { type: 'insertRule', nodeId: text.id, list: 'validation', index: 0, rule: { id: 'v1', kind: 'length' } },
@@ -53,6 +53,7 @@ describe('规则列表', () => {
     const validation = ruleErrors(next, node, 'validation', issues, issue => issue.code)
     expect(validation.get('v1')).toEqual([{ target: { kind: 'rule', id: 'v1' }, path: ['min'], message: 'rule.boundsMissing' }])
     expect(validation.get('v2')).toEqual([{ target: { kind: 'rule', id: 'v2' }, path: ['pattern'], message: 'rule.invalidPattern' }])
-    expect(ruleErrors(next, node, 'linkage', issues, issue => issue.code).get('l1')).toEqual([{ target: { kind: 'rule', id: 'l1' }, path: ['when'], message: 'expression.invalid' }])
+    expect(issues.some(issue => issue.code === 'expression.invalid' && issue.target?.id === 'l1')).toBe(true)
+    expect(ruleErrors(next, node, 'linkage', issues, issue => issue.code).get('l1')).toBeUndefined()
   })
 })
