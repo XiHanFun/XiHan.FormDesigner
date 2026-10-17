@@ -135,8 +135,9 @@ export function expenseForm(): FormDocument {
   const channels = field('checkbox-group', 'channels', '审批结果通知', { data: { options: [{ value: 'mail', label: '邮件' }, { value: 'sms', label: '短信' }, { value: 'im', label: '即时消息' }] } })
   const tags = field('toggle-group', 'tags', '标签', { data: { multiple: true, options: [{ value: 'project', label: '项目' }, { value: 'client', label: '客户' }, { value: 'internal', label: '内部' }] } })
   const keywords = field('tags', 'keywords', '关键词', { basic: { placeholder: '输入后回车' }, data: { max: 5 } })
+  const cc = field('transfer', 'cc', '抄送人', { basic: { hint: '审批结果同时抄送给右侧的同事' }, data: { optionSource: 'colleagues' } })
   const tagColor = field('color', 'tagColor', '标签颜色', { basic: { hint: '列表里按这个颜色标出这张单据' } })
-  const extra = container('collapse', [[satisfaction, share], [channels, tags, keywords, tagColor]], {
+  const extra = container('collapse', [[satisfaction, share], [channels, cc, tags, keywords, tagColor]], {
     regionProps: [{ title: '反馈', expanded: true }, { title: '通知与标签', expanded: false }],
   })
 
@@ -185,6 +186,14 @@ const VENDORS: readonly OptionItem[] = [
   { value: 'v5', label: '深圳南山差旅服务有限公司' },
 ]
 
+const COLLEAGUES: readonly OptionItem[] = [
+  { value: 'u1', label: '王晓明（财务部）' },
+  { value: 'u2', label: '李佳（财务部）' },
+  { value: 'u3', label: '陈静（行政部）' },
+  { value: 'u4', label: '赵磊（研发部）', disabled: true },
+  { value: 'u5', label: '周婷（市场部）' },
+]
+
 const BANKS: readonly OptionItem[] = [
   { value: 'icbc', label: '工商银行' },
   { value: 'ccb', label: '建设银行' },
@@ -205,7 +214,7 @@ const CITIES: Readonly<Record<string, readonly OptionItem[]>> = {
 
 let bankAttempts = 0
 
-/** 模拟的异步选项加载：部门延迟返回，开票单位按搜索串筛，银行首次失败、重试后返回，费用科目按父节点逐级返回，城市按省份返回。 */
+/** 模拟的异步选项加载：部门与同事延迟返回，开票单位按搜索串筛，银行首次失败、重试后返回，费用科目按父节点逐级返回，城市按省份返回。 */
 export const loadOptions: OptionLoader = request => new Promise((resolve, reject) => {
   setTimeout(() => {
     if (request.source === 'departments')
@@ -216,6 +225,8 @@ export const loadOptions: OptionLoader = request => new Promise((resolve, reject
       resolve(BANKS)
     else if (request.source === 'accounts')
       resolve(ACCOUNTS[request.parent ?? ''] ?? [])
+    else if (request.source === 'colleagues')
+      resolve(COLLEAGUES)
     else if (request.source === 'vendors')
       resolve(VENDORS.filter(vendor => vendor.label.includes(request.query?.trim() ?? '')))
     else

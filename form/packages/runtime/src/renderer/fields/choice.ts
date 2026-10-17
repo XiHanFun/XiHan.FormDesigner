@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 选择类字段：下拉、组合框、树选择、单选组、多选组、按钮组、勾选框、开关。
+// 选择类字段：下拉、组合框、树选择、单选组、多选组、按钮组、穿梭框、勾选框、开关。
 // 都只建宿主元素，部件由元素按标准结构生成；有选项的写成元素的 collection。
 // 选项来自上下文的 options：静态选项或加载结果。
 
@@ -188,6 +188,23 @@ export const toggleGroupField: FieldRenderer = (context) => {
     paintCommon(element, next)
     syncCollection(itemsOf(next))
     assign(element, 'value', multiple ? toList(next.value) : (typeof next.value === 'string' ? next.value : null))
+  }
+  update(context)
+  return { element, update }
+}
+
+/** 穿梭框：`xh-transfer`，值是搬到右侧的选项值，顺序同 UI 交回的；选项是两侧共用的 collection，取数在途时两侧报在途。 */
+export const transferField: FieldRenderer = (context) => {
+  const element = host(context.document, 'xh-transfer')
+  const syncCollection = collectionSync(element)
+  const ref: ContextRef = { current: context }
+  on<{ value: string[] }>(element, 'value-change', detail => ref.current.setValue([...detail.value]))
+  const update = (next: FieldRendererContext): void => {
+    ref.current = next
+    paintCommon(element, next)
+    assign(element, 'loading', next.options?.status === 'loading' ? true : undefined)
+    syncCollection(itemsOf(next))
+    assign(element, 'value', toList(next.value))
   }
   update(context)
   return { element, update }

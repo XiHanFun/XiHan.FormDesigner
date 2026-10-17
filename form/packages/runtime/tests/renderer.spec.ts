@@ -780,10 +780,11 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['time', 'xh-time-picker', 'trigger'],
     ['color', 'xh-color-picker', 'trigger'],
     ['signature', 'xh-signature-pad', 'control'],
+    ['transfer', 'xh-transfer', 'item'],
   ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
     const { registry, ids } = setup()
     const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]
-    const node = field(registry, ids, kind, 'x', ['toggle-group', 'combobox', 'select', 'radio-group', 'checkbox-group'].includes(kind) ? { data: { options } } : {})
+    const node = field(registry, ids, kind, 'x', ['toggle-group', 'combobox', 'select', 'radio-group', 'checkbox-group', 'transfer'].includes(kind) ? { data: { options } } : {})
     const renderer = await mount((element) => {
       element.schema = documentOf([node])
     })
@@ -1002,6 +1003,49 @@ describe('<xh-form-renderer>：签名字段', () => {
     renderer.setValue(['other'], '改了别的字段')
     await element.updateComplete
     expect(element.value).toBe(shown)
+  })
+})
+
+describe('<xh-form-renderer>：穿梭框字段', () => {
+  type Transfer = HTMLElement & { collection?: unknown[], value?: string[], loading?: boolean, updateComplete: Promise<boolean> }
+
+  function transfer(renderer: XhFormRenderer): Transfer {
+    return group(renderer, ['members']).querySelector<Transfer>('xh-transfer')!
+  }
+
+  it('静态选项写成 collection，值是搬到右侧的选项值；搬动写回数组，全部搬回写回空数组', async () => {
+    const { registry, ids } = setup()
+    const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙', disabled: true }, { value: 'c', label: '丙' }]
+    const renderer = await mount((element) => {
+      element.values = { members: ['c'] }
+      element.schema = documentOf([field(registry, ids, 'transfer', 'members', { data: { options } })])
+    })
+    const element = transfer(renderer)
+    await element.updateComplete
+    expect([element.collection, element.value, element.loading]).toEqual([options, ['c'], undefined])
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value: ['c', 'a'] }, bubbles: true }))
+    expect(renderer.getFormData().members).toEqual(['c', 'a'])
+    await element.updateComplete
+    expect(element.value).toEqual(['c', 'a'])
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value: [] }, bubbles: true }))
+    expect(renderer.getFormData().members).toEqual([])
+  })
+
+  it('有选项来源时向宿主取选项，在途时两侧报 loading，取回后写成 collection', async () => {
+    const { registry, ids } = setup()
+    let release!: () => void
+    const renderer = await mount((element) => {
+      element.loadOptions = () => new Promise((resolve) => {
+        release = () => resolve([{ value: 'u1', label: '张三' }, { value: 'u2', label: '李四' }])
+      })
+      element.schema = documentOf([field(registry, ids, 'transfer', 'members', { data: { optionSource: 'users' } })])
+    })
+    const element = transfer(renderer)
+    await vi.waitFor(() => expect(element.loading).toBe(true))
+    expect(element.collection).toEqual([])
+    release()
+    await vi.waitFor(() => expect(element.collection).toEqual([{ value: 'u1', label: '张三' }, { value: 'u2', label: '李四' }]))
+    expect(element.loading).toBeUndefined()
   })
 })
 
