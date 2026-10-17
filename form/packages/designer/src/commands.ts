@@ -17,6 +17,7 @@ import { internalsOf } from './internals'
 
 /** 命令、面板与扩展装上时拿到的上下文。 */
 export interface FormDesignerContext {
+  /** 这个设计器实例。 */
   readonly designer: XhFormDesigner
   /** 此刻生效的设计器文案。 */
   readonly translations: FormDesignerTranslations

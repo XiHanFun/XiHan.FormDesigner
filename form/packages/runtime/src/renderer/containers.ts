@@ -12,14 +12,19 @@ import { assign, attr, host, make, numberOf, stringOf, text } from './dom'
 
 /** 容器的节点：宿主元素与每个区域放子节点的位置。 */
 export interface ContainerView {
+  /** 容器的宿主元素。 */
   readonly element: HTMLElement
+  /** 区域 id → 放这个区域子节点的元素。 */
   readonly slots: ReadonlyMap<string, HTMLElement>
+  /** 容器的联动状态变化时调用。 */
   readonly update: (state: NodeState) => void
 }
 
 /** 静态元素的节点。 */
 export interface StaticView {
+  /** 静态元素的宿主元素。 */
   readonly element: HTMLElement
+  /** 联动状态变化时调用。 */
   readonly update: (state: NodeState) => void
 }
 

@@ -18,6 +18,7 @@ export type FieldSize = 'sm' | 'md' | 'lg'
 export interface UploadRequest extends FileUploadRequest {
   /** 字段的 `data.uploadTarget`。 */
   readonly target: string | undefined
+  /** 字段节点的 id。 */
   readonly nodeId: string
   /** 字段实例的数据路径。 */
   readonly path: JsonPath
@@ -30,9 +31,11 @@ export type FileUploader = (request: UploadRequest) => FileUploadResult | undefi
 export interface FieldRendererContext {
   /** 渲染器所在的文档，建节点用。 */
   readonly document: Document
+  /** 字段节点。 */
   readonly node: FieldNode
   /** 字段实例的数据路径。 */
   readonly path: JsonPath
+  /** 字段当前的值。 */
   readonly value: JsonValue | undefined
   /** 联动状态与整表的只读、禁用合并后的结果。 */
   readonly state: NodeState
@@ -46,6 +49,7 @@ export interface FieldRendererContext {
   readonly reloadOptions: (() => void) | undefined
   /** 懒加载选项树里某个节点的直接子项；字段没有选项来源或宿主没给 `loadOptions` 时为 `undefined`。 */
   readonly loadChildren: ((parent: string) => Promise<readonly OptionItem[]>) | undefined
+  /** 控件尺寸：字段自己的 `appearance.size`，没写时取表单设置的 `size`。 */
   readonly size: FieldSize
   /** 渲染器当前的文案。 */
   readonly translations: FormRendererTranslations

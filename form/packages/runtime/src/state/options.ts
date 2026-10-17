@@ -11,9 +11,13 @@ import { isValidPropertyValue, propertyName } from '@xihan-form/core'
 
 /** 一个选项；树形选项可带 `children`。 */
 export interface OptionItem {
+  /** 选中后写进表单数据的值。 */
   readonly value: string
+  /** 显示的文字。 */
   readonly label: string
+  /** 禁用：显示但不能选。 */
   readonly disabled?: boolean
+  /** 子项，只有树形选项（级联、树选择）用。 */
   readonly children?: readonly OptionItem[]
   /** 选项树里有子项但还没给出：首次展开时经 `parent` 再请求一次它的直接子项。 */
   readonly hasChildren?: boolean
@@ -23,6 +27,7 @@ export interface OptionItem {
 export interface OptionRequest {
   /** 字段的 `data.optionSource`。 */
   readonly source: string
+  /** 字段节点的 id。 */
   readonly nodeId: string
   /** 字段实例的数据路径。 */
   readonly path: JsonPath
@@ -39,7 +44,9 @@ export type OptionLoader = (request: OptionRequest) => readonly OptionItem[] | P
 
 /** 一个字段实例的选项状态。 */
 export interface OptionsState {
+  /** 加载状态：没加载过、加载中、已就绪、失败。静态选项总是 `ready`。 */
   readonly status: 'idle' | 'loading' | 'ready' | 'error'
+  /** 当前的选项；加载中时是上一次的结果，失败时为空。 */
   readonly items: readonly OptionItem[]
 }
 

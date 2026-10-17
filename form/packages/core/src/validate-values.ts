@@ -19,7 +19,9 @@ import { instanceKey } from './linkage'
 
 /** 值校验的问题：在表单问题之上带着实例路径与规则里作者写的提示。 */
 export interface ValueIssue extends FormIssue {
+  /** 出问题的值在表单数据里的路径，列表里的字段带行号。 */
   readonly path: readonly (string | number)[]
+  /** 规则里作者写的提示；没写时不带，由界面按问题码给出文案。 */
   readonly message?: string
 }
 

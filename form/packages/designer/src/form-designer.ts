@@ -59,14 +59,23 @@ export type FormDesignerPanel = 'toolbar' | 'palette' | 'properties' | 'issues'
 
 /** 设计器派发的事件。 */
 export interface FormDesignerEventMap {
+  /** 模板变了：执行操作、撤销、重做或换了 `schema`；`schema` 是变化后的模板，`operations` 是这一步实际应用的操作。 */
   'schema-change': CustomEvent<{ schema: FormDocument, operations: readonly FormOperation[], kind: FormSchemaChangeKind }>
+  /** 选择变了。 */
   'selection-change': CustomEvent<FormSelection>
+  /** 有没有未保存修改的状态变了。 */
   'dirty-change': CustomEvent<{ dirty: boolean }>
+  /** 模板问题变了；`issues` 是当前全部问题。 */
   'issues-change': CustomEvent<{ issues: readonly FormSchemaIssue[] }>
+  /** 用户要保存：按了 Ctrl / ⌘ + S 或点了保存命令。保存由宿主做，存好后调用 `markSaved()`。 */
   'save': CustomEvent<Record<string, never>>
+  /** 双击了画布上的节点。 */
   'node-dblclick': CustomEvent<{ id: string }>
+  /** 要在节点上打开右键菜单，`x`、`y` 是视口坐标；可取消，取消后不打开内建菜单。 */
   'node-contextmenu': CustomEvent<{ id: string, x: number, y: number }>
+  /** 要在画布空白处打开右键菜单；可取消，取消后不打开内建菜单。 */
   'blank-contextmenu': CustomEvent<{ x: number, y: number }>
+  /** 在设计态与预览态之间切换了。 */
   'mode-change': CustomEvent<{ mode: FormDesignerMode }>
 }
 
@@ -126,6 +135,10 @@ function sameIssues(a: readonly FormSchemaIssue[], b: readonly FormSchemaIssue[]
   return a.length === b.length && JSON.stringify(a) === JSON.stringify(b)
 }
 
+/**
+ * `<xh-form-designer>`：可视化编辑表单模板，物料、画布、属性与问题列表都在里面；
+ * 模板的保存与权限交给宿主，经 `schema-change`、`save` 事件与 `markSaved()` 往来。
+ */
 export class XhFormDesigner extends XhReactiveElement {
   static override properties = {
     expressionEngine: { attribute: false },
@@ -296,10 +309,12 @@ export class XhFormDesigner extends XhReactiveElement {
     this.requestUpdate('extensions', old)
   }
 
+  /** 有可撤销的修改。 */
   get canUndo(): boolean {
     return this.#editor.history.canUndo
   }
 
+  /** 有可重做的修改。 */
   get canRedo(): boolean {
     return this.#editor.history.canRedo
   }
@@ -309,6 +324,7 @@ export class XhFormDesigner extends XhReactiveElement {
     return this.#clipboard !== undefined
   }
 
+  /** 有没保存的修改：上次 `markSaved` 之后改过。 */
   get dirty(): boolean {
     return this.#editor.history.dirty
   }
@@ -393,14 +409,17 @@ export class XhFormDesigner extends XhReactiveElement {
     return this.#editor.execute(operations, options)
   }
 
+  /** 撤销一步；没有可撤销的时返回 false。 */
   undo(): boolean {
     return this.#editor.undo()
   }
 
+  /** 重做一步；没有可重做的时返回 false。 */
   redo(): boolean {
     return this.#editor.redo()
   }
 
+  /** 把当前模板记为已保存：`dirty` 变为 false，并派发 `dirty-change`。 */
   markSaved(): void {
     this.#editor.markSaved()
     this.#syncDirty()
@@ -413,18 +432,22 @@ export class XhFormDesigner extends XhReactiveElement {
     return this.#editor.addNode(kind, target)
   }
 
+  /** 选中节点或区域：给了非空的 regions 就选区域，否则选 nodes。 */
   select(selection: Partial<FormSelection>): void {
     this.#editor.select(selection)
   }
 
+  /** 当前的选择。 */
   getSelection(): FormSelection {
     return this.#editor.selection
   }
 
+  /** 删除选中的节点或区域；只读或什么都没删时返回 false。 */
   deleteSelection(): boolean {
     return this.readonly !== true && this.#editor.deleteSelection()
   }
 
+  /** 复制选中的节点，放进这个设计器的剪贴板并返回；没有选中时返回 undefined。 */
   copy(): FormClipboard | undefined {
     const copied = this.#editor.copy()
     if (copied !== undefined)
@@ -432,6 +455,7 @@ export class XhFormDesigner extends XhReactiveElement {
     return copied
   }
 
+  /** 复制并删除选中的节点；只读或没有选中时返回 undefined。 */
   cut(): FormClipboard | undefined {
     if (this.readonly === true)
       return undefined
@@ -448,6 +472,7 @@ export class XhFormDesigner extends XhReactiveElement {
     return this.#editor.paste(clipboard ?? this.#clipboard)
   }
 
+  /** 复制选中节点并紧跟在原节点之后粘贴，不改动剪贴板；返回新的选择。 */
   duplicate(): FormSelection {
     if (this.readonly === true)
       return { nodes: [] }

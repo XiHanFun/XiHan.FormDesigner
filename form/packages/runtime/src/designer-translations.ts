@@ -11,36 +11,63 @@ import type { FormSchemaIssue } from '@xihan-form/core'
 export interface FormDesignerTranslations {
   /** 设计器的可访问名。 */
   readonly label: string
+  /** 工具栏的可访问名。 */
   readonly toolbar: string
+  /** 画布的可访问名。 */
   readonly canvas: string
+  /** 物料面板的标题。 */
   readonly palette: string
+  /** 属性面板的标题。 */
   readonly properties: string
+  /** 问题列表的标题。 */
   readonly issues: string
+  /** 撤销命令。 */
   readonly undo: string
+  /** 重做命令。 */
   readonly redo: string
+  /** 剪切命令。 */
   readonly cut: string
+  /** 复制命令。 */
   readonly copy: string
+  /** 粘贴命令。 */
   readonly paste: string
+  /** 再制命令：复制并紧跟着粘贴。 */
   readonly duplicate: string
+  /** 删除命令。 */
   readonly delete: string
+  /** 选中上一级命令。 */
   readonly selectParent: string
+  /** 上移命令。 */
   readonly moveUp: string
+  /** 下移命令。 */
   readonly moveDown: string
+  /** 全选命令。 */
   readonly selectAll: string
+  /** 保存命令。 */
   readonly save: string
+  /** 清空命令。 */
   readonly clear: string
+  /** 切到设计态。 */
   readonly design: string
+  /** 切到预览态。 */
   readonly preview: string
+  /** 预览宽度这组按钮的可访问名。 */
   readonly previewWidth: string
+  /** 全宽。 */
   readonly widthFull: string
+  /** 平板宽度。 */
   readonly widthTablet: string
+  /** 手机宽度。 */
   readonly widthPhone: string
-  /** 属性区的三个页签。 */
+  /** 属性区的「属性」页签。 */
   readonly propertiesTab: string
+  /** 属性区的「校验」页签。 */
   readonly validationTab: string
+  /** 属性区的「联动」页签。 */
   readonly linkageTab: string
-  /** 画布与区域为空时的提示。 */
+  /** 画布为空时的提示。 */
   readonly emptyCanvas: string
+  /** 区域为空时的提示。 */
   readonly emptyRegion: string
   /** 什么都没选时属性区的标题。 */
   readonly settings: string
@@ -60,33 +87,55 @@ export interface FormDesignerTranslations {
   readonly ruleKind: (kind: string) => string
   /** 联动动作名。 */
   readonly linkageAction: (action: string) => string
+  /** 新增规则的按钮。 */
   readonly addRule: string
+  /** 删除规则的按钮。 */
   readonly removeRule: string
+  /** 规则的「提示」输入框。 */
   readonly ruleMessage: string
+  /** 联动规则的「条件」输入框。 */
   readonly ruleWhen: string
+  /** 联动赋值的「取值」输入框。 */
   readonly ruleValue: string
+  /** 规则的「最小值」输入框。 */
   readonly ruleMin: string
+  /** 规则的「最大值」输入框。 */
   readonly ruleMax: string
+  /** 正则规则的「正则」输入框。 */
   readonly rulePattern: string
+  /** 正则规则的「标志」输入框。 */
   readonly ruleFlags: string
+  /** 表达式规则的「表达式」输入框。 */
   readonly ruleExpression: string
+  /** 联动规则的「动作」选择框。 */
   readonly ruleAction: string
+  /** 还没有规则时的提示。 */
   readonly noRules: string
-  /** 表达式补全里运行时变量的说明：`$value`、`$row`、`$index`。 */
+  /** 表达式补全里运行时变量 `$value` 的说明。 */
   readonly variableValue: string
+  /** 表达式补全里运行时变量 `$row` 的说明。 */
   readonly variableRow: string
+  /** 表达式补全里运行时变量 `$index` 的说明。 */
   readonly variableIndex: string
-  /** 表格布局的右键菜单。 */
+  /** 表格布局右键菜单：合并单元格。 */
   readonly mergeCells: string
+  /** 表格布局右键菜单：拆分单元格。 */
   readonly splitCell: string
+  /** 表格布局右键菜单：在上方插入行。 */
   readonly insertRowAbove: string
+  /** 表格布局右键菜单：在下方插入行。 */
   readonly insertRowBelow: string
+  /** 表格布局右键菜单：在左侧插入列。 */
   readonly insertColumnLeft: string
+  /** 表格布局右键菜单：在右侧插入列。 */
   readonly insertColumnRight: string
+  /** 表格布局右键菜单：删除行。 */
   readonly removeRow: string
+  /** 表格布局右键菜单：删除列。 */
   readonly removeColumn: string
-  /** 问题列表的来源小标签。 */
+  /** 问题列表里结构问题的来源小标签。 */
   readonly sourceStructure: string
+  /** 问题列表里数据绑定问题的来源小标签。 */
   readonly sourceBinding: string
   /** 数据键不在宿主数据模型里。 */
   readonly unboundKey: (key: string) => string
