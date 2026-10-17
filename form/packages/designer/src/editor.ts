@@ -115,6 +115,8 @@ export interface FormEditor {
   readonly canDrop: (nodeIds: readonly string[], target: FormDropTarget) => boolean
   /** 种类能否新建到目标位置；种类未登记时为 false。 */
   readonly canAdd: (kind: string, target: FormDropTarget) => boolean
+  /** 一段剪贴板内容能否粘贴到目标位置：非空、目标区域收这些节点、种类都已登记。 */
+  readonly canPasteAt: (clipboard: FormClipboard, target: FormDropTarget) => boolean
   /** 按种类新建节点并选中它；目标缺省为选中节点之后，没有选中时为顶层末尾。种类未登记时抛错；目标不收时返回 undefined。 */
   readonly addNode: (kind: string, target?: FormDropTarget, options?: ExecuteOptions) => FormNode | undefined
   /** 移动一组节点到目标位置，保持它们在文档里的先后；放不下时返回 false。 */
@@ -278,6 +280,11 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
     return definition !== undefined && accepts !== undefined && fits(definition.type, accepts)
   }
 
+  const canPasteAt = (content: FormClipboard, target: FormDropTarget): boolean => {
+    const accepts = acceptsAt(target.parent)
+    return accepts !== undefined && content.nodes.length > 0 && content.nodes.every(node => fits(node.type, accepts) && registry.get(node.kind) !== undefined)
+  }
+
   /** 插入位置：缺省为末尾，夹在 0 与子节点个数之间。 */
   const insertIndex = (target: FormDropTarget): number => {
     const length = childrenAt(target.parent)?.length ?? 0
@@ -410,11 +417,8 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
 
   const paste = (content?: FormClipboard, target?: FormDropTarget, executeOptions?: ExecuteOptions): FormSelection => {
     const source = content ?? clipboard
-    if (source === undefined || source.nodes.length === 0)
-      return EMPTY_SELECTION
     const at = target ?? defaultTarget()
-    const accepts = acceptsAt(at.parent)
-    if (accepts === undefined || !source.nodes.every(node => fits(node.type, accepts) && registry.get(node.kind) !== undefined))
+    if (source === undefined || !canPasteAt(source, at))
       return EMPTY_SELECTION
     const nodes = cloneNodesForInsert(history.document, at.parent, source.nodes, allocator())
     insertNodes(nodes, at, executeOptions)
@@ -461,6 +465,7 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
     clearSelection: () => setSelection(EMPTY_SELECTION),
     canDrop,
     canAdd,
+    canPasteAt,
     addNode,
     moveNodes,
     deleteSelection,

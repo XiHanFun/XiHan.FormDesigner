@@ -2,7 +2,7 @@ import type { FieldNode, FormCoreExtension, FormDocument } from '@xihan-form/cor
 import { BUILTIN_FIELDS, createDocument, createFormModel, createNode } from '@xihan-form/core'
 import { CLIPBOARD_FORMAT, createIdAllocator, encodeClipboard } from '@xihan-ui/designer-kit'
 import { describe, expect, it } from 'vitest'
-import { createFormEditor, decodeFormClipboard, encodeFormClipboard, readFormClipboard, writeFormClipboard } from '../src'
+import { checkFormClipboard, createFormEditor, decodeFormClipboard, encodeFormClipboard, readFormClipboard, writeFormClipboard } from '../src'
 
 const registry = createFormModel().registry
 
@@ -44,6 +44,14 @@ describe('表单剪贴板', () => {
     expect(decodeFormClipboard(encodeFormClipboard({ nodes: [name, name] }))).toBeUndefined()
     expect(decodeFormClipboard(encodeFormClipboard({ nodes: [] }))).toBeUndefined()
     expect(decodeFormClipboard('not json')).toBeUndefined()
+  })
+
+  it('拖来的片段原样认得；不是对象、没有节点、结构不合法时不认', () => {
+    const { name, twin } = sample()
+    expect(checkFormClipboard({ nodes: [name, twin] })).toEqual({ nodes: [name, twin] })
+    expect(checkFormClipboard(null)).toBeUndefined()
+    expect(checkFormClipboard({ nodes: [] })).toBeUndefined()
+    expect(checkFormClipboard({ nodes: [{ id: 'x' }] })).toBeUndefined()
   })
 
   it('写进剪贴板事件的两种类型，读的时候先取表单自己的类型；读出的内容能直接粘贴', () => {

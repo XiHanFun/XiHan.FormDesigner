@@ -13,6 +13,7 @@ import { formZhCN } from '@xihan-form/runtime/locale'
 import { mergeXhConfig, setXhConfig } from '@xihan-ui/web-components'
 import { defineXhElements } from '@xihan-ui/web-components/define'
 import { zhCN } from '@xihan-ui/web-components/locale'
+import { fragmentLibrary } from './fragments'
 import { expenseForm, loadOptions, uploadFile } from './sample'
 import '@xihan-ui/styles/index.css'
 import '@xihan-ui/designer-shell/style.css'
@@ -108,4 +109,5 @@ onDesigner('mode-change', event => writeDesigner(`mode-change ${event.detail.mod
 onDesigner('save', () => writeDesigner('save'))
 
 designer.loadOptions = loadOptions
+designer.extensions = [fragmentLibrary]
 designer.schema = expenseForm()

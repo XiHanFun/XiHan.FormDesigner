@@ -1,7 +1,7 @@
 import { createFormModel } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { describe, expect, it } from 'vitest'
-import { dragSubject, paletteGroups, paletteKind } from '../src/palette'
+import { dragSubject, paletteGroups, paletteKind, paletteSubject } from '../src/palette'
 
 const registry = createFormModel().registry
 const t = DEFAULT_FORM_DESIGNER_TRANSLATIONS
@@ -25,6 +25,13 @@ describe('dragSubject', () => {
     expect(dragSubject({ source: 'palette', id: 'text', payload: { kind: 'text' } }, owner)).toEqual({ kind: 'text' })
     expect(dragSubject({ source: 'palette', id: 'shape', payload: { shape: 'rect' } }, owner)).toBeUndefined()
     expect(dragSubject(null, owner)).toBeUndefined()
+  })
+
+  it('物料与 form-clipboard 拖来的片段交出未经检查的内容', () => {
+    const clipboard = { nodes: [] }
+    expect(paletteSubject({ clipboard })).toEqual({ clipboard })
+    expect(dragSubject({ source: 'palette', id: 'contact', payload: { clipboard } }, owner)).toEqual({ clipboard })
+    expect(dragSubject({ source: 'form-clipboard', clipboard }, owner)).toEqual({ clipboard })
   })
 
   it('画布上的节点只在同一个设计器里认', () => {
