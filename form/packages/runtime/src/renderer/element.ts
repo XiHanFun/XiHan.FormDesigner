@@ -7,32 +7,32 @@
 // 外层用 UI 的 <xh-form> 承担提交、错误摘要、落焦与整表的禁用、只读，它的 values 与 errors 由控制器驱动；
 // 每个字段用 <xh-field> 包住控件，给出标签、提示与错误文案。
 
-import type { ContainerNode, FieldNode, FormDocument, FormNode, FormSchemaIssue, KindRegistry, NodeState, StaticNode, ValueIssue } from '@xihan-form/core'
+import type { ContainerNode, FieldNode, FormDocument, FormNode, FormSchemaIssue, NodeState, StaticNode, ValueIssue } from '@xihan-form/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { FormArrayMutation } from '@xihan-ui/headless'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
+import type { FormRuntimeExtension, FormRuntimeModel } from '../extensions'
 import type { FormController, FormEvent, GetFormDataOptions, LinkageIssue, SetFormDataOptions, ValidationOutcome } from '../state/controller'
 import type { FormRuntimeErrorCode } from '../state/errors'
 import type { OptionLoader } from '../state/options'
 import type { FormRendererTranslations } from '../translations'
 import type { FieldShell } from './field-shell'
 import type { ListRow, ListShell } from './list'
-import type { FieldRenderer, FieldRendererContext, FieldRendererInstance, FieldSize, FileUploader } from './types'
-import { createBuiltinKindRegistry, instanceKey } from '@xihan-form/core'
+import type { FieldRendererContext, FieldRendererInstance, FieldSize, FileUploader } from './types'
+import { instanceKey } from '@xihan-form/core'
 import { isJsonPathPrefix, jsonEquals } from '@xihan-ui/core/json'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { createFormPathRecord, focusFormField } from '@xihan-ui/headless'
 import { emitEvent, registerElement, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
+import { createFormRuntimeModel } from '../extensions'
 import { createFormController } from '../state/controller'
 import { FormRuntimeError } from '../state/errors'
 import { optionsDescriptor, optionSourceOf } from '../state/options'
 import { isListContainer } from '../state/paths'
 import { DEFAULT_FORM_RENDERER_TRANSLATIONS } from '../translations'
-import { CONTAINER_BUILDERS, STATIC_BUILDERS } from './containers'
 import { make, stringOf, text } from './dom'
 import { createFieldShell } from './field-shell'
-import { FORM_FIELD_RENDERERS } from './fields'
 import { createListRow, createListShell } from './list'
 import { issueMessage } from './messages'
 import { defineRendererElements } from './ui-elements'
@@ -59,7 +59,9 @@ export interface FormRendererEventMap {
 }
 
 /** 改了就要重建控制器的属性。 */
-const REBUILD = new Set<PropertyKey>(['schema', 'registry', 'expressionEngine', 'loadOptions', 'fieldRenderers'])
+const REBUILD = new Set<PropertyKey>(['schema', 'extensions', 'expressionEngine', 'loadOptions'])
+
+const NO_EXTENSIONS: readonly FormRuntimeExtension[] = Object.freeze([])
 
 /** 内部 UI 元素冒出的事件，在 <xh-form> 上截住，不越过渲染器。 */
 const INTERNAL_EVENTS = [
@@ -166,7 +168,6 @@ function related(a: JsonPath, b: JsonPath): boolean {
 export class XhFormRenderer extends XhReactiveElement {
   static override properties = {
     schema: { attribute: false },
-    registry: { attribute: false },
     expressionEngine: { attribute: false },
     values: { attribute: false },
     variables: { attribute: false },
@@ -176,14 +177,11 @@ export class XhFormRenderer extends XhReactiveElement {
     disabled: { type: Boolean },
     validateOn: { attribute: 'validate-on' },
     submitAction: { attribute: false },
-    fieldRenderers: { attribute: false },
     translations: { attribute: false },
   }
 
   /** 表单模板。 */
   declare schema: FormDocument | undefined
-  /** 种类登记表，缺省为内置种类。 */
-  declare registry: KindRegistry | undefined
   /** 表达式引擎，缺省为 @xihan-ui/expression 的 createExpressionEngine()。 */
   declare expressionEngine: ExpressionEngine | undefined
   /** 初始数据兼 reset 与 isDirty 的基准；控制器建好后再赋值等于 setFormData(values, { baseline: true })，与当前值相同时不动。 */
@@ -202,8 +200,6 @@ export class XhFormRenderer extends XhReactiveElement {
   declare validateOn: FormValidateOn | undefined
   /** 提交通过校验后调用的异步动作。 */
   declare submitAction: FormSubmitAction | undefined
-  /** 按种类覆盖或新增字段渲染器，压在内置表之上。 */
-  declare fieldRenderers: Readonly<Record<string, FieldRenderer>> | undefined
   /** 元素自己的文案，压在全局配置之上。 */
   declare translations: Partial<FormRendererTranslations> | undefined
 
@@ -211,7 +207,8 @@ export class XhFormRenderer extends XhReactiveElement {
   #controller: FormController | null = null
   #unsubscribe: (() => void) | undefined
   #defaultEngine: ExpressionEngine | undefined
-  #builtinRegistry: KindRegistry | undefined
+  #extensions: readonly FormRuntimeExtension[] | undefined
+  #model: FormRuntimeModel = createFormRuntimeModel(NO_EXTENSIONS)
   #rebuild = true
   #valuesDirty = false
   #variablesDirty = false
@@ -242,6 +239,24 @@ export class XhFormRenderer extends XhReactiveElement {
     this.#sync()
     this.#applyFormState()
     this.#refreshAll()
+  }
+
+  /**
+   * 扩展：种类、渲染、编辑方式与规则都从这里来，内置扩展自动排在最前；与设计器、validateDocument 的 extensions 是同一份。
+   * 赋值时当场合并查重，冲突抛 DesignerExtensionError、什么都不变；换了就重建控制器。同一个扩展对象换了引用也算换了，宿主要保持引用稳定。
+   */
+  get extensions(): readonly FormRuntimeExtension[] | undefined {
+    return this.#extensions
+  }
+
+  set extensions(value: readonly FormRuntimeExtension[] | undefined) {
+    if (value === this.#extensions)
+      return
+    const model = createFormRuntimeModel(value ?? NO_EXTENSIONS)
+    const old = this.#extensions
+    this.#extensions = value
+    this.#model = model
+    this.requestUpdate('extensions', old)
   }
 
   /** 当前的表单控制器；没给模板或模板无效时为 `null`。模板等属性一变就换一个新的，见 `ready` 事件。 */
@@ -366,7 +381,7 @@ export class XhFormRenderer extends XhReactiveElement {
     try {
       controller = createFormController({
         document,
-        registry: this.registry,
+        extensions: this.#extensions,
         expressionEngine: this.expressionEngine ?? (this.#defaultEngine ??= createExpressionEngine()),
         variables: this.variables ?? {},
         values: this.values,
@@ -431,7 +446,7 @@ export class XhFormRenderer extends XhReactiveElement {
         continue
       }
       if (node.type === 'static') {
-        const build = STATIC_BUILDERS[node.kind]
+        const build = this.#model.staticRenderers.get(node.kind)
         if (build === undefined)
           throw new FormRuntimeError('XH_FORM_RT_NO_RENDERER', { kind: node.kind })
         const view = build(doc, node as StaticNode)
@@ -445,7 +460,7 @@ export class XhFormRenderer extends XhReactiveElement {
         parent.append(this.#renderList(node, scope, key, into))
         continue
       }
-      const build = CONTAINER_BUILDERS[node.kind]
+      const build = this.#model.containerRenderers.get(node.kind)
       if (build === undefined)
         throw new FormRuntimeError('XH_FORM_RT_NO_RENDERER', { kind: node.kind })
       const view = build(doc, node as ContainerNode)
@@ -477,8 +492,7 @@ export class XhFormRenderer extends XhReactiveElement {
   }
 
   #renderField(node: FieldNode, path: JsonPath, key: string, into: Owned | undefined, labelHidden: boolean): HTMLElement {
-    const renderer = (this.fieldRenderers && Object.hasOwn(this.fieldRenderers, node.kind) ? this.fieldRenderers[node.kind] : undefined)
-      ?? (Object.hasOwn(FORM_FIELD_RENDERERS, node.kind) ? FORM_FIELD_RENDERERS[node.kind] : undefined)
+    const renderer = this.#model.fieldRenderers.get(node.kind)
     if (renderer === undefined)
       throw new FormRuntimeError('XH_FORM_RT_NO_RENDERER', { kind: node.kind })
     const { group, summary } = this.#group(path)
@@ -634,7 +648,7 @@ export class XhFormRenderer extends XhReactiveElement {
     const formReadOnly = this.readonly === true || this.schema?.settings.readOnly === true
     const issue = controller.getIssues().find(item => jsonEquals(item.path as JsonValue, path as JsonValue))
     const t = this.#t()
-    const registry = this.registry ?? (this.#builtinRegistry ??= createBuiltinKindRegistry())
+    const registry = this.#model.registry
     return {
       document: this.ownerDocument,
       node,

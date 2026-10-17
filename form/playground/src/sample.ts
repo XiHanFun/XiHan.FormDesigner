@@ -7,10 +7,10 @@
 
 import type { ContainerNode, FieldNode, FormDocument, FormNode, LinkageRule, PropertyBag, StaticNode, ValidationRule } from '@xihan-form/core'
 import type { FileUploader, OptionItem, OptionLoader } from '@xihan-form/runtime'
-import { createBuiltinKindRegistry, createDocument, createNode } from '@xihan-form/core'
+import { createDocument, createFormModel, createNode } from '@xihan-form/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 
-const registry = createBuiltinKindRegistry()
+const registry = createFormModel().registry
 const ids = createIdAllocator('n')
 
 type WithoutId<T> = T extends unknown ? Omit<T, 'id'> : never

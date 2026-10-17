@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { FieldNode } from '@xihan-form/core'
-import { createBuiltinKindRegistry, createNode } from '@xihan-form/core'
+import { createFormModel, createNode } from '@xihan-form/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { describe, expect, it } from 'vitest'
 import { CONTAINER_BUILDERS, createFieldShell, issueMessage, STATIC_BUILDERS } from '../src/design'
@@ -9,7 +9,7 @@ import { DEFAULT_FORM_RENDERER_TRANSLATIONS } from '../src/translations'
 
 describe('设计态出口', () => {
   it('字段外壳包住控件，标题与提示取节点', () => {
-    const registry = createBuiltinKindRegistry()
+    const registry = createFormModel().registry
     const node = createNode(registry, 'text', createIdAllocator('d'), { key: 'name' }) as FieldNode
     const labelled = { ...node, basic: { ...node.basic, label: '姓名', hint: '与证件一致' } }
     const control = document.createElement('input')

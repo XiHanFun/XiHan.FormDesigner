@@ -56,8 +56,8 @@ function keyOf(node: FormNode): string | undefined {
   return node.type === 'static' ? undefined : node.key
 }
 
-/** 把当前选择换成面板的编辑对象：选中节点时按节点，选中区域时按区域，什么都没选时是表单设置。 */
-export function propertyView(document: FormDocument, registry: KindRegistry, selection: FormSelection): PropertyView {
+/** 把当前选择换成面板的编辑对象：选中节点时按节点，选中区域时按区域，什么都没选时是表单设置（`settings` 是它的属性，缺省为内置的那些）。 */
+export function propertyView(document: FormDocument, registry: KindRegistry, selection: FormSelection, settings: readonly FormPropertyDescriptor[] = FORM_SETTING_PROPERTIES): PropertyView {
   const names = new Map<DesignerPropertyDescriptor, PropertyName>()
   const regions = selection.regions ?? []
   if (regions.length > 0) {
@@ -98,7 +98,7 @@ export function propertyView(document: FormDocument, registry: KindRegistry, sel
     })
     return { scope: 'nodes', targets, node: single ? { kind: nodes[0]!.kind, key: keyOf(nodes[0]!) } : undefined, names }
   }
-  const descriptors = FORM_SETTING_PROPERTIES.map(descriptor => ({ ...descriptor }))
+  const descriptors = settings.map(descriptor => ({ ...descriptor }))
   descriptors.forEach(descriptor => names.set(descriptor, { kind: '', group: 'settings', name: propertyName(descriptor) }))
   return { scope: 'settings', targets: [{ kind: SETTINGS_TARGET_KIND, id: SETTINGS_TARGET_KIND, value: document.settings, descriptors }], names }
 }

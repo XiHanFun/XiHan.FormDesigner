@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { XhFormDesigner } from '../src'
-import { createBuiltinKindRegistry, createDocument, createNode } from '@xihan-form/core'
+import { createDocument, createFormModel, createNode } from '@xihan-form/core'
 import { FORM_FIELD_RENDERERS } from '@xihan-form/runtime'
 import { CONTAINER_BUILDERS, STATIC_BUILDERS } from '@xihan-form/runtime/design'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
@@ -32,7 +32,7 @@ async function settle(designer: XhFormDesigner): Promise<void> {
 }
 
 it('只调 defineFormDesigner，画布、工具栏、右键菜单、规则页签、零件与预览用到的元素都已注册', async () => {
-  const registry = createBuiltinKindRegistry()
+  const registry = createFormModel().registry
   const ids = createIdAllocator('d')
   const children = registry.list()
     .filter(definition => Object.hasOwn(definition.type === 'field' ? FORM_FIELD_RENDERERS : definition.type === 'container' ? CONTAINER_BUILDERS : STATIC_BUILDERS, definition.kind) || (definition.type === 'container' && definition.scope === 'list'))

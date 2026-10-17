@@ -26,6 +26,8 @@ export interface FormDesignerTranslations {
   readonly selectParent: string
   readonly moveUp: string
   readonly moveDown: string
+  readonly selectAll: string
+  readonly save: string
   readonly clear: string
   readonly design: string
   readonly preview: string
@@ -88,7 +90,7 @@ export interface FormDesignerTranslations {
   readonly sourceBinding: string
   /** 数据键不在宿主数据模型里。 */
   readonly unboundKey: (key: string) => string
-  /** 模板结构问题的说明，按问题码与参数。 */
+  /** 模板结构问题的说明，按问题码与参数；扩展给出的问题码先取扩展的 issueText，都没有时显示问题码本身。 */
   readonly issue: (issue: FormSchemaIssue) => string
 }
 
@@ -162,6 +164,8 @@ function englishIssue(issue: FormSchemaIssue): string {
       return `No field named ${param(issue, 'key')} to depend on`
     case 'field.selfDependency':
       return 'A field cannot depend on itself'
+    default:
+      return issue.code
   }
 }
 
@@ -183,6 +187,8 @@ export const DEFAULT_FORM_DESIGNER_TRANSLATIONS: FormDesignerTranslations = Obje
   selectParent: 'Select parent',
   moveUp: 'Move up',
   moveDown: 'Move down',
+  selectAll: 'Select all',
+  save: 'Save',
   clear: 'Clear',
   design: 'Design',
   preview: 'Preview',

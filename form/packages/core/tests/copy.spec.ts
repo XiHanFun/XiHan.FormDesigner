@@ -39,7 +39,7 @@ describe('区域的数据作用域', () => {
 
 describe('复制节点以便插入', () => {
   it('id 全部换新，插回原文档不冲突，结构校验通过', () => {
-    const { registry, document, name, card } = sample()
+    const { document, name, card } = sample()
     const ids = createIdAllocator('c', collectDocumentIds(document))
     const [copy, copyCard] = cloneNodesForInsert(document, null, [name, card], ids) as [FieldNode, FormNode]
     expect(copy.id).not.toBe(name.id)
@@ -49,7 +49,7 @@ describe('复制节点以便插入', () => {
     expect(fresh.some(id => collectDocumentIds(document).has(id))).toBe(false)
     let next = applyOperation(document, { type: 'insertNode', parent: null, index: 3, node: copy }).document
     next = applyOperation(next, { type: 'insertNode', parent: null, index: 4, node: copyCard }).document
-    expect(validateDocument(next, registry)).toEqual([])
+    expect(validateDocument(next)).toEqual([])
   })
 
   it('与目标作用域已有的键冲突时改为派生键，列表容器内部的键原样保留', () => {

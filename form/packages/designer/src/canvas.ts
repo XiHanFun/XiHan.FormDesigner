@@ -7,18 +7,17 @@
 // 容器与静态元素用渲染器的部件树；每个节点一块可选中的外框，容器的每个区域是一块放置区。
 
 import type { ContainerNode, FieldNode, FormDocument, FormNode, KindRegistry, StaticNode } from '@xihan-form/core'
-import type { FieldRenderer, FieldRendererContext, FieldRendererInstance, FieldSize, FormDesignerTranslations, FormRendererTranslations, OptionItem } from '@xihan-form/runtime'
+import type { FieldRendererContext, FieldRendererInstance, FieldSize, FormDesignerTranslations, FormRendererTranslations, FormRuntimeModel, OptionItem } from '@xihan-form/runtime'
 import type { FormDropTarget, FormSelection } from './editor'
-import { isValueOfKind } from '@xihan-form/core'
-import { FORM_FIELD_RENDERERS } from '@xihan-form/runtime'
-import { CONTAINER_BUILDERS, createFieldShell, STATIC_BUILDERS } from '@xihan-form/runtime/design'
+import { isValueOfKind, numberControl } from '@xihan-form/core'
+import { createFieldShell } from '@xihan-form/runtime/design'
 import { createAuthoredElement, setAttributes, setText } from '@xihan-ui/web-components/authoring'
 
 /** 画布需要设计器提供的能力与配置。 */
 export interface CanvasHost {
   readonly ownerDocument: Document
-  readonly registry: () => KindRegistry
-  readonly fieldRenderers: () => Readonly<Record<string, FieldRenderer>> | undefined
+  /** 按扩展合出的运行时模型：种类与各种类的渲染。 */
+  readonly model: () => FormRuntimeModel
   readonly translations: () => FormDesignerTranslations
   readonly rendererTranslations: () => FormRendererTranslations
 }
@@ -46,7 +45,7 @@ const DESIGN_STATE = { hidden: false, disabled: false, readOnly: false } as cons
 export function spanColumns(registry: KindRegistry, kind: string): number | undefined {
   const definition = registry.get(kind)
   const span = definition?.type === 'container' ? definition.regionProperties.find(descriptor => descriptor.path.length === 1 && descriptor.path[0] === 'span') : undefined
-  return span?.control.kind === 'number' ? span.control.max ?? undefined : undefined
+  return span === undefined ? undefined : numberControl(span.control)?.max
 }
 
 /** 容器外框上下边缘多宽以内算放在容器前后，像素。 */
@@ -201,9 +200,7 @@ export class DesignCanvas {
 
   #field(node: FieldNode): HTMLElement {
     const doc = this.#host.ownerDocument
-    const custom = this.#host.fieldRenderers()
-    const renderer = (custom && Object.hasOwn(custom, node.kind) ? custom[node.kind] : undefined)
-      ?? (Object.hasOwn(FORM_FIELD_RENDERERS, node.kind) ? FORM_FIELD_RENDERERS[node.kind] : undefined)
+    const renderer = this.#host.model().fieldRenderers.get(node.kind)
     if (renderer === undefined)
       return this.#placeholder(node.kind)
     const instance = renderer(this.#context(node))
@@ -215,7 +212,7 @@ export class DesignCanvas {
   }
 
   #context(node: FieldNode): FieldRendererContext {
-    const definition = this.#host.registry().get(node.kind)
+    const definition = this.#host.model().registry.get(node.kind)
     const initial = node.basic.initialValue
     const value = definition?.type === 'field'
       ? (initial !== undefined && isValueOfKind(definition.valueKind(node.data), initial) ? initial : definition.emptyValue(node.data))
@@ -241,7 +238,7 @@ export class DesignCanvas {
   }
 
   #static(node: StaticNode): HTMLElement {
-    const build = Object.hasOwn(STATIC_BUILDERS, node.kind) ? STATIC_BUILDERS[node.kind] : undefined
+    const build = this.#host.model().staticRenderers.get(node.kind)
     if (build === undefined)
       return this.#placeholder(node.kind)
     const view = build(this.#host.ownerDocument, node)
@@ -252,7 +249,7 @@ export class DesignCanvas {
 
   #container(node: ContainerNode, document: FormDocument): HTMLElement {
     const doc = this.#host.ownerDocument
-    const build = Object.hasOwn(CONTAINER_BUILDERS, node.kind) ? CONTAINER_BUILDERS[node.kind] : undefined
+    const build = this.#host.model().containerRenderers.get(node.kind)
     if (build === undefined) {
       const frame = createAuthoredElement(doc, 'div', { 'data-part': 'list' }, [
         createAuthoredElement(doc, 'div', { 'data-part': 'list-title' }, [stringOf(node.basic.title) || this.#host.translations().kind(node.kind)]),
@@ -263,7 +260,7 @@ export class DesignCanvas {
     }
     const view = build(doc, node)
     view.update({ ...DESIGN_STATE, required: false })
-    const resizable = spanColumns(this.#host.registry(), node.kind) !== undefined
+    const resizable = spanColumns(this.#host.model().registry, node.kind) !== undefined
     for (const region of node.regions)
       view.slots.get(region.id)!.append(this.#region(region.id, region.children, document, resizable))
     return view.element

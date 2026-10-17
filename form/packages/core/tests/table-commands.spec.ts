@@ -36,23 +36,23 @@ function errorCode(run: () => unknown): string {
 
 describe('表格布局：合并与拆分', () => {
   it('合并一行两格：子节点移进左上角，结构仍然合法，能精确撤销', () => {
-    const { registry, document, table, a, b } = sample()
+    const { document, table, a, b } = sample()
     const [first, second] = table.regions
     const result = applyOperations(document, mergeTableCells(document, table.id, [first!.id, second!.id]))
     expect(layout(result.document)).toEqual([[0, 0, 1, 2], [1, 0, 1, 1], [1, 1, 1, 1]])
     expect(tableOf(result.document).regions[0]!.children.map(child => child.id)).toEqual([a.id, b.id])
-    expect(validateDocument(result.document, registry)).toEqual([])
+    expect(validateDocument(result.document)).toEqual([])
     expect(applyOperations(result.document, result.inverse).document).toEqual(document)
   })
 
   it('合并整张表格后再拆分，回到四个单元格', () => {
-    const { registry, ids, document, table } = sample()
+    const { ids, document, table } = sample()
     const merged = applyOperations(document, mergeTableCells(document, table.id, table.regions.map(region => region.id))).document
     expect(layout(merged)).toEqual([[0, 0, 2, 2]])
     const anchor = tableOf(merged).regions[0]!.id
     const split = applyOperations(merged, splitTableCell(merged, table.id, anchor, ids))
     expect(layout(split.document)).toEqual([[0, 0, 1, 1], [0, 1, 1, 1], [1, 0, 1, 1], [1, 1, 1, 1]])
-    expect(validateDocument(split.document, registry)).toEqual([])
+    expect(validateDocument(split.document)).toEqual([])
     expect(applyOperations(split.document, split.inverse).document).toEqual(merged)
   })
 
@@ -84,37 +84,37 @@ describe('表格布局：合并与拆分', () => {
 
 describe('表格布局：插入与删除行列', () => {
   it('在开头、中间、末尾插入行，结构都合法', () => {
-    const { registry, ids, document, table } = sample()
+    const { ids, document, table } = sample()
     for (const at of [0, 1, 2]) {
       const result = applyOperations(document, insertTableLine(document, table.id, 'row', at, ids))
       expect(tableOf(result.document).appearance.rows).toBe(3)
-      expect(validateDocument(result.document, registry)).toEqual([])
+      expect(validateDocument(result.document)).toEqual([])
       expect(applyOperations(result.document, result.inverse).document).toEqual(document)
     }
   })
 
   it('插入位置被跨行单元格覆盖时，该单元格加长，不再补格', () => {
-    const { registry, ids, document, table } = sample()
+    const { ids, document, table } = sample()
     const [first, , third] = table.regions
     const tall = applyOperations(document, mergeTableCells(document, table.id, [first!.id, third!.id])).document
     const result = applyOperations(tall, insertTableLine(tall, table.id, 'row', 1, ids)).document
     expect(layout(result)).toEqual([[0, 0, 3, 1], [0, 1, 1, 1], [1, 1, 1, 1], [2, 1, 1, 1]])
-    expect(validateDocument(result, registry)).toEqual([])
+    expect(validateDocument(result)).toEqual([])
   })
 
   it('插入列与插入行对称', () => {
-    const { registry, ids, document, table } = sample()
+    const { ids, document, table } = sample()
     const result = applyOperations(document, insertTableLine(document, table.id, 'column', 1, ids)).document
     expect(layout(result)).toEqual([[0, 0, 1, 1], [0, 1, 1, 1], [0, 2, 1, 1], [1, 0, 1, 1], [1, 1, 1, 1], [1, 2, 1, 1]])
-    expect(validateDocument(result, registry)).toEqual([])
+    expect(validateDocument(result)).toEqual([])
   })
 
   it('删除行：只占这一行的单元格连同节点删除，跨行单元格缩短，能精确撤销', () => {
-    const { registry, document, table, b } = sample()
+    const { document, table, b } = sample()
     const result = applyOperations(document, removeTableLine(document, table.id, 'row', 0))
     expect(layout(result.document)).toEqual([[0, 0, 1, 1], [0, 1, 1, 1]])
     expect(JSON.stringify(result.document)).not.toContain(b.id)
-    expect(validateDocument(result.document, registry)).toEqual([])
+    expect(validateDocument(result.document)).toEqual([])
     expect(applyOperations(result.document, result.inverse).document).toEqual(document)
     const [first, , third] = table.regions
     const tall = applyOperations(document, mergeTableCells(document, table.id, [first!.id, third!.id])).document
@@ -122,10 +122,10 @@ describe('表格布局：插入与删除行列', () => {
   })
 
   it('删除列；表格至少保留一行一列，位置越界时报错', () => {
-    const { registry, ids, document, table } = sample()
+    const { ids, document, table } = sample()
     const narrow = applyOperations(document, removeTableLine(document, table.id, 'column', 1)).document
     expect(layout(narrow)).toEqual([[0, 0, 1, 1], [1, 0, 1, 1]])
-    expect(validateDocument(narrow, registry)).toEqual([])
+    expect(validateDocument(narrow)).toEqual([])
     expect(errorCode(() => removeTableLine(narrow, table.id, 'column', 0))).toBe('XH_FORM_OP_INDEX_OUT_OF_RANGE')
     expect(errorCode(() => removeTableLine(document, table.id, 'row', 2))).toBe('XH_FORM_OP_INDEX_OUT_OF_RANGE')
     expect(errorCode(() => insertTableLine(document, table.id, 'row', 3, ids))).toBe('XH_FORM_OP_INDEX_OUT_OF_RANGE')

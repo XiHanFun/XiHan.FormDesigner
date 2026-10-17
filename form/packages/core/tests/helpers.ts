@@ -1,11 +1,11 @@
 import type { IdAllocator } from '@xihan-ui/designer-kit'
 import type { ContainerNode, FieldNode, FormDocument, FormNode, KindRegistry, Region } from '../src'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
-import { createBuiltinKindRegistry, createDocument, createNode } from '../src'
+import { createDocument, createFormModel, createNode } from '../src'
 
 /** 每个用例一套独立的登记表与 id 来源。 */
 export function setup(): { registry: KindRegistry, ids: IdAllocator } {
-  return { registry: createBuiltinKindRegistry(), ids: createIdAllocator('n') }
+  return { registry: createFormModel().registry, ids: createIdAllocator('n') }
 }
 
 /** 新建字段并指定键。 */

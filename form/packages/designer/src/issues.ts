@@ -58,11 +58,12 @@ function subjectOf(document: FormDocument, issue: FormSchemaIssue, t: FormDesign
   }
 }
 
-/** 问题列表的条目：说明取文案，对象名取种类与键。 */
-export function issueItems(document: FormDocument, issues: readonly FormSchemaIssue[], t: FormDesignerTranslations): DesignerIssueItem[] {
+/** 问题列表的条目：说明取 describe（缺省为文案），对象名取种类与键。 */
+export function issueItems(document: FormDocument, issues: readonly FormSchemaIssue[], t: FormDesignerTranslations, describe: (issue: FormSchemaIssue) => string = t.issue): DesignerIssueItem[] {
   return issues.map((issue) => {
     const subject = subjectOf(document, issue, t)
-    return subject === undefined ? { issue, message: t.issue(issue) } : { issue, message: t.issue(issue), subject }
+    const message = describe(issue)
+    return subject === undefined ? { issue, message } : { issue, message, subject }
   })
 }
 

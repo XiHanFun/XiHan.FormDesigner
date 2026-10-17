@@ -1,11 +1,11 @@
 import type { ContainerNode, FieldNode, FormDocument, FormNode, KindRegistry, LinkageRule, Region, ValidationRule } from '@xihan-form/core'
 import type { IdAllocator } from '@xihan-ui/designer-kit'
-import { createBuiltinKindRegistry, createDocument, createNode } from '@xihan-form/core'
+import { createDocument, createFormModel, createNode } from '@xihan-form/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 
 /** 每个用例一套独立的登记表与 id 来源。 */
 export function setup(): { registry: KindRegistry, ids: IdAllocator } {
-  return { registry: createBuiltinKindRegistry(), ids: createIdAllocator('n') }
+  return { registry: createFormModel().registry, ids: createIdAllocator('n') }
 }
 
 /** 新建字段并指定键，可带校验与联动规则、覆盖部分属性。 */

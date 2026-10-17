@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { XhFormRenderer } from '../src'
-import { createBuiltinKindRegistry, createDocument, createNode } from '@xihan-form/core'
+import { createDocument, createFormModel, createNode } from '@xihan-form/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { afterEach, expect, it } from 'vitest'
 import { defineFormRenderer, FORM_FIELD_RENDERERS, FORM_RENDERER_TAG } from '../src'
@@ -20,7 +20,7 @@ function unregistered(root: ParentNode): string[] {
 }
 
 it('只调 defineFormRenderer，内置的每种字段、容器与静态元素建出的库内元素都已注册（文本带前缀，连同输入组）', async () => {
-  const registry = createBuiltinKindRegistry()
+  const registry = createFormModel().registry
   const ids = createIdAllocator('d')
   const children = registry.list()
     .filter(definition => Object.hasOwn(definition.type === 'field' ? FORM_FIELD_RENDERERS : definition.type === 'container' ? CONTAINER_BUILDERS : STATIC_BUILDERS, definition.kind) || (definition.type === 'container' && definition.scope === 'list'))

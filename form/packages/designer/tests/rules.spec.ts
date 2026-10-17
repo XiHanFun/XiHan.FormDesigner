@@ -1,11 +1,11 @@
 import type { FieldNode, FormDocument, LinkageRule, StaticNode, ValidationRule } from '@xihan-form/core'
-import { applyOperations, createBuiltinKindRegistry, createDocument, createNode, validateDocument } from '@xihan-form/core'
+import { applyOperations, createDocument, createFormModel, createNode, validateDocument } from '@xihan-form/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { describe, expect, it } from 'vitest'
 import { hasRuleList, newRule, nextRule, ruleChoices, ruleDescriptors, ruleErrors } from '../src/rules'
 
-const registry = createBuiltinKindRegistry()
+const registry = createFormModel().registry
 
 function sample(): { document: FormDocument, text: FieldNode, divider: StaticNode } {
   const ids = createIdAllocator('r')
@@ -49,7 +49,7 @@ describe('规则列表', () => {
       { type: 'insertRule', nodeId: text.id, list: 'linkage', index: 0, rule: { id: 'l1', action: 'hide', when: 'name +' } },
     ]).document
     const node = next.children[0]!
-    const issues = validateDocument(next, registry, { expressionEngine: createExpressionEngine() })
+    const issues = validateDocument(next, { expressionEngine: createExpressionEngine() })
     const validation = ruleErrors(next, node, 'validation', issues, issue => issue.code)
     expect(validation.get('v1')).toEqual([{ target: { kind: 'rule', id: 'v1' }, path: ['min'], message: 'rule.boundsMissing' }])
     expect(validation.get('v2')).toEqual([{ target: { kind: 'rule', id: 'v2' }, path: ['pattern'], message: 'rule.invalidPattern' }])

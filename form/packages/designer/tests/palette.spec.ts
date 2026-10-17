@@ -1,9 +1,9 @@
-import { createBuiltinKindRegistry } from '@xihan-form/core'
+import { createFormModel } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { describe, expect, it } from 'vitest'
 import { dragSubject, paletteGroups, paletteKind } from '../src/palette'
 
-const registry = createBuiltinKindRegistry()
+const registry = createFormModel().registry
 const t = DEFAULT_FORM_DESIGNER_TRANSLATIONS
 
 describe('paletteGroups', () => {

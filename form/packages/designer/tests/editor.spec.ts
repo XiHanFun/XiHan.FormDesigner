@@ -1,11 +1,11 @@
 import type { ContainerNode, FieldNode, FormDocument, FormNode } from '@xihan-form/core'
 import type { FormEditorChange } from '../src'
-import { createBuiltinKindRegistry, createDocument, createNode, findNode, findRegion, validateDocument } from '@xihan-form/core'
+import { createDocument, createFormModel, createNode, findNode, findRegion, validateDocument } from '@xihan-form/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { describe, expect, it } from 'vitest'
 import { createFormEditor } from '../src'
 
-const registry = createBuiltinKindRegistry()
+const registry = createFormModel().registry
 
 function sample() {
   const ids = createIdAllocator('s')
@@ -18,7 +18,7 @@ function sample() {
 }
 
 function editorOf(document: FormDocument, now?: () => number) {
-  return createFormEditor({ document, registry, ...(now === undefined ? {} : { now }) })
+  return createFormEditor({ document, ...(now === undefined ? {} : { now }) })
 }
 
 function ids(nodes: readonly FormNode[]): string[] {
@@ -35,7 +35,7 @@ describe('新建节点', () => {
     editor.select({ nodes: [name.id] })
     const second = editor.addNode('checkbox')!
     expect(editor.document.children[1]!.id).toBe(second.id)
-    expect(validateDocument(editor.document, registry)).toEqual([])
+    expect(validateDocument(editor.document)).toEqual([])
   })
 
   it('可以放进容器的区域；子表只收字段；种类未登记时抛错', () => {
@@ -159,7 +159,7 @@ describe('规则与区域', () => {
     expect(rules().map(rule => rule.id)).toEqual([length.id, required.id])
     editor.removeRule(name.id, 'validation', required.id)
     expect(rules()).toEqual([{ id: length.id, kind: 'length', max: 20 }])
-    expect(validateDocument(editor.document, registry)).toEqual([])
+    expect(validateDocument(editor.document)).toEqual([])
   })
 
   it('标签页新增、移动与删除区域', () => {
@@ -185,7 +185,7 @@ describe('规则与区域', () => {
     editor.insertTableLine(table.id, 'row', 2)
     expect((findNode(editor.document, table.id)!.node as ContainerNode).regions).toHaveLength(6)
     editor.removeTableLine(table.id, 'row', 2)
-    expect(validateDocument(editor.document, registry)).toEqual([])
+    expect(validateDocument(editor.document)).toEqual([])
   })
 })
 
@@ -201,7 +201,7 @@ describe('剪贴板', () => {
     expect(pasted.nodes.some(id => id === name.id || id === age.id)).toBe(false)
     const keys = pasted.nodes.map(id => (findNode(editor.document, id)!.node as FieldNode).key)
     expect(keys.every(key => key !== 'name' && key !== 'age')).toBe(true)
-    expect(validateDocument(editor.document, registry)).toEqual([])
+    expect(validateDocument(editor.document)).toEqual([])
   })
 
   it('剪切后粘贴回原处；再制紧跟在原节点之后且不改动剪贴板', () => {

@@ -5,8 +5,8 @@
 
 // 编辑操作：对文档做最小粒度的不可变修改，并给出能精确撤销的逆操作。
 
-import type { JsonValue } from '@xihan-ui/core/json'
-import type { ContainerNode, FormDocument, FormNode, LinkageRule, PropertyBag, PropertyGroup, Region, ValidationRule } from './schema'
+import type { JsonObject, JsonValue } from '@xihan-ui/core/json'
+import type { ContainerNode, ExtensionData, FormDocument, FormNode, LinkageRule, PropertyBag, PropertyGroup, Region, ValidationRule } from './schema'
 import { cloneJson, deepFreeze, isJsonValue, isPlainObject, jsonEquals } from '@xihan-ui/core/json'
 import { applyInSequence } from '@xihan-ui/designer-kit'
 import { PROPERTY_GROUPS } from './schema'
@@ -18,6 +18,7 @@ export type RuleList = 'validation' | 'linkage'
 /**
  * 编辑操作。`parent` 是区域 id，`null` 表示文档顶层；`index` 是操作完成后的位置。
  * `value` 缺省表示删除该属性。所有操作都是普通数据，可以 JSON 序列化。
+ * `setExtensionData` 写某个扩展在文档（`nodeId` 为 `null`）或节点上的数据，`data` 缺省表示去掉这一块。
  */
 export type FormOperation
   = | { readonly type: 'insertNode', readonly parent: string | null, readonly index: number, readonly node: FormNode }
@@ -34,6 +35,7 @@ export type FormOperation
     | { readonly type: 'insertRegion', readonly containerId: string, readonly index: number, readonly region: Region }
     | { readonly type: 'removeRegion', readonly regionId: string }
     | { readonly type: 'moveRegion', readonly regionId: string, readonly index: number }
+    | { readonly type: 'setExtensionData', readonly nodeId: string | null, readonly id: string, readonly data?: JsonObject }
 
 /** 操作的结果：新文档与逆操作；没有带来变化时返回同一个文档、逆操作为空。 */
 export interface OperationResult {
@@ -261,6 +263,22 @@ function requireValue(value: unknown): JsonValue | undefined {
   return value === undefined ? undefined : deepFreeze(cloneJson(value))
 }
 
+/** 写入或去掉一个扩展的数据后的扩展数据；去完为空时为 `undefined`（即去掉 extensions 字段）。 */
+function setExtension(current: ExtensionData | undefined, id: string, data: JsonObject | undefined): ExtensionData | undefined {
+  const next: Record<string, JsonObject> = { ...current }
+  if (data === undefined)
+    delete next[id]
+  else
+    next[id] = data
+  return Object.keys(next).length === 0 ? undefined : Object.freeze(next)
+}
+
+/** 换上扩展数据：为 `undefined` 时去掉 extensions 字段。 */
+function withExtensions<T extends { readonly extensions?: ExtensionData }>(owner: T, extensions: ExtensionData | undefined): T {
+  const { extensions: _previous, ...rest } = owner
+  return Object.freeze(extensions === undefined ? rest : { ...rest, extensions }) as T
+}
+
 function propertyOperation<T extends Record<string, unknown>>(base: T, previous: JsonValue | undefined): T & { value?: JsonValue } {
   return previous === undefined ? base : { ...base, value: previous }
 }
@@ -450,6 +468,23 @@ export function applyOperation(document: FormDocument, operation: FormOperation)
       return {
         document: updateNode(document, container.id, current => Object.freeze({ ...current, regions: Object.freeze(insertAt(removeAt((current as ContainerNode).regions, from), index, region)) }) as FormNode),
         inverse: [{ type: 'moveRegion', regionId: region.id, index: from }],
+      }
+    }
+    case 'setExtensionData': {
+      const id = requireName(operation.id)
+      const value = requireValue(operation.data)
+      if (value !== undefined && !isPlainObject(value))
+        fail('XH_FORM_OP_INVALID_PAYLOAD')
+      const data = value as JsonObject | undefined
+      const owner: { readonly id?: string, readonly extensions?: ExtensionData } = operation.nodeId === null ? document : requireNode(document, operation.nodeId).node
+      const previous = owner.extensions !== undefined && Object.hasOwn(owner.extensions, id) ? owner.extensions[id] : undefined
+      if (jsonEquals(previous, data))
+        return unchanged(document)
+      const next = setExtension(owner.extensions, id, data)
+      const inverse: FormOperation = { type: 'setExtensionData', nodeId: operation.nodeId, id, ...(previous === undefined ? {} : { data: previous }) }
+      return {
+        document: operation.nodeId === null ? withExtensions(document, next) : updateNode(document, operation.nodeId, current => withExtensions(current, next)),
+        inverse: [inverse],
       }
     }
     default:

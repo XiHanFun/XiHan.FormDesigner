@@ -3,12 +3,15 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 表单文档的数据结构：节点、区域、校验规则与联动规则。
+// 表单文档的数据结构：节点、区域、校验规则与联动规则，以及各扩展放在文档与节点上的数据。
 
-import type { JsonValue } from '@xihan-ui/core/json'
+import type { JsonObject, JsonValue } from '@xihan-ui/core/json'
 
 /** 属性包：一组按名字存放的 JSON 值。 */
 export type PropertyBag = Readonly<Record<string, JsonValue>>
+
+/** 扩展数据：扩展 id → 这个扩展自己的 JSON 对象。只给扩展用，与业务属性分开；编辑与复制粘贴原样带着走。 */
+export type ExtensionData = Readonly<Record<string, JsonObject>>
 
 /** 当前的文档结构版本。 */
 export const FORM_SCHEMA_VERSION = 1
@@ -105,6 +108,7 @@ export interface FieldNode {
   readonly appearance: PropertyBag
   readonly validation: readonly ValidationRule[]
   readonly linkage: readonly LinkageRule[]
+  readonly extensions?: ExtensionData
 }
 
 /** 区域：容器里放子节点的一格，如栅格的一列、标签页的一页、表格布局的一个单元格。 */
@@ -129,6 +133,7 @@ export interface ContainerNode {
   readonly validation: readonly ValidationRule[]
   readonly linkage: readonly LinkageRule[]
   readonly regions: readonly Region[]
+  readonly extensions?: ExtensionData
 }
 
 /** 静态元素：只展示，没有值，如分隔线、说明文字。 */
@@ -140,6 +145,7 @@ export interface StaticNode {
   readonly data: PropertyBag
   readonly appearance: PropertyBag
   readonly linkage: readonly LinkageRule[]
+  readonly extensions?: ExtensionData
 }
 
 /** 表单节点。 */
@@ -153,4 +159,5 @@ export interface FormDocument {
   readonly schemaVersion: typeof FORM_SCHEMA_VERSION
   readonly settings: PropertyBag
   readonly children: readonly FormNode[]
+  readonly extensions?: ExtensionData
 }

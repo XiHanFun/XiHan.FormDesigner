@@ -7,6 +7,9 @@
 
 export { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from './designer-translations'
 export type { FormDesignerTranslations } from './designer-translations'
+export { createFormRuntimeModel, FORM_RUNTIME_EXTENSION } from './extensions'
+export type { FormRuntimeExtension, FormRuntimeModel } from './extensions'
+export type { ContainerBuilder, ContainerView, StaticBuilder, StaticView } from './renderer/containers'
 export { defineFormRenderer, FORM_RENDERER_TAG, XhFormRenderer } from './renderer/element'
 export type { FormRendererEventMap, FormSubmitAction, FormValidateOn } from './renderer/element'
 export { FORM_FIELD_RENDERERS } from './renderer/fields'
