@@ -62,6 +62,14 @@ function paragraph(content: string): StaticNode {
   return { ...node, basic: { ...node.basic, content } }
 }
 
+function element(kind: string, basic: PropertyBag, appearance: PropertyBag = {}): StaticNode {
+  const node = createNode(registry, kind, ids) as StaticNode
+  return { ...node, basic: { ...node.basic, ...basic }, appearance: { ...node.appearance, ...appearance } }
+}
+
+/** 示例用的内联标志图，省得开发预览页依赖外部资源。 */
+const LOGO = 'data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2016%209%22%3E%3Crect%20width=%2216%22%20height=%229%22%20fill=%22%23475569%22/%3E%3Cpath%20d=%22M0%209%206%203%2016%209z%22%20fill=%22%2394a3b8%22/%3E%3C/svg%3E'
+
 function rule(rule: WithoutId<ValidationRule>): ValidationRule {
   return { id: ids.next(), ...rule } as ValidationRule
 }
@@ -132,6 +140,8 @@ export function expenseForm(): FormDocument {
   return {
     ...createDocument(),
     children: [
+      element('heading', { content: '费用报销单' }, { level: 2 }),
+      element('alert', { title: '提交前请核对', content: '发票须在开票后 90 天内提交，超过 5000 元需填写事由。' }),
       basicCard,
       details,
       companions,
@@ -141,6 +151,11 @@ export function expenseForm(): FormDocument {
       extra,
       tabs,
       confirm,
+      container('grid', [
+        [element('barcode', { value: 'BX-2026-0001' })],
+        [element('qrcode', { value: 'https://www.xihanfun.com' })],
+        [element('image', { src: LOGO, alt: '公司标志' }, { width: 160 })],
+      ], { regionProps: [{ span: 4 }, { span: 4 }, { span: 4 }] }),
     ],
   }
 }

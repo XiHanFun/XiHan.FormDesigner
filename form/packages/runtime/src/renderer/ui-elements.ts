@@ -8,6 +8,8 @@
 import {
   defineXhElement,
   XhAccordionElement,
+  XhAlertElement,
+  XhBarCodeElement,
   XhCardElement,
   XhCheckboxElement,
   XhCheckboxGroupElement,
@@ -17,7 +19,9 @@ import {
   XhFileUploadElement,
   XhFormElement,
   XhGridElement,
+  XhImageElement,
   XhInputGroupElement,
+  XhMatrixCodeElement,
   XhNumberFieldElement,
   XhPasswordInputElement,
   XhPinInputElement,
@@ -61,4 +65,8 @@ export function defineRendererElements(): void {
   defineXhElement('xh-fieldset', XhFieldsetElement)
   defineXhElement('xh-separator', XhSeparatorElement)
   defineXhElement('xh-typography', XhTypographyElement)
+  defineXhElement('xh-alert', XhAlertElement)
+  defineXhElement('xh-image', XhImageElement)
+  defineXhElement('xh-bar-code', XhBarCodeElement)
+  defineXhElement('xh-matrix-code', XhMatrixCodeElement)
 }

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 容器与静态元素的部件树：栅格、标签页、卡片、折叠、分组、表格布局、分隔线、段落，照 UI 文档的写法。
+// 容器与静态元素的部件树：栅格、标签页、卡片、折叠、分组、表格布局，以及分隔线、段落、标题、提示、图片、条码与二维码，照 UI 文档的写法。
 // 每个区域给出一个放子节点的位置；状态只管隐藏与分组的禁用，字段自己的状态由字段处理。
 
 import type { ContainerNode, NodeState, StaticNode } from '@xihan-form/core'
@@ -180,5 +180,81 @@ const paragraph: StaticBuilder = (doc, node) => {
   return { element, update: hiding(element) }
 }
 
+const HEADING_TAGS = { 2: 'h2', 3: 'h3', 4: 'h4', 5: 'h5', 6: 'h6' } as const
+
+const heading: StaticBuilder = (doc, node) => {
+  const element = host(doc, 'xh-typography')
+  const level = (numberOf(node.appearance.level) ?? 3) as keyof typeof HEADING_TAGS
+  const title = make(doc, HEADING_TAGS[level], 'heading', { level: String(level) })
+  text(title, stringOf(node.basic.content) ?? '')
+  const root = make(doc, 'div', 'root')
+  root.append(title)
+  element.append(root)
+  return { element, update: hiding(element) }
+}
+
+const alert: StaticBuilder = (doc, node) => {
+  const element = host(doc, 'xh-alert')
+  assign(element, 'tone', stringOf(node.appearance.tone) ?? 'info')
+  const content = make(doc, 'div', 'content')
+  const title = stringOf(node.basic.title) ?? ''
+  if (title !== '') {
+    const heading = make(doc, 'div', 'title')
+    text(heading, title)
+    content.append(heading)
+  }
+  const description = stringOf(node.basic.content) ?? ''
+  if (description !== '') {
+    const body = make(doc, 'div', 'description')
+    text(body, description)
+    content.append(body)
+  }
+  const root = make(doc, 'div', 'root')
+  root.append(content)
+  element.append(root)
+  return { element, update: hiding(element) }
+}
+
+const image: StaticBuilder = (doc, node) => {
+  const element = host(doc, 'xh-image')
+  const alt = stringOf(node.basic.alt) ?? ''
+  assign(element, 'src', stringOf(node.basic.src) || undefined)
+  assign(element, 'alt', alt)
+  const root = make(doc, 'div', 'root')
+  const width = numberOf(node.appearance.width)
+  if (width !== undefined)
+    root.style.setProperty('--xh-image-w', `${width}px`)
+  const fallback = make(doc, 'div', 'fallback')
+  text(fallback, alt)
+  root.append(make(doc, 'img', 'image'), fallback)
+  element.append(root)
+  return { element, update: hiding(element) }
+}
+
+/** 码的根部件是 `<svg>`，按 SVG 命名空间建。 */
+function svgRoot(doc: Document): SVGSVGElement {
+  const root = doc.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  root.setAttribute('data-xh-part', 'root')
+  return root
+}
+
+const barcode: StaticBuilder = (doc, node) => {
+  const element = host(doc, 'xh-bar-code')
+  assign(element, 'format', stringOf(node.basic.format) ?? 'code128')
+  assign(element, 'value', stringOf(node.basic.value) ?? '')
+  if (node.appearance.showText === false)
+    assign(element, 'text', false)
+  element.append(svgRoot(doc))
+  return { element, update: hiding(element) }
+}
+
+const qrcode: StaticBuilder = (doc, node) => {
+  const element = host(doc, 'xh-matrix-code')
+  assign(element, 'format', stringOf(node.basic.format) ?? 'qr')
+  assign(element, 'value', stringOf(node.basic.value) ?? '')
+  element.append(svgRoot(doc))
+  return { element, update: hiding(element) }
+}
+
 /** 内置静态元素的部件树。 */
-export const STATIC_BUILDERS: Readonly<Record<string, StaticBuilder>> = Object.freeze({ divider, paragraph })
+export const STATIC_BUILDERS: Readonly<Record<string, StaticBuilder>> = Object.freeze({ divider, paragraph, heading, alert, image, barcode, qrcode })

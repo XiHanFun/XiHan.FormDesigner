@@ -218,4 +218,67 @@ export const BUILTIN_STATICS: readonly StaticKindDefinition[] = [
       appearance: [{ path: ['size'], control: { kind: 'select', options: [{ value: 'sm' }, { value: 'md' }, { value: 'lg' }] }, default: 'md' }],
     },
   },
+  {
+    type: 'static',
+    kind: 'heading',
+    category: 'static',
+    element: 'xh-typography',
+    properties: {
+      basic: [{ path: ['content'], control: { kind: 'text' }, default: '' }, HIDDEN],
+      data: [],
+      appearance: [{ path: ['level'], control: { kind: 'select', options: [{ value: 2 }, { value: 3 }, { value: 4 }, { value: 5 }, { value: 6 }] }, default: 3 }],
+    },
+  },
+  {
+    type: 'static',
+    kind: 'alert',
+    category: 'static',
+    element: 'xh-alert',
+    properties: {
+      basic: [TITLE, { path: ['content'], control: { kind: 'text', multiline: true }, default: '' }, HIDDEN],
+      data: [],
+      appearance: [{ path: ['tone'], control: { kind: 'select', options: [{ value: 'info' }, { value: 'success' }, { value: 'warning' }, { value: 'danger' }, { value: 'neutral' }] }, default: 'info' }],
+    },
+  },
+  {
+    type: 'static',
+    kind: 'image',
+    category: 'static',
+    element: 'xh-image',
+    properties: {
+      basic: [{ path: ['src'], control: { kind: 'text' }, default: '' }, { path: ['alt'], control: { kind: 'text' }, default: '' }, HIDDEN],
+      data: [],
+      appearance: [{ path: ['width'], control: { kind: 'number', integer: true, min: 16, max: 4096, unit: 'px' } }],
+    },
+  },
+  {
+    type: 'static',
+    kind: 'barcode',
+    category: 'static',
+    element: 'xh-bar-code',
+    properties: {
+      basic: [
+        { path: ['value'], control: { kind: 'text' }, default: '' },
+        { path: ['format'], control: { kind: 'select', options: [{ value: 'code128' }, { value: 'ean13' }, { value: 'ean8' }, { value: 'upca' }, { value: 'upce' }, { value: 'itf14' }, { value: 'code39' }] }, default: 'code128' },
+        HIDDEN,
+      ],
+      data: [],
+      appearance: [{ path: ['showText'], control: { kind: 'boolean' }, default: true }],
+    },
+  },
+  {
+    type: 'static',
+    kind: 'qrcode',
+    category: 'static',
+    element: 'xh-matrix-code',
+    properties: {
+      basic: [
+        { path: ['value'], control: { kind: 'text' }, default: '' },
+        { path: ['format'], control: { kind: 'select', options: [{ value: 'qr' }, { value: 'data-matrix' }, { value: 'pdf417' }, { value: 'aztec' }] }, default: 'qr' },
+        HIDDEN,
+      ],
+      data: [],
+      appearance: [],
+    },
+  },
 ]
