@@ -39,13 +39,11 @@ export function numberOf(value: unknown): number | undefined {
 }
 
 /** 能接收表单控件状态的 UI 元素：禁用、只读、必填只在为真时写实例值，否则交回字段与表单。 */
-export function applyControlState(element: HTMLElement, state: NodeState, options: { readOnly?: boolean, required?: boolean } = {}): void {
+export function applyControlState(element: HTMLElement, state: NodeState): void {
   const target = element as HTMLElement & { disabled?: boolean, readOnly?: boolean, required?: boolean }
   target.disabled = state.disabled ? true : undefined
-  if (options.readOnly !== false)
-    target.readOnly = state.readOnly ? true : undefined
-  if (options.required !== false)
-    target.required = state.required ? true : undefined
+  target.readOnly = state.readOnly ? true : undefined
+  target.required = state.required ? true : undefined
 }
 
 /** 写一个响应式属性；值与当前值相同（数组逐项相同）时不写。 */

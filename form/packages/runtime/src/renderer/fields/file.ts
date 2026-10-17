@@ -88,7 +88,7 @@ export const fileField: FieldRenderer = (context) => {
   on<{ files: FileUploadRemoteFile[] }>(element, 'remote-files-change', detail => ref.current.setValue(valueOf(detail.files)))
   const update = (next: FieldRendererContext): void => {
     ref.current = next
-    paintCommon(element, next, { readOnly: false, required: false })
+    paintCommon(element, next)
     text(dropzone, next.translations.fileDropzone)
     text(trigger, next.translations.fileTrigger)
     assign(element, 'upload', next.uploadFile === undefined ? undefined : upload)
