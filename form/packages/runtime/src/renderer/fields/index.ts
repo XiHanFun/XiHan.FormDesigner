@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 内置字段渲染器表：按种类取，宿主经 fieldRenderers 覆盖或新增。
+// 内置字段渲染器表：按种类取；扩展经 fieldRenderers 给新种类登记渲染，种类名与这里的重名时合并报冲突。
 
 import type { FieldRenderer } from '../types'
 import { checkboxField, checkboxGroupField, comboboxField, radioGroupField, selectField, switchField, toggleGroupField, treeSelectField } from './choice'
