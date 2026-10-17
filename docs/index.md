@@ -41,8 +41,8 @@ features:
   - title: 校验与联动
     icon: ✅
     details: 必填、长度、范围、正则与表达式校验；按条件显示隐藏、启用禁用、必填与赋值，规则都写在模板里。
-    link: /introduction
-    linkText: 了解能做什么
+    link: /guide/validation
+    linkText: 了解校验与联动
 
   - title: 选项与附件
     icon: 🔗
