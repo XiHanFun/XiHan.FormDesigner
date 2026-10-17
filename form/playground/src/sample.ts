@@ -100,6 +100,7 @@ export function expenseForm(): FormDocument {
     linkage: [linkage('hide', 'type != \'travel\'')],
   })
   const amount = field('number', 'amount', '金额（元）', { data: { precision: 2, step: 100 }, validation: [rule({ kind: 'required' }), rule({ kind: 'range', min: 0.01, max: 100000 })] })
+  const vendor = field('combobox', 'vendor', '开票单位', { basic: { placeholder: '输入名称搜索', hint: '按名称搜索，结果来自宿主' }, data: { optionSource: 'vendors' } })
   const invoices = field('number', 'invoices', '发票张数', { data: { precision: 0 }, validation: [rule({ kind: 'expression', expression: '$value == null || $value <= 20', message: '一次最多报销 20 张发票' })] })
   const reason = field('textarea', 'reason', '事由', {
     basic: { placeholder: '金额超过 5000 元时必填', hint: '写清费用用途，财务审核时会对照发票' },
@@ -111,8 +112,8 @@ export function expenseForm(): FormDocument {
   const urgent = field('switch', 'urgent', '加急处理')
   const urgentNote = field('text', 'urgentNote', '加急原因', { linkage: [linkage('hide', 'urgent != true'), linkage('require', 'urgent == true')] })
 
-  const basics = container('grid', [[applicant], [phone], [department], [type], [province], [city], [amount], [invoices]], {
-    regionProps: [{ span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }],
+  const basics = container('grid', [[applicant], [phone], [department], [type], [province], [city], [amount], [invoices], [vendor]], {
+    regionProps: [{ span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 12 }],
   })
   const basicCard = container('card', [[basics, reason, attachments]], { basic: { title: '基本信息' } })
 
@@ -166,17 +167,27 @@ const DEPARTMENTS: readonly OptionItem[] = [
   { value: 'finance', label: '财务部' },
 ]
 
+const VENDORS: readonly OptionItem[] = [
+  { value: 'v1', label: '上海曦寒科技有限公司' },
+  { value: 'v2', label: '上海云帆商贸有限公司' },
+  { value: 'v3', label: '北京启明文具有限公司' },
+  { value: 'v4', label: '杭州西湖餐饮管理有限公司' },
+  { value: 'v5', label: '深圳南山差旅服务有限公司' },
+]
+
 const CITIES: Readonly<Record<string, readonly OptionItem[]>> = {
   zj: [{ value: 'hz', label: '杭州' }, { value: 'nb', label: '宁波' }],
   js: [{ value: 'nj', label: '南京' }, { value: 'sz', label: '苏州' }],
   gd: [{ value: 'gz', label: '广州' }, { value: 'sz2', label: '深圳' }],
 }
 
-/** 模拟的异步选项加载：部门延迟返回，城市按省份返回。 */
+/** 模拟的异步选项加载：部门延迟返回，开票单位按搜索串筛，城市按省份返回。 */
 export const loadOptions: OptionLoader = request => new Promise((resolve) => {
   setTimeout(() => {
     if (request.source === 'departments')
       resolve(DEPARTMENTS)
+    else if (request.source === 'vendors')
+      resolve(VENDORS.filter(vendor => vendor.label.includes(request.query?.trim() ?? '')))
     else
       resolve(CITIES[String(request.values.province)] ?? [])
   }, 400)

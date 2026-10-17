@@ -26,7 +26,7 @@ import { createFormPathRecord, focusFormField } from '@xihan-ui/headless'
 import { emitEvent, registerElement, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { createFormController } from '../state/controller'
 import { FormRuntimeError } from '../state/errors'
-import { optionsDescriptor } from '../state/options'
+import { optionsDescriptor, optionSourceOf } from '../state/options'
 import { isListContainer } from '../state/paths'
 import { DEFAULT_FORM_RENDERER_TRANSLATIONS } from '../translations'
 import { CONTAINER_BUILDERS, STATIC_BUILDERS } from './containers'
@@ -629,6 +629,7 @@ export class XhFormRenderer extends XhReactiveElement {
       state: { ...state, disabled: state.disabled || formDisabled, readOnly: state.readOnly || formReadOnly },
       error: issue === undefined ? undefined : issueMessage(issue, t),
       options: optionsDescriptor(node, registry) === undefined ? undefined : controller.getOptions(path),
+      searchOptions: this.loadOptions === undefined || optionSourceOf(node) === undefined ? undefined : query => void controller.searchOptions(path, query),
       size: (node.appearance.size ?? this.schema?.settings.size ?? 'md') as FieldSize,
       translations: t,
       uploadFile: this.#uploaderOf(node, path),

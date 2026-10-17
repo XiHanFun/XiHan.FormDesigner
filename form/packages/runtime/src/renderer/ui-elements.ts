@@ -13,6 +13,7 @@ import {
   XhCardElement,
   XhCheckboxElement,
   XhCheckboxGroupElement,
+  XhComboboxElement,
   XhFieldArrayElement,
   XhFieldElement,
   XhFieldsetElement,
@@ -50,6 +51,7 @@ export function defineRendererElements(): void {
   defineXhElement('xh-pin-input', XhPinInputElement)
   defineXhElement('xh-tags-input', XhTagsInputElement)
   defineXhElement('xh-select', XhSelectElement)
+  defineXhElement('xh-combobox', XhComboboxElement)
   defineXhElement('xh-radio-group', XhRadioGroupElement)
   defineXhElement('xh-checkbox-group', XhCheckboxGroupElement)
   defineXhElement('xh-toggle-group', XhToggleGroupElement)

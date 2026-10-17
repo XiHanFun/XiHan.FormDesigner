@@ -26,6 +26,8 @@ export interface OptionRequest {
   readonly path: JsonPath
   /** 当前表单值的副本。 */
   readonly values: Readonly<Record<string, JsonValue>>
+  /** 搜索串：可输入筛选的字段（组合框）在输入时带上，宿主按它返回匹配的选项；没有输入过时不带。 */
+  readonly query?: string
 }
 
 /** 宿主提供的选项加载函数，返回选项数组或它的 Promise。 */

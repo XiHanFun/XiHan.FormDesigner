@@ -469,22 +469,99 @@ describe('<xh-form-renderer>：前后缀', () => {
 })
 
 describe('<xh-form-renderer>：标签字段', () => {
-  it('值写成 xh-tags-input 的 value，一个值一个标签；改值后标签按值增删，已在的节点原地保留', async () => {
+  it('值写成 xh-tags-input 的 value，标签由元素按值生成；改值写回字段值', async () => {
     const { registry, ids } = setup()
     const renderer = await mount((element) => {
       element.values = { tags: ['甲', '乙'] }
       element.schema = documentOf([field(registry, ids, 'tags', 'tags', { data: { max: 5 } })])
     })
-    const element = group(renderer, ['tags']).querySelector('xh-tags-input') as HTMLElement & { value?: string[], max?: number }
-    const items = (): Element[] => [...element.querySelectorAll('[data-xh-part="item"]')]
+    const element = group(renderer, ['tags']).querySelector('xh-tags-input') as HTMLElement & { value?: string[], max?: number, updateComplete: Promise<boolean> }
+    await element.updateComplete
+    const items = (): Element[] => [...element.querySelectorAll('[data-scope="tags-input"][data-part="item"]')]
     expect([element.value, element.max]).toEqual([['甲', '乙'], 5])
     expect(items().map(item => item.getAttribute('value'))).toEqual(['甲', '乙'])
-    const second = items()[1]
     element.dispatchEvent(new CustomEvent('value-change', { detail: { value: ['乙', '丙'] }, bubbles: true, composed: true }))
     expect(renderer.getFormData().tags).toEqual(['乙', '丙'])
+    await element.updateComplete
     expect(items().map(item => item.getAttribute('value'))).toEqual(['乙', '丙'])
-    expect(items()[0]).toBe(second)
-    expect(element.querySelector('[data-xh-part="input"]')!.previousElementSibling).toBe(items()[1])
+  })
+})
+
+describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
+  it.each([
+    ['text', 'xh-text-field', 'input'],
+    ['number', 'xh-number-field', 'increment-trigger'],
+    ['switch', 'xh-switch', 'thumb'],
+    ['toggle-group', 'xh-toggle-group', 'item'],
+    ['tags', 'xh-tags-input', 'input'],
+    ['combobox', 'xh-combobox', 'input'],
+  ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
+    const { registry, ids } = setup()
+    const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]
+    const node = field(registry, ids, kind, 'x', kind === 'toggle-group' || kind === 'combobox' ? { data: { options } } : {})
+    const renderer = await mount((element) => {
+      element.schema = documentOf([node])
+    })
+    const element = group(renderer, ['x']).querySelector(tag) as HTMLElement & { updateComplete: Promise<boolean> }
+    await element.updateComplete
+    expect(element.querySelector('[data-xh-part]:not([data-xh-gen])')).toBeNull()
+    const scope = tag.slice('xh-'.length)
+    expect(element.querySelectorAll(`[data-scope="${scope}"][data-part="${part}"]`).length).toBeGreaterThan(0)
+  })
+})
+
+describe('<xh-form-renderer>：组合框字段', () => {
+  type Combobox = HTMLElement & { collection?: { value: string, label: string }[], value?: string[], multiple?: boolean, loading?: boolean, empty?: string, updateComplete: Promise<boolean> }
+
+  function combobox(renderer: XhFormRenderer): Combobox {
+    return group(renderer, ['vendor']).querySelector('xh-combobox') as Combobox
+  }
+
+  function typeQuery(element: Combobox, inputValue: string): void {
+    element.dispatchEvent(new CustomEvent('input-value-change', { detail: { inputValue }, bubbles: true, composed: true }))
+  }
+
+  it('静态选项按输入串的文字筛选；选中写回字段值，多选写成数组', async () => {
+    const { registry, ids } = setup()
+    const options = [{ value: 'a', label: '上海一号' }, { value: 'b', label: '北京二号' }, { value: 'c', label: '上海三号' }]
+    const renderer = await mount((element) => {
+      element.schema = documentOf([field(registry, ids, 'combobox', 'vendor', { data: { options, multiple: true } })])
+    })
+    const element = combobox(renderer)
+    expect(element.multiple).toBe(true)
+    expect(element.collection!.map(item => item.value)).toEqual(['a', 'b', 'c'])
+    typeQuery(element, '上海')
+    expect(element.collection!.map(item => item.value)).toEqual(['a', 'c'])
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value: ['c'] }, bubbles: true, composed: true }))
+    expect(renderer.getFormData().vendor).toEqual(['c'])
+    expect(element.value).toEqual(['c'])
+  })
+
+  it('有选项来源时输入串交给 loadOptions 的 query，候选换成返回的结果；加载中报 loading', async () => {
+    const { registry, ids } = setup()
+    const requests: (string | undefined)[] = []
+    let release!: () => void
+    const renderer = await mount((element) => {
+      element.loadOptions = (request) => {
+        requests.push(request.query)
+        if (request.query === undefined)
+          return [{ value: 'all', label: '全部' }]
+        return new Promise((resolve) => {
+          release = () => resolve([{ value: 'sh', label: `${request.query}供应商` }])
+        })
+      }
+      element.schema = documentOf([field(registry, ids, 'combobox', 'vendor', { data: { optionSource: 'vendors' } })])
+    })
+    const element = combobox(renderer)
+    await vi.waitFor(() => expect(element.collection).toEqual([{ value: 'all', label: '全部' }]))
+    typeQuery(element, '上')
+    await vi.waitFor(() => expect(element.loading).toBe(true))
+    expect(requests).toEqual([undefined, '上'])
+    release()
+    await vi.waitFor(() => expect(element.collection).toEqual([{ value: 'sh', label: '上供应商' }]))
+    expect(element.loading).toBeUndefined()
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value: ['sh'] }, bubbles: true, composed: true }))
+    expect(renderer.getFormData().vendor).toBe('sh')
   })
 })
 
