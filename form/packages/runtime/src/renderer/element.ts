@@ -32,6 +32,7 @@ import { make, stringOf, text } from './dom'
 import { createFieldShell } from './field-shell'
 import { FORM_FIELD_RENDERERS } from './fields'
 import { issueMessage } from './messages'
+import { defineRendererElements } from './ui-elements'
 
 /** 渲染器的标签名。 */
 export const FORM_RENDERER_TAG = 'xh-form-renderer'
@@ -603,8 +604,9 @@ export class XhFormRenderer extends XhReactiveElement {
   }
 }
 
-/** 注册 <xh-form-renderer>；重复调用不报错。UI 元素由宿主另行用 defineXhElements() 注册。 */
+/** 注册 <xh-form-renderer> 与内置字段、容器用到的库内元素；重复调用不报错。宿主自定义字段渲染器用到的元素由宿主注册。 */
 export function defineFormRenderer(): void {
+  defineRendererElements()
   registerElement(FORM_RENDERER_TAG, XhFormRenderer)
 }
 

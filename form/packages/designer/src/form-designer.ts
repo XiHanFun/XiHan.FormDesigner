@@ -27,6 +27,7 @@ import { createExpressionEngine } from '@xihan-ui/expression'
 import { ArrowDownIcon, ArrowUpIcon, ArrowUpLeftIcon, CopyIcon, TrashIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
 import { createAuthoredElement, emitEvent, registerElement, setAttributes, setText, SVG_NS, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
+import { defineXhElement, XhButtonElement, XhContextMenuElement, XhIconElement, XhMenuElement, XhToolbarElement } from '@xihan-ui/web-components/define'
 import { DesignCanvas, spanColumns } from './canvas'
 import { readFormClipboard, writeFormClipboard } from './clipboard'
 import { menuEntries, menuLabel } from './context-menu'
@@ -662,7 +663,6 @@ export class XhFormDesigner extends XhReactiveElement {
   #syncMode(): void {
     const parts = this.#ensureParts()
     if ((this.mode ?? 'design') === 'preview') {
-      defineFormRenderer()
       this.#preview ??= this.ownerDocument.createElement(FORM_RENDERER_TAG)
       parts.canvas.replaceChildren(this.#preview, parts.dropIndicator)
       this.#syncPreview()
@@ -1276,8 +1276,17 @@ export class XhFormDesigner extends XhReactiveElement {
   }
 }
 
-/** 注册 <xh-form-designer> 与它用到的设计器零件；重复调用不报错。其余 UI 元素由宿主另行用 defineXhElements() 注册。 */
+/**
+ * 注册 <xh-form-designer> 与它用到的全部元素：渲染器（画布与预览共用）及其库内元素、工具栏与菜单等库内元素、
+ * 设计器零件；重复调用不报错。宿主自定义字段渲染器用到的元素由宿主注册。
+ */
 export function defineFormDesigner(): void {
+  defineFormRenderer()
+  defineXhElement('xh-toolbar', XhToolbarElement)
+  defineXhElement('xh-button', XhButtonElement)
+  defineXhElement('xh-icon', XhIconElement)
+  defineXhElement('xh-menu', XhMenuElement)
+  defineXhElement('xh-context-menu', XhContextMenuElement)
   defineDesignerShellElement('xh-designer-frame', XhDesignerFrameElement)
   defineDesignerShellElement('xh-designer-properties', XhDesignerPropertiesElement)
   defineDesignerShellElement('xh-designer-palette', XhDesignerPaletteElement)
