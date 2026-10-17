@@ -23,7 +23,7 @@ it('只调 defineFormRenderer，内置的每种字段、容器与静态元素建
   const registry = createBuiltinKindRegistry()
   const ids = createIdAllocator('d')
   const children = registry.list()
-    .filter(definition => Object.hasOwn(definition.type === 'field' ? FORM_FIELD_RENDERERS : definition.type === 'container' ? CONTAINER_BUILDERS : STATIC_BUILDERS, definition.kind))
+    .filter(definition => Object.hasOwn(definition.type === 'field' ? FORM_FIELD_RENDERERS : definition.type === 'container' ? CONTAINER_BUILDERS : STATIC_BUILDERS, definition.kind) || (definition.type === 'container' && definition.scope === 'list'))
     .map(definition => createNode(registry, definition.kind, ids))
   const renderer = document.createElement(FORM_RENDERER_TAG) as XhFormRenderer
   renderer.schema = { ...createDocument(), children }

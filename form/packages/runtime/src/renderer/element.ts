@@ -10,14 +10,16 @@
 import type { ContainerNode, FieldNode, FormDocument, FormNode, FormSchemaIssue, KindRegistry, NodeState, StaticNode, ValueIssue } from '@xihan-form/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { ExpressionEngine } from '@xihan-ui/expression'
+import type { FormArrayMutation } from '@xihan-ui/headless'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
 import type { FormController, FormEvent, GetFormDataOptions, LinkageIssue, SetFormDataOptions, ValidationOutcome } from '../state/controller'
 import type { FormRuntimeErrorCode } from '../state/errors'
 import type { OptionLoader } from '../state/options'
 import type { FormRendererTranslations } from '../translations'
 import type { FieldShell } from './field-shell'
+import type { ListRow, ListShell } from './list'
 import type { FieldRenderer, FieldRendererContext, FieldRendererInstance, FieldSize, FileUploader } from './types'
-import { createBuiltinKindRegistry } from '@xihan-form/core'
+import { createBuiltinKindRegistry, instanceKey } from '@xihan-form/core'
 import { isJsonPathPrefix, jsonEquals } from '@xihan-ui/core/json'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { createFormPathRecord, focusFormField } from '@xihan-ui/headless'
@@ -31,6 +33,7 @@ import { CONTAINER_BUILDERS, STATIC_BUILDERS } from './containers'
 import { make, stringOf, text } from './dom'
 import { createFieldShell } from './field-shell'
 import { FORM_FIELD_RENDERERS } from './fields'
+import { createListRow, createListShell } from './list'
 import { issueMessage } from './messages'
 import { defineRendererElements } from './ui-elements'
 
@@ -111,6 +114,45 @@ interface NodeEntry {
   readonly update: (state: NodeState) => void
 }
 
+/** 节点所在的行：数据路径的前缀与逐层行号；顶层两者都为空。 */
+interface RowScope {
+  readonly prefix: JsonPath
+  readonly rowPath: readonly number[]
+}
+
+/** 一段内容建出的登记项，删行时一并收回。 */
+interface Owned {
+  readonly fields: string[]
+  readonly nodes: string[]
+  readonly lists: string[]
+}
+
+/** 列表里的一行：身份是令牌，行号变了时重建行内容。 */
+interface RowEntry {
+  readonly row: ListRow
+  index: number
+  owned: Owned
+}
+
+/** 列表容器的实例：令牌数组即 xh-field-array 的值，与列表的行一一对应。 */
+interface ListEntry {
+  readonly node: ContainerNode
+  readonly path: JsonPath
+  readonly key: string
+  readonly rowPath: readonly number[]
+  readonly group: HTMLElement
+  readonly summary: HTMLElement
+  readonly shell: ListShell
+  readonly rows: Map<object, RowEntry>
+  tokens: object[]
+}
+
+const TOP: RowScope = Object.freeze({ prefix: [], rowPath: [] })
+
+function owned(): Owned {
+  return { fields: [], nodes: [], lists: [] }
+}
+
 function pathKey(path: JsonPath): string {
   return JSON.stringify(path)
 }
@@ -174,9 +216,11 @@ export class XhFormRenderer extends XhReactiveElement {
   #form: XhFormHost | undefined
   #formRoot: HTMLFormElement | undefined
   #summaryTitle: HTMLElement | undefined
+  #summary: HTMLElement | undefined
   #fields = new Map<string, FieldEntry>()
   #fieldsByKey = new Map<string, FieldEntry>()
   #nodes = new Map<string, NodeEntry>()
+  #lists = new Map<string, ListEntry>()
   #linkageIssues: readonly LinkageIssue[] = []
 
   override requestUpdate(name?: PropertyKey, oldValue?: unknown): void {
@@ -305,6 +349,8 @@ export class XhFormRenderer extends XhReactiveElement {
     this.#form = undefined
     this.#formRoot = undefined
     this.#summaryTitle = undefined
+    this.#summary = undefined
+    this.#lists = new Map()
     this.#linkageIssues = []
     this.replaceChildren()
   }
@@ -359,7 +405,8 @@ export class XhFormRenderer extends XhReactiveElement {
     this.#form = form
     this.#formRoot = root
     this.#summaryTitle = summaryTitle
-    this.#renderNodes(document.children, root, summary)
+    this.#summary = summary
+    this.#renderNodes(document.children, root)
     form.append(root)
     for (const type of INTERNAL_EVENTS)
       form.addEventListener(type, event => event.stopPropagation())
@@ -373,11 +420,12 @@ export class XhFormRenderer extends XhReactiveElement {
     this.replaceChildren(form)
   }
 
-  #renderNodes(nodes: readonly FormNode[], parent: HTMLElement, summary: HTMLElement): void {
+  #renderNodes(nodes: readonly FormNode[], parent: HTMLElement, scope: RowScope = TOP, into?: Owned): void {
     const doc = this.ownerDocument
     for (const node of nodes) {
+      const key = instanceKey(node.id, scope.rowPath)
       if (node.type === 'field') {
-        parent.append(this.#renderField(node, [node.key], summary))
+        parent.append(this.#renderField(node, [...scope.prefix, node.key], key, into))
         continue
       }
       if (node.type === 'static') {
@@ -386,50 +434,183 @@ export class XhFormRenderer extends XhReactiveElement {
           throw new FormRuntimeError('XH_FORM_RT_NO_RENDERER', { kind: node.kind })
         const view = build(doc, node as StaticNode)
         parent.append(view.element)
-        this.#nodes.set(node.id, view)
-        view.update(this.#controller!.getState(node.id)!)
+        this.#nodes.set(key, view)
+        into?.nodes.push(key)
+        view.update(this.#controller!.getState(key)!)
         continue
       }
-      const build = isListContainer(node) ? undefined : CONTAINER_BUILDERS[node.kind]
+      if (isListContainer(node)) {
+        parent.append(this.#renderList(node, scope, key, into))
+        continue
+      }
+      const build = CONTAINER_BUILDERS[node.kind]
       if (build === undefined)
         throw new FormRuntimeError('XH_FORM_RT_NO_RENDERER', { kind: node.kind })
       const view = build(doc, node as ContainerNode)
       parent.append(view.element)
-      this.#nodes.set(node.id, view)
+      this.#nodes.set(key, view)
+      into?.nodes.push(key)
       for (const region of node.regions) {
         const slot = make(doc, 'div', undefined, { 'data-form-region': '' })
         view.slots.get(region.id)!.append(slot)
-        this.#renderNodes(region.children, slot, summary)
+        this.#renderNodes(region.children, slot, scope, into)
       }
-      view.update(this.#controller!.getState(node.id)!)
+      view.update(this.#controller!.getState(key)!)
     }
   }
 
-  #renderField(node: FieldNode, path: JsonPath, summary: HTMLElement): HTMLElement {
-    const renderer = (this.fieldRenderers && Object.hasOwn(this.fieldRenderers, node.kind) ? this.fieldRenderers[node.kind] : undefined)
-      ?? (Object.hasOwn(FORM_FIELD_RENDERERS, node.kind) ? FORM_FIELD_RENDERERS[node.kind] : undefined)
-    if (renderer === undefined)
-      throw new FormRuntimeError('XH_FORM_RT_NO_RENDERER', { kind: node.kind })
+  /** 字段与列表共用的分组：带数据路径，错误摘要里有一条，离开分组时校验这个路径。 */
+  #group(path: JsonPath): { group: HTMLElement, summary: HTMLElement } {
     const doc = this.ownerDocument
     const data = JSON.stringify(path)
     const group = make(doc, 'div', 'field-group', { 'data-path': data, 'data-xh-part-owner': 'form' })
-    const item = make(doc, 'a', 'error-summary-item', { 'data-path': data })
-    summary.append(item)
-    const context = this.#contextOf(node, path)
-    const instance = renderer(context)
-    const shell = createFieldShell(doc, node, instance.element)
-    shell.update(context)
-    group.append(shell.element)
+    const summary = make(doc, 'a', 'error-summary-item', { 'data-path': data })
+    this.#summary!.append(summary)
     group.addEventListener('focusout', (event) => {
       const next = (event as FocusEvent).relatedTarget
       if (!(next instanceof Node && group.contains(next)))
         this.#commit(path)
     })
-    const entry: FieldEntry = { node, path, key: node.id, group, summary: item, instance, shell }
+    return { group, summary }
+  }
+
+  #renderField(node: FieldNode, path: JsonPath, key: string, into?: Owned): HTMLElement {
+    const renderer = (this.fieldRenderers && Object.hasOwn(this.fieldRenderers, node.kind) ? this.fieldRenderers[node.kind] : undefined)
+      ?? (Object.hasOwn(FORM_FIELD_RENDERERS, node.kind) ? FORM_FIELD_RENDERERS[node.kind] : undefined)
+    if (renderer === undefined)
+      throw new FormRuntimeError('XH_FORM_RT_NO_RENDERER', { kind: node.kind })
+    const { group, summary } = this.#group(path)
+    const context = this.#contextOf(node, path)
+    const instance = renderer(context)
+    const shell = createFieldShell(this.ownerDocument, node, instance.element)
+    shell.update(context)
+    group.append(shell.element)
+    const entry: FieldEntry = { node, path, key, group, summary, instance, shell }
     this.#fields.set(pathKey(path), entry)
-    this.#fieldsByKey.set(entry.key, entry)
+    this.#fieldsByKey.set(key, entry)
+    into?.fields.push(pathKey(path))
     group.hidden = this.#controller!.getState(path)!.hidden
     return group
+  }
+
+  #renderList(node: ContainerNode, scope: RowScope, key: string, into?: Owned): HTMLElement {
+    const path = [...scope.prefix, node.key!]
+    const { group, summary } = this.#group(path)
+    const shell = createListShell(this.ownerDocument, node)
+    group.append(shell.element)
+    const list: ListEntry = { node, path, key, rowPath: scope.rowPath, group, summary, shell, rows: new Map(), tokens: [] }
+    const array = shell.array as HTMLElement & { createItem?: () => unknown }
+    array.createItem = () => ({})
+    array.addEventListener('value-change', (event) => {
+      const detail = (event as CustomEvent<{ value: object[], mutation?: FormArrayMutation }>).detail
+      this.#mutateList(list, detail.value, detail.mutation)
+    })
+    this.#lists.set(pathKey(path), list)
+    into?.lists.push(pathKey(path))
+    this.#reconcileList(list)
+    this.#refreshList(list)
+    return group
+  }
+
+  /** xh-field-array 交来一次增删换序：先换上它给的令牌，再交控制器改行，最后按令牌对行。 */
+  #mutateList(list: ListEntry, tokens: object[], mutation: FormArrayMutation | undefined): void {
+    const controller = this.#controller
+    if (controller === null || mutation === undefined || mutation.type === 'replace')
+      return
+    list.tokens = tokens
+    try {
+      if (mutation.type === 'insert')
+        controller.addRow(list.path, { index: mutation.index })
+      else if (mutation.type === 'remove')
+        controller.removeRow(list.path, mutation.index)
+      else
+        controller.moveRow(list.path, mutation.from, mutation.to)
+    }
+    finally {
+      this.#reconcileList(list)
+    }
+  }
+
+  /**
+   * 按控制器里的行数对行：令牌数与行数不符时按位置截短或补齐；
+   * 行号变了的行重建行内容，各行按令牌顺序排在新增把手前面，再把令牌数组交给 xh-field-array。
+   */
+  #reconcileList(list: ListEntry): void {
+    if (!this.#lists.has(pathKey(list.path)))
+      return
+    const doc = this.ownerDocument
+    const rows = this.#controller!.getValue(list.path)
+    const count = Array.isArray(rows) ? rows.length : 0
+    if (list.tokens.length !== count)
+      list.tokens = [...list.tokens.slice(0, count), ...Array.from({ length: Math.max(0, count - list.tokens.length) }, () => ({}))]
+    const alive = new Set(list.tokens)
+    for (const [token, entry] of list.rows) {
+      if (!alive.has(token)) {
+        this.#release(entry.owned)
+        entry.row.item.remove()
+        list.rows.delete(token)
+      }
+    }
+    const movable = list.node.data.movable !== false
+    let cursor = list.shell.root.firstElementChild
+    list.tokens.forEach((token, index) => {
+      let entry = list.rows.get(token)
+      if (entry === undefined) {
+        entry = { row: createListRow(doc, movable), index: -1, owned: owned() }
+        list.rows.set(token, entry)
+      }
+      if (entry.index !== index) {
+        this.#release(entry.owned)
+        entry.owned = owned()
+        entry.index = index
+        text(entry.row.label, String(index + 1))
+        const slot = make(doc, 'div', undefined, { 'data-form-region': '' })
+        entry.row.content.replaceChildren(slot)
+        this.#renderNodes(list.node.regions[0]!.children, slot, { prefix: [...list.path, index], rowPath: [...list.rowPath, index] }, entry.owned)
+      }
+      if (entry.row.item === cursor)
+        cursor = cursor.nextElementSibling
+      else
+        list.shell.root.insertBefore(entry.row.item, cursor)
+    })
+    const array = list.shell.array as HTMLElement & { value?: unknown }
+    if (array.value !== list.tokens)
+      array.value = list.tokens
+  }
+
+  /** 收回一段内容建出的登记项：字段实例销毁、摘要条目移除，内嵌的列表连同它的行一并收回。 */
+  #release(items: Owned): void {
+    for (const key of items.fields) {
+      const entry = this.#fields.get(key)
+      if (entry === undefined)
+        continue
+      entry.instance.destroy?.()
+      entry.summary.remove()
+      this.#fields.delete(key)
+      this.#fieldsByKey.delete(entry.key)
+    }
+    for (const key of items.nodes)
+      this.#nodes.delete(key)
+    for (const key of items.lists) {
+      const list = this.#lists.get(key)
+      if (list === undefined)
+        continue
+      for (const entry of list.rows.values())
+        this.#release(entry.owned)
+      list.summary.remove()
+      this.#lists.delete(key)
+    }
+  }
+
+  #refreshList(list: ListEntry): void {
+    const controller = this.#controller
+    if (controller === null)
+      return
+    const state = controller.getState(list.path)!
+    list.group.hidden = state.hidden
+    const issue = controller.getIssues().find(item => jsonEquals(item.path as JsonValue, list.path as JsonValue))
+    const t = this.#t()
+    list.shell.update(state, issue === undefined ? undefined : issueMessage(issue, t), t.addRow)
   }
 
   #contextOf(node: FieldNode, path: JsonPath): FieldRendererContext {
@@ -495,8 +676,10 @@ export class XhFormRenderer extends XhReactiveElement {
       return
     for (const entry of this.#fields.values())
       this.#refreshField(entry)
-    for (const [id, node] of this.#nodes)
-      node.update(controller.getState(id)!)
+    for (const [key, node] of this.#nodes)
+      node.update(controller.getState(key)!)
+    for (const list of this.#lists.values())
+      this.#refreshList(list)
     this.#syncErrors()
   }
 
@@ -506,6 +689,10 @@ export class XhFormRenderer extends XhReactiveElement {
       return
     switch (event.type) {
       case 'values': {
+        for (const list of [...this.#lists.values()].sort((a, b) => a.path.length - b.path.length)) {
+          if (event.paths.some(path => related(path, list.path)))
+            this.#reconcileList(list)
+        }
         for (const entry of this.#fields.values()) {
           if (event.paths.some(path => related(path, entry.path)))
             this.#refreshField(entry)
@@ -522,6 +709,10 @@ export class XhFormRenderer extends XhReactiveElement {
           if (node !== undefined)
             node.update(controller.getState(key)!)
         }
+        for (const list of this.#lists.values()) {
+          if (event.keys.includes(list.key))
+            this.#refreshList(list)
+        }
         this.#checkLinkage()
         break
       }
@@ -529,6 +720,10 @@ export class XhFormRenderer extends XhReactiveElement {
         for (const entry of this.#fields.values()) {
           if (event.paths.some(path => related(path, entry.path)))
             this.#refreshField(entry)
+        }
+        for (const list of this.#lists.values()) {
+          if (event.paths.some(path => related(path, list.path)))
+            this.#refreshList(list)
         }
         this.#syncErrors()
         emitEvent(this, 'issues-change', { paths: event.paths, issues: controller.getIssues() })
@@ -612,6 +807,12 @@ export class XhFormRenderer extends XhReactiveElement {
       const label = stringOf(entry.node.basic.label) ?? ''
       const message = issue === undefined ? '' : issueMessage(issue, t)
       text(entry.summary, message === '' || label === '' ? message : t.errorSummaryItem(label, message))
+    }
+    for (const list of this.#lists.values()) {
+      const issue = issues.find(item => jsonEquals(item.path as JsonValue, list.path as JsonValue))
+      const title = stringOf(list.node.basic.title) ?? ''
+      const message = issue === undefined ? '' : issueMessage(issue, t)
+      text(list.summary, message === '' || title === '' ? message : t.errorSummaryItem(title, message))
     }
   }
 }

@@ -1,4 +1,5 @@
 import type { FormEvent, FormEventType } from '../src'
+import { instanceKey } from '@xihan-form/core'
 import { describe, expect, it } from 'vitest'
 import { createFormController, FormRuntimeError } from '../src'
 import { createFakeEngine } from './fake-engine'
@@ -258,6 +259,17 @@ describe('宿主的强制设定', () => {
     expect(controller.getState(company.id)?.hidden).toBe(false)
     controller.setHidden(company.id, null)
     expect(controller.getState(company.id)?.hidden).toBe(true)
+  })
+
+  it('实例键与数据路径同样寻址一个实例；行不存在的实例键抛 XH_FORM_RT_UNKNOWN_NODE', () => {
+    const { document, expressionEngine: engine, price } = orderForm()
+    const controller = createFormController({ document, expressionEngine: engine, values: { lines: [{ price: 1, qty: 1 }, { price: 2, qty: 1 }] } })
+    controller.setDisabled(instanceKey(price.id, [1]), true)
+    expect(controller.getState(instanceKey(price.id, [1]))).toEqual(controller.getState(['lines', 1, 'price']))
+    expect(controller.getState(['lines', 1, 'price'])?.disabled).toBe(true)
+    expect(controller.getState(['lines', 0, 'price'])?.disabled).toBe(false)
+    expect(controller.getState(price.id)).toBeUndefined()
+    expect(() => controller.getState(instanceKey(price.id, [5]))).toThrow(expect.objectContaining({ code: 'XH_FORM_RT_UNKNOWN_NODE' }))
   })
 
   it('隐藏或禁用容器向后代叠加，被跳过的字段不校验', () => {

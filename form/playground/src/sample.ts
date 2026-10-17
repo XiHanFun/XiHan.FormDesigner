@@ -35,13 +35,15 @@ function field(kind: string, key: string, label: string, extra: FieldExtra = {})
   }
 }
 
-function container(kind: string, regions: readonly (readonly FormNode[])[], extra: { basic?: PropertyBag, appearance?: PropertyBag, regionProps?: readonly PropertyBag[] } = {}): ContainerNode {
-  const node = createNode(registry, kind, ids) as ContainerNode
+function container(kind: string, regions: readonly (readonly FormNode[])[], extra: { key?: string, basic?: PropertyBag, data?: PropertyBag, appearance?: PropertyBag, regionProps?: readonly PropertyBag[], validation?: readonly ValidationRule[] } = {}): ContainerNode {
+  const node = createNode(registry, kind, ids, extra.key === undefined ? {} : { key: extra.key }) as ContainerNode
   const template = node.regions[0]!
   return {
     ...node,
     basic: { ...node.basic, ...extra.basic },
+    data: { ...node.data, ...extra.data },
     appearance: { ...node.appearance, ...extra.appearance },
+    validation: extra.validation ?? node.validation,
     regions: regions.map((children, index) => ({
       id: index === 0 ? template.id : ids.next(),
       props: { ...template.props, ...extra.regionProps?.[index] },
@@ -105,6 +107,11 @@ export function expenseForm(): FormDocument {
   })
   const basicCard = container('card', [[basics, reason, attachments]], { basic: { title: '基本信息' } })
 
+  const details = container('subform', [[
+    container('grid', [[field('text', 'item', '名目', { validation: [rule({ kind: 'required' })] })], [field('number', 'cost', '金额（元）', { data: { precision: 2 } })]], { regionProps: [{ span: 6 }, { span: 6 }] }),
+  ]], { key: 'details', basic: { title: '费用明细' }, data: { initialRows: 1 }, validation: [rule({ kind: 'required', message: '至少填写一条明细' })] })
+  const companions = container('subtable', [[field('text', 'name', '姓名'), field('text', 'phone', '手机号')]], { key: 'companions', basic: { title: '同行人员' }, data: { movable: false } })
+
   const satisfaction = field('rating', 'satisfaction', '对流程的满意度')
   const share = field('slider', 'share', '计入项目预算的比例（%）', { basic: { initialValue: 100 } })
   const channels = field('checkbox-group', 'channels', '审批结果通知', { data: { options: [{ value: 'mail', label: '邮件' }, { value: 'sms', label: '短信' }, { value: 'im', label: '即时消息' }] } })
@@ -125,6 +132,8 @@ export function expenseForm(): FormDocument {
     ...createDocument(),
     children: [
       basicCard,
+      details,
+      companions,
       container('grid', [[urgent], [urgentNote]], { regionProps: [{ span: 4 }, { span: 8 }] }),
       divider('附加信息'),
       paragraph('以下内容选填，可帮助财务更快处理。'),
