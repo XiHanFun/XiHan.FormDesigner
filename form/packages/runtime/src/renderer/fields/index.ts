@@ -11,6 +11,7 @@ import { colorField } from './color'
 import { dateField, dateRangeField, timeField } from './datetime'
 import { fileField } from './file'
 import { ratingField, sliderField } from './measure'
+import { signatureField } from './signature'
 import { numberField, passwordField, pinField, tagsField, textareaField, textField } from './text'
 
 /** 内置字段种类的渲染器。 */
@@ -36,4 +37,5 @@ export const FORM_FIELD_RENDERERS: Readonly<Record<string, FieldRenderer>> = Obj
   'color': colorField,
   'tags': tagsField,
   'file': fileField,
+  'signature': signatureField,
 })

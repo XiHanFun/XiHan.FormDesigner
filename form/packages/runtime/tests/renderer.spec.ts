@@ -779,6 +779,7 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['date-range', 'xh-date-range-picker', 'trigger'],
     ['time', 'xh-time-picker', 'trigger'],
     ['color', 'xh-color-picker', 'trigger'],
+    ['signature', 'xh-signature-pad', 'control'],
   ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
     const { registry, ids } = setup()
     const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]
@@ -957,6 +958,50 @@ describe('<xh-form-renderer>：颜色字段', () => {
   it('新建的颜色字段 format 是 hex；字段值为 null 时元素拿到空数组', async () => {
     const { element } = await mountColor({})
     expect([element.value, element.format]).toEqual([[], 'hex'])
+  })
+})
+
+describe('<xh-form-renderer>：签名字段', () => {
+  type Pad = HTMLElement & { value?: unknown, updateComplete: Promise<boolean> }
+  const signed = { strokes: [{ points: [{ x: 1, y: 2, pressure: 0.5 }, { x: 3, y: 4, pressure: 0.6 }] }], surface: { width: 300, height: 120 } }
+
+  async function mountPad(values: Record<string, JsonValue> = {}): Promise<{ renderer: XhFormRenderer, element: Pad }> {
+    const { registry, ids } = setup()
+    const renderer = await mount((element) => {
+      element.values = values
+      element.schema = documentOf([field(registry, ids, 'signature', 'sign'), field(registry, ids, 'text', 'other')])
+    })
+    const element = group(renderer, ['sign']).querySelector<Pad>('[slot="control"]')!
+    await element.updateComplete
+    return { renderer, element }
+  }
+
+  function draw(element: HTMLElement, value: unknown): void {
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value }, bubbles: true }))
+  }
+
+  it('值是签名数据 { strokes, surface }，原样交给元素回显；定稿写回同样的数据，清空写回 null', async () => {
+    const { renderer, element } = await mountPad({ sign: signed })
+    expect(element.localName).toBe('xh-signature-pad')
+    expect(element.value).toEqual(signed)
+    const more = { strokes: [...signed.strokes, { points: [{ x: 5, y: 6, pressure: 0.4 }] }], surface: signed.surface }
+    draw(element, more)
+    expect(renderer.getFormData().sign).toEqual(more)
+    draw(element, { strokes: [], surface: { width: 0, height: 0 } })
+    expect(renderer.getFormData().sign).toBeNull()
+    await element.updateComplete
+    expect(element.value).toEqual({ strokes: [], surface: { width: 0, height: 0 } })
+  })
+
+  it('字段值为 null 或不是签名数据时元素拿到空签名；别的字段变化不重写元素的 value', async () => {
+    const { renderer, element } = await mountPad({ sign: { strokes: [{ points: [{ x: 'a', y: 1 }] }], surface: { width: 1, height: 1 } } })
+    expect(element.value).toEqual({ strokes: [], surface: { width: 0, height: 0 } })
+    renderer.setValue(['sign'], signed)
+    await element.updateComplete
+    const shown = element.value
+    renderer.setValue(['other'], '改了别的字段')
+    await element.updateComplete
+    expect(element.value).toBe(shown)
   })
 })
 

@@ -33,6 +33,7 @@ import {
   XhRatingElement,
   XhSelectElement,
   XhSeparatorElement,
+  XhSignaturePadElement,
   XhSliderElement,
   XhSwitchElement,
   XhTabsElement,
@@ -70,6 +71,7 @@ export function defineRendererElements(): void {
   defineXhElement('xh-rating', XhRatingElement)
   defineXhElement('xh-color-picker', XhColorPickerElement)
   defineXhElement('xh-file-upload', XhFileUploadElement)
+  defineXhElement('xh-signature-pad', XhSignaturePadElement)
   defineXhElement('xh-grid', XhGridElement)
   defineXhElement('xh-tabs', XhTabsElement)
   defineXhElement('xh-card', XhCardElement)
