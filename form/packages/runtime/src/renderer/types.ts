@@ -8,7 +8,7 @@
 import type { FieldNode, NodeState } from '@xihan-form/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { FileUploadRequest, FileUploadResult } from '@xihan-ui/headless'
-import type { OptionsState } from '../state/options'
+import type { OptionItem, OptionsState } from '../state/options'
 import type { FormRendererTranslations } from '../translations'
 
 /** 字段的尺寸档。 */
@@ -44,6 +44,8 @@ export interface FieldRendererContext {
   readonly searchOptions: ((query: string) => void) | undefined
   /** 重新加载本字段的选项（如取数失败后重试），结果经 `options` 回来；字段没有选项来源或宿主没给 `loadOptions` 时为 `undefined`。 */
   readonly reloadOptions: (() => void) | undefined
+  /** 懒加载选项树里某个节点的直接子项；字段没有选项来源或宿主没给 `loadOptions` 时为 `undefined`。 */
+  readonly loadChildren: ((parent: string) => Promise<readonly OptionItem[]>) | undefined
   readonly size: FieldSize
   /** 渲染器当前的文案。 */
   readonly translations: FormRendererTranslations

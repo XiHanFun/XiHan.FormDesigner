@@ -102,6 +102,7 @@ export function expenseForm(): FormDocument {
   const amount = field('number', 'amount', '金额（元）', { basic: { placeholder: '例如 1280.50' }, data: { precision: 2, step: 100 }, validation: [rule({ kind: 'required' }), rule({ kind: 'range', min: 0.01, max: 100000 })] })
   const vendor = field('combobox', 'vendor', '开票单位', { basic: { placeholder: '输入名称搜索', hint: '按名称搜索，结果来自宿主' }, data: { optionSource: 'vendors' } })
   const bank = field('select', 'bank', '收款银行', { basic: { placeholder: '请选择银行', hint: '首次加载会失败，展开后点重试' }, data: { optionSource: 'banks' } })
+  const account = field('tree-select', 'account', '费用科目', { basic: { placeholder: '请选择科目', hint: '展开一级科目时才向宿主要下级' }, data: { optionSource: 'accounts' } })
   const invoices = field('number', 'invoices', '发票张数', { data: { precision: 0 }, validation: [rule({ kind: 'expression', expression: '$value == null || $value <= 20', message: '一次最多报销 20 张发票' })] })
   const reason = field('textarea', 'reason', '事由', {
     basic: { placeholder: '金额超过 5000 元时必填', hint: '写清费用用途，财务审核时会对照发票' },
@@ -113,8 +114,8 @@ export function expenseForm(): FormDocument {
   const urgent = field('switch', 'urgent', '加急处理')
   const urgentNote = field('text', 'urgentNote', '加急原因', { linkage: [linkage('hide', 'urgent != true'), linkage('require', 'urgent == true')] })
 
-  const basics = container('grid', [[applicant], [phone], [department], [type], [province], [city], [amount], [invoices], [vendor], [bank]], {
-    regionProps: [{ span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }],
+  const basics = container('grid', [[applicant], [phone], [department], [type], [province], [city], [amount], [invoices], [vendor], [bank], [account]], {
+    regionProps: [{ span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }],
   })
   const basicCard = container('card', [[basics, reason, attachments]], { basic: { title: '基本信息' } })
 
@@ -182,6 +183,12 @@ const BANKS: readonly OptionItem[] = [
   { value: 'cmb', label: '招商银行' },
 ]
 
+const ACCOUNTS: Readonly<Record<string, readonly OptionItem[]>> = {
+  '': [{ value: 'travel', label: '差旅费', hasChildren: true }, { value: 'office', label: '办公费', hasChildren: true }, { value: 'other', label: '其他' }],
+  'travel': [{ value: 'travel-transport', label: '交通' }, { value: 'travel-hotel', label: '住宿' }, { value: 'travel-meal', label: '伙食补助' }],
+  'office': [{ value: 'office-supply', label: '办公用品' }, { value: 'office-print', label: '打印复印' }],
+}
+
 const CITIES: Readonly<Record<string, readonly OptionItem[]>> = {
   zj: [{ value: 'hz', label: '杭州' }, { value: 'nb', label: '宁波' }],
   js: [{ value: 'nj', label: '南京' }, { value: 'sz', label: '苏州' }],
@@ -190,7 +197,7 @@ const CITIES: Readonly<Record<string, readonly OptionItem[]>> = {
 
 let bankAttempts = 0
 
-/** 模拟的异步选项加载：部门延迟返回，开票单位按搜索串筛，银行首次失败、重试后返回，城市按省份返回。 */
+/** 模拟的异步选项加载：部门延迟返回，开票单位按搜索串筛，银行首次失败、重试后返回，费用科目按父节点逐级返回，城市按省份返回。 */
 export const loadOptions: OptionLoader = request => new Promise((resolve, reject) => {
   setTimeout(() => {
     if (request.source === 'departments')
@@ -199,6 +206,8 @@ export const loadOptions: OptionLoader = request => new Promise((resolve, reject
       reject(new Error('网络不可用'))
     else if (request.source === 'banks')
       resolve(BANKS)
+    else if (request.source === 'accounts')
+      resolve(ACCOUNTS[request.parent ?? ''] ?? [])
     else if (request.source === 'vendors')
       resolve(VENDORS.filter(vendor => vendor.label.includes(request.query?.trim() ?? '')))
     else

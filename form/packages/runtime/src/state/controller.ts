@@ -142,6 +142,11 @@ export interface FormController {
    * 只用于带选项来源的字段；连续调用时只认最后一次的结果。
    */
   readonly searchOptions: (target: FormTarget, query: string) => Promise<void>
+  /**
+   * 懒加载选项树里某个节点的直接子项：请求带上 `parent`，返回校验过的子项，不写进字段的选项状态。
+   * 字段没有选项来源时报 `XH_FORM_RT_NO_OPTION_SOURCE`，返回的子项形状不对时报 `XH_FORM_RT_INVALID_OPTIONS`。
+   */
+  readonly loadChildren: (target: FormTarget, parent: string) => Promise<readonly OptionItem[]>
   /** 字段实例的选项：带选项来源时是加载状态，否则是 schema 里的静态选项。 */
   readonly getOptions: (target: FormTarget) => OptionsState
   /** 替换宿主变量并重算联动。 */
@@ -649,6 +654,23 @@ class Controller implements FormController {
       throw new FormRuntimeError('XH_FORM_RT_NO_OPTION_SOURCE', { nodeId: node.id })
     this.optionQueries.set(key, query)
     await this.load([key])
+  }
+
+  async loadChildren(target: FormTarget, parent: string): Promise<readonly OptionItem[]> {
+    this.alive()
+    const key = this.targetKey(target)
+    const node = this.optionField(key)
+    const source = optionSourceOf(node)
+    if (source === undefined)
+      throw new FormRuntimeError('XH_FORM_RT_NO_OPTION_SOURCE', { nodeId: node.id })
+    const loader = this.loader
+    if (loader === undefined)
+      throw new FormRuntimeError('XH_FORM_RT_NO_OPTION_LOADER')
+    const { rowPath } = parseInstanceKey(key)
+    const items = await loader({ source, nodeId: node.id, path: this.instancePath(node, rowPath), values: cloneJson(this.values), parent })
+    if (!isValidOptions(optionsDescriptor(node, this.registry)!, items))
+      throw new FormRuntimeError('XH_FORM_RT_INVALID_OPTIONS', { nodeId: node.id, parent })
+    return cloneJson(items as never)
   }
 
   /** 加载一组字段实例的选项。 */

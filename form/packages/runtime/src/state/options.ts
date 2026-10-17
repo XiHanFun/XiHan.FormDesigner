@@ -15,6 +15,8 @@ export interface OptionItem {
   readonly label: string
   readonly disabled?: boolean
   readonly children?: readonly OptionItem[]
+  /** 选项树里有子项但还没给出：首次展开时经 `parent` 再请求一次它的直接子项。 */
+  readonly hasChildren?: boolean
 }
 
 /** 交给宿主加载函数的请求。 */
@@ -28,6 +30,8 @@ export interface OptionRequest {
   readonly values: Readonly<Record<string, JsonValue>>
   /** 搜索串：可输入筛选的字段（组合框）在输入时带上，宿主按它返回匹配的选项；没有输入过时不带。 */
   readonly query?: string
+  /** 懒加载：要取直接子项的那个节点的值，宿主只返回它的子项；取整棵（顶层）时不带。 */
+  readonly parent?: string
 }
 
 /** 宿主提供的选项加载函数，返回选项数组或它的 Promise。 */
