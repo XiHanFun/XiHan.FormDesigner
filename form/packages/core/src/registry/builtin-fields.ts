@@ -126,6 +126,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     kind: 'number',
     category: 'input',
     element: 'xh-number-field',
+    placeholder: true,
     data: [
       { path: ['step'], control: { kind: 'number' }, default: 1 },
       { path: ['precision'], control: { kind: 'number', integer: true, min: 0, max: 20 } },

@@ -93,7 +93,7 @@ export const numberField: FieldRenderer = (context) => {
   })
   const update = (next: FieldRendererContext): void => {
     ref.current = next
-    paintCommon(element, next)
+    paintCommon(element, next, { placeholder: true })
     assign(element, 'value', typeof next.value === 'number' ? format(next.value) : '')
   }
   update(context)
