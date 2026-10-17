@@ -37,7 +37,7 @@ export const sliderField: FieldRenderer = (context) => {
   })
   const update = (next: FieldRendererContext): void => {
     ref.current = next
-    paintCommon(element, next, { required: false })
+    paintCommon(element, next)
     const value = next.value
     const min = numberOf(data.min) ?? 0
     const max = numberOf(data.max) ?? 100

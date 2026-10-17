@@ -9,11 +9,11 @@ import type { FieldRendererContext } from '../types'
 import { applyControlState, assign, stringOf } from '../dom'
 
 /** 控件上与种类无关的那几项：尺寸、占位符与状态。 */
-export function paintCommon(element: HTMLElement, context: FieldRendererContext, options: { placeholder?: boolean, readOnly?: boolean, required?: boolean } = {}): void {
+export function paintCommon(element: HTMLElement, context: FieldRendererContext, options: { placeholder?: boolean } = {}): void {
   assign(element, 'size', context.size)
   if (options.placeholder === true)
     assign(element, 'placeholder', stringOf(context.node.basic.placeholder))
-  applyControlState(element, context.state, options)
+  applyControlState(element, context.state)
 }
 
 /** 持有最新上下文：事件回调总拿到最近一次 update 交来的那份。 */

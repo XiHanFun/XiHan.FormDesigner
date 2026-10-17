@@ -136,7 +136,7 @@ function groupField(tag: 'xh-radio-group' | 'xh-checkbox-group', toUi: (value: u
     on<{ value: unknown }>(element, 'value-change', detail => ref.current.setValue(fromUi(detail.value)))
     const update = (next: FieldRendererContext): void => {
       ref.current = next
-      paintCommon(element, next, { required: tag === 'xh-radio-group' })
+      paintCommon(element, next)
       syncOptions(itemsOf(next))
       assign(element, 'value', toUi(next.value))
     }
@@ -196,7 +196,7 @@ export const comboboxField: FieldRenderer = (context) => {
   })
   const update = (next: FieldRendererContext): void => {
     ref.current = next
-    paintCommon(element, next, { placeholder: true, required: false })
+    paintCommon(element, next, { placeholder: true })
     assign(element, 'empty', next.translations.optionsEmpty)
     assign(element, 'loading', next.options?.status === 'loading' ? true : undefined)
     const items = itemsOf(next)
@@ -223,7 +223,7 @@ export const toggleGroupField: FieldRenderer = (context) => {
   })
   const update = (next: FieldRendererContext): void => {
     ref.current = next
-    paintCommon(element, next, { readOnly: false, required: false })
+    paintCommon(element, next)
     syncCollection(itemsOf(next))
     assign(element, 'value', multiple ? toList(next.value) : (typeof next.value === 'string' ? next.value : null))
   }

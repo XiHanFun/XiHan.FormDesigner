@@ -487,6 +487,31 @@ describe('<xh-form-renderer>：标签字段', () => {
   })
 })
 
+describe('<xh-form-renderer>：控件状态', () => {
+  it.each([
+    ['toggle-group', 'xh-toggle-group'],
+    ['checkbox-group', 'xh-checkbox-group'],
+    ['combobox', 'xh-combobox'],
+    ['slider', 'xh-slider'],
+    ['file', 'xh-file-upload'],
+  ])('%s：必填规则与整表只读写成 %s 的 required、readOnly', async (kind, tag) => {
+    const { registry, ids } = setup()
+    const options = [{ value: 'a', label: '甲' }]
+    const node = field(registry, ids, kind, 'x', {
+      ...(kind === 'toggle-group' || kind === 'checkbox-group' || kind === 'combobox' ? { data: { options } } : {}),
+      validation: [{ id: 'r', kind: 'required' }],
+    })
+    const renderer = await mount((element) => {
+      element.schema = documentOf([node])
+    })
+    const element = group(renderer, ['x']).querySelector(tag) as HTMLElement & { required?: boolean, readOnly?: boolean }
+    expect([element.required, element.readOnly]).toEqual([true, undefined])
+    renderer.readonly = true
+    await renderer.updateComplete
+    expect(element.readOnly).toBe(true)
+  })
+})
+
 describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
   it.each([
     ['text', 'xh-text-field', 'input'],
