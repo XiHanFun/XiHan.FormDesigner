@@ -11,8 +11,6 @@ export interface FormRendererTranslations {
   readonly errorSummary: (count: number) => string
   /** 错误摘要里的一条：字段标签与问题文案。 */
   readonly errorSummaryItem: (label: string, message: string) => string
-  /** 选项加载中。 */
-  readonly optionsLoading: string
   /** 没有选项。 */
   readonly optionsEmpty: string
   /** 列表容器的新增把手。 */
@@ -40,7 +38,6 @@ export interface FormRendererTranslations {
 export const DEFAULT_FORM_RENDERER_TRANSLATIONS: FormRendererTranslations = Object.freeze({
   errorSummary: (count: number) => (count === 1 ? '1 field needs attention' : `${count} fields need attention`),
   errorSummaryItem: (label: string, message: string) => `${label}: ${message}`,
-  optionsLoading: 'Loading…',
   optionsEmpty: 'No options',
   addRow: 'Add row',
   fileDropzone: 'Drop files here or click to choose',

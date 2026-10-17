@@ -667,10 +667,14 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['toggle-group', 'xh-toggle-group', 'item'],
     ['tags', 'xh-tags-input', 'input'],
     ['combobox', 'xh-combobox', 'input'],
+    ['select', 'xh-select', 'retry-trigger'],
+    ['radio-group', 'xh-radio-group', 'item'],
+    ['checkbox-group', 'xh-checkbox-group', 'item'],
+    ['textarea', 'xh-text-field', 'input'],
   ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
     const { registry, ids } = setup()
     const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]
-    const node = field(registry, ids, kind, 'x', kind === 'toggle-group' || kind === 'combobox' ? { data: { options } } : {})
+    const node = field(registry, ids, kind, 'x', ['toggle-group', 'combobox', 'select', 'radio-group', 'checkbox-group'].includes(kind) ? { data: { options } } : {})
     const renderer = await mount((element) => {
       element.schema = documentOf([node])
     })
@@ -679,6 +683,21 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     expect(element.querySelector('[data-xh-part]:not([data-xh-gen])')).toBeNull()
     const scope = tag.slice('xh-'.length)
     expect(element.querySelectorAll(`[data-scope="${scope}"][data-part="${part}"]`).length).toBeGreaterThan(0)
+  })
+
+  it('多行文本的输入框是 textarea；下拉的空态文字取表单的 optionsEmpty，选项写成 collection', async () => {
+    const { registry, ids } = setup()
+    const renderer = await mount((element) => {
+      element.schema = documentOf([field(registry, ids, 'textarea', 'note'), field(registry, ids, 'select', 'pick')])
+    })
+    const note = group(renderer, ['note']).querySelector('xh-text-field') as HTMLElement & { multiline?: boolean, updateComplete: Promise<boolean> }
+    await note.updateComplete
+    expect(note.multiline).toBe(true)
+    expect(note.querySelector('[data-part="input"]')!.tagName).toBe('TEXTAREA')
+    const pick = group(renderer, ['pick']).querySelector('xh-select') as HTMLElement & { empty?: string, collection?: unknown[], updateComplete: Promise<boolean> }
+    await pick.updateComplete
+    expect([pick.empty, pick.collection]).toEqual(['No options', []])
+    expect(pick.querySelector('[data-part="empty"]')!.textContent).toBe('No options')
   })
 })
 
