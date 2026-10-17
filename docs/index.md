@@ -47,8 +47,8 @@ features:
   - title: 选项与附件
     icon: 🔗
     details: 选项可以写死，也可以交给宿主异步加载：按搜索串筛、按上级字段级联、树形逐级展开；附件上传同样交给宿主。
-    link: /introduction
-    linkText: 了解能做什么
+    link: /guide/renderer
+    linkText: 了解渲染器
 
   - title: 可视化设计器
     icon: 🎨
