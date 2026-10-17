@@ -545,6 +545,32 @@ describe('<xh-form-renderer>：控件状态', () => {
   })
 })
 
+describe('<xh-form-renderer>：点字段标签', () => {
+  it.each([
+    ['text', 'xh-text-field', 'input'],
+    ['number', 'xh-number-field', 'input'],
+    ['select', 'xh-select', 'trigger'],
+    ['combobox', 'xh-combobox', 'input'],
+    ['toggle-group', 'xh-toggle-group', 'item'],
+  ])('%s：标签不写落空的 for，点标签把焦点交给 %s 的 %s', async (kind, tag, part) => {
+    const { registry, ids } = setup()
+    const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]
+    const node = field(registry, ids, kind, 'x', kind === 'select' || kind === 'combobox' || kind === 'toggle-group' ? { data: { options } } : {})
+    const renderer = await mount((element) => {
+      element.schema = documentOf([{ ...node, basic: { ...node.basic, label: '字段' } }])
+    })
+    const shell = group(renderer, ['x']).querySelector('xh-field') as HTMLElement & { updateComplete?: Promise<boolean> }
+    const element = shell.querySelector(tag) as HTMLElement & { updateComplete: Promise<boolean> }
+    await shell.updateComplete
+    await element.updateComplete
+    const label = shell.querySelector<HTMLElement>('[data-xh-part="label"]')!
+    expect(label.hasAttribute('for')).toBe(false)
+    label.click()
+    const scope = tag.slice('xh-'.length)
+    expect(document.activeElement).toBe(element.querySelector(`[data-scope="${scope}"][data-part="${part}"]`))
+  })
+})
+
 describe('<xh-form-renderer>：标签页与折叠只建宿主', () => {
   it.each([
     ['tabs', 'xh-tabs', 'trigger'],
