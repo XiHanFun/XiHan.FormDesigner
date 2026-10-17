@@ -7,7 +7,7 @@
 
 import type { FieldRenderer } from '../types'
 import { checkboxField, checkboxGroupField, comboboxField, radioGroupField, selectField, switchField, toggleGroupField, treeSelectField } from './choice'
-import { dateField, dateRangeField } from './datetime'
+import { dateField, dateRangeField, timeField } from './datetime'
 import { fileField } from './file'
 import { ratingField, sliderField } from './measure'
 import { numberField, passwordField, pinField, tagsField, textareaField, textField } from './text'
@@ -29,6 +29,7 @@ export const FORM_FIELD_RENDERERS: Readonly<Record<string, FieldRenderer>> = Obj
   'switch': switchField,
   'date': dateField,
   'date-range': dateRangeField,
+  'time': timeField,
   'slider': sliderField,
   'rating': ratingField,
   'tags': tagsField,

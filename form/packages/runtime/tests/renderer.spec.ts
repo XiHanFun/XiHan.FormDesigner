@@ -777,6 +777,7 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['pin', 'xh-pin-input', 'input'],
     ['date', 'xh-date-picker', 'trigger'],
     ['date-range', 'xh-date-range-picker', 'trigger'],
+    ['time', 'xh-time-picker', 'trigger'],
   ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
     const { registry, ids } = setup()
     const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]
@@ -906,6 +907,25 @@ describe('<xh-form-renderer>：日期时间字段', () => {
     expect(renderer.getFormData().when).toEqual(['', '2026-11-05'])
     pick(range, ['', ''])
     expect(renderer.getFormData().when).toEqual([])
+  })
+
+  it('时间：值是 ISO 时间串，写给元素时是数组，缺省精确到分；选中写回字符串，清空写回 null', async () => {
+    const { renderer, element } = await mountField('time', {}, { when: '09:30' })
+    const time = element as Picker & { granularity?: string }
+    expect(time.localName).toBe('xh-time-picker')
+    expect([time.value, time.granularity]).toEqual([['09:30'], undefined])
+    pick(time, ['13:45'])
+    expect(renderer.getFormData().when).toBe('13:45')
+    pick(time, [])
+    expect(renderer.getFormData().when).toBeNull()
+  })
+
+  it('时间：带秒时精确到秒，值是带秒的 ISO 时间串', async () => {
+    const { renderer, element } = await mountField('time', { data: { withSeconds: true } })
+    const time = element as Picker & { granularity?: string }
+    expect([time.value, time.granularity]).toEqual([[], 'second'])
+    pick(time, ['13:45:30'])
+    expect(renderer.getFormData().when).toBe('13:45:30')
   })
 })
 
