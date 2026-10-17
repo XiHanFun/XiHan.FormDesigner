@@ -8,6 +8,7 @@
 // 子表按表格排布：表头与各行放进 table 部件，行内一个字段占一个 item-cell，列头取字段标签。
 
 import type { ContainerNode, NodeState } from '@xihan-form/core'
+import type { FieldSize } from './types'
 import { assign, host, make, stringOf, text } from './dom'
 
 /** 列表容器的外壳。 */
@@ -40,8 +41,27 @@ export interface ListRow {
 /** 按表格排布的列表容器种类。 */
 const TABLE_KINDS: ReadonlySet<string> = new Set(['subtable'])
 
-/** 建列表容器的外壳：标题取 `basic.title`，`data.movable` 不为 `false` 时可以换序；子表的列取行内节点的标签。 */
-export function createListShell(doc: Document, node: ContainerNode): ListShell {
+/** 控件尺寸由矮到高。 */
+const SIZES: readonly FieldSize[] = ['sm', 'md', 'lg']
+
+/** 子表各列字段里最高的一档尺寸：字段没写尺寸时取 `size`；没有字段列时为 `undefined`。 */
+function tallestSize(children: ContainerNode['regions'][number]['children'], size: FieldSize): FieldSize | undefined {
+  let tallest: FieldSize | undefined
+  for (const child of children) {
+    if (child.type !== 'field')
+      continue
+    const own = SIZES.find(item => item === child.appearance.size) ?? size
+    if (tallest === undefined || SIZES.indexOf(own) > SIZES.indexOf(tallest))
+      tallest = own
+  }
+  return tallest
+}
+
+/**
+ * 建列表容器的外壳：标题取 `basic.title`，`data.movable` 不为 `false` 时可以换序；子表的列取行内节点的标签。
+ * `size` 是字段没写尺寸时的缺省档；子表各列最高一档不是 md 时，行号与把手按这一档的控件高居中。
+ */
+export function createListShell(doc: Document, node: ContainerNode, size: FieldSize): ListShell {
   const element = host(doc, 'xh-field')
   const fieldRoot = make(doc, 'div', 'root')
   const label = make(doc, 'label', 'label')
@@ -60,6 +80,9 @@ export function createListShell(doc: Document, node: ContainerNode): ListShell {
     columns = children.map(child => child.id)
     assign(array, 'layout', 'table')
     assign(array, 'columns', children.map(child => ({ id: child.id, label: child.type === 'field' ? stringOf(child.basic.label) ?? '' : '' })))
+    const cellSize = tallestSize(children, size)
+    if (cellSize !== undefined && cellSize !== 'md')
+      array.style.setProperty('--xh-field-array-cell-control-h', `var(--xh-control-h-${cellSize})`)
     const table = make(doc, 'div', 'table')
     const header = make(doc, 'div', 'header')
     header.append(...columns.map(id => make(doc, 'div', 'column-header', { value: id })))
