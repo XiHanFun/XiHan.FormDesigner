@@ -31,9 +31,6 @@ export type FormMenuSubject = 'node' | 'region' | 'cell' | 'blank'
 /** 表格布局容器的种类，表格命令只认它。 */
 const TABLE_KIND = 'table'
 
-/** 删除一类的内置命令：右键菜单里以 danger 语气显示。 */
-export const DANGER_COMMANDS: ReadonlySet<string> = new Set(['delete', 'remove-row', 'remove-column'])
-
 /** 工具栏的缺省排列；commandLayout 没写 toolbar 时用它，再把 placement 含 toolbar 的扩展命令追加成一组。 */
 export const FORM_TOOLBAR_LAYOUT: readonly (readonly string[])[] = [
   ['undo', 'redo'],
@@ -158,6 +155,7 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
   {
     id: 'delete',
     label: text('delete'),
+    tone: 'danger',
     shortcut: ['Delete'],
     enabled: editing(state => state.design && (state.regions.length > 0 ? regionsDeletable(state, state.internals.registry()) : state.selection.nodes.length > 0)),
     run: ({ designer }) => void designer.deleteSelection(),
@@ -209,6 +207,7 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
   {
     id: 'remove-row',
     label: text('removeRow'),
+    tone: 'danger',
     enabled: editing((state) => {
       const cell = soleCell(state)
       return cell !== undefined && feasible(() => removeTableLine(state.document, cell.table, 'row', cell.row))
@@ -218,6 +217,7 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
   {
     id: 'remove-column',
     label: text('removeColumn'),
+    tone: 'danger',
     enabled: editing((state) => {
       const cell = soleCell(state)
       return cell !== undefined && feasible(() => removeTableLine(state.document, cell.table, 'column', cell.column))

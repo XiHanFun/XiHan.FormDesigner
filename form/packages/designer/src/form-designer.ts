@@ -33,7 +33,7 @@ import { createAuthoredElement, emitEvent, registerElement, setAttributes, setTe
 import { defineXhElement, XhButtonElement, XhContextMenuElement, XhExpressionInputElement, XhIconElement, XhMenuElement, XhToolbarElement } from '@xihan-ui/web-components/define'
 import { DesignCanvas, spanColumns } from './canvas'
 import { checkFormClipboard, readFormClipboard, writeFormClipboard } from './clipboard'
-import { DANGER_COMMANDS, FORM_MENU_LAYOUTS, FORM_TOOLBAR_LAYOUT, menuSubject } from './commands'
+import { FORM_MENU_LAYOUTS, FORM_TOOLBAR_LAYOUT, menuSubject } from './commands'
 import { createFormEditor } from './editor'
 import { createFormDesignerModel, FORM_DESIGNER_EXTENSION } from './extensions'
 import { provideInternals } from './internals'
@@ -952,18 +952,14 @@ export class XhFormDesigner extends XhReactiveElement {
   }
 
   /**
-   * 按当前选择的主体（节点、区域、表格单元格、空白处）与 commandLayout 写出菜单条目，删除一类的内置命令带 danger 语气；
-   * 返回有没有条目。建好部件时也照此填一次。
+   * 按当前选择的主体（节点、区域、表格单元格、空白处）与 commandLayout 写出菜单条目，返回有没有条目。
+   * 建好部件时也照此填一次。
    */
   #prepareMenu(parts: Pick<DesignerParts, 'menuContent'>): boolean {
     const { commands } = this.#model
     const subject = menuSubject(this.#editor.document, this.#editor.selection)
     const groups = arrangeCommands(`menu:${subject}`, commands, FORM_MENU_LAYOUTS[subject], this.commandLayout)
     renderCommandMenu(parts.menuContent, groups, commands, this.#context(), { platform: this.#kbdPlatform() })
-    for (const item of parts.menuContent.querySelectorAll<HTMLElement>('[data-xh-part="item"]')) {
-      if (DANGER_COMMANDS.has(item.getAttribute('value') ?? ''))
-        item.setAttribute('data-tone', 'danger')
-    }
     return groups.length > 0
   }
 
