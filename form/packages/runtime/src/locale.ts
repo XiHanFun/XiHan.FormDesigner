@@ -19,7 +19,6 @@ export const formZhCN: XhConfig = /* @__PURE__ */ mergeXhConfig(designerShellZhC
     'xh-form-renderer': {
       errorSummary: (count: number) => `共 ${count} 处需要修改`,
       errorSummaryItem: (label: string, message: string) => `${label}：${message}`,
-      optionsLoading: '加载中…',
       optionsEmpty: '暂无选项',
       addRow: '添加一行',
       fileDropzone: '把文件拖到这里，或点击选择',

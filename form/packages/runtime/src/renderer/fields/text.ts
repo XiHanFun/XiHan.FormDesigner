@@ -4,7 +4,7 @@
  */
 
 // 文本类字段：单行与多行文本、密码、数字、验证码与标签；标签、提示与错误由字段外壳给出。
-// 单行文本、数字与标签只建宿主元素，部件由元素按标准结构生成；多行文本、密码与验证码照 UI 文档写部件树。
+// 单行与多行文本、数字与标签只建宿主元素，部件由元素按标准结构生成；密码与验证码照 UI 文档写部件树。
 // 节点的属性在模板换掉前不变，建节点时写一次；update 只写值与状态。
 
 import type { FieldRenderer, FieldRendererContext, FieldRendererInstance } from '../types'
@@ -60,16 +60,17 @@ export const textField: FieldRenderer = (context) => {
   return affixed(context, textual(context, host(context.document, 'xh-text-field'), element => assign(element, 'type', stringOf(context.node.data.inputType) ?? 'text')))
 }
 
-/** 多行文本：`xh-text-field` 的输入部件写成 `<textarea>`，行数取外观的 `minRows` / `maxRows`。 */
+/** 多行文本：`xh-text-field` 开 multiline，输入框由元素铺成 textarea；行数取外观的 `minRows` / `maxRows`。 */
 export const textareaField: FieldRenderer = (context) => {
-  const control = make(context.document, 'div', 'control')
-  control.append(make(context.document, 'textarea', 'input'))
   const minRows = numberOf(context.node.appearance.minRows)
   const maxRows = numberOf(context.node.appearance.maxRows)
-  return textual(context, hosted(context, 'xh-text-field', control), element => assign(element, 'autoSize', {
-    ...(minRows === undefined ? {} : { minRows }),
-    ...(maxRows === undefined ? {} : { maxRows }),
-  }))
+  return textual(context, host(context.document, 'xh-text-field'), (element) => {
+    assign(element, 'multiline', true)
+    assign(element, 'autoSize', {
+      ...(minRows === undefined ? {} : { minRows }),
+      ...(maxRows === undefined ? {} : { maxRows }),
+    })
+  })
 }
 
 /** 密码：`xh-password-input`。 */
