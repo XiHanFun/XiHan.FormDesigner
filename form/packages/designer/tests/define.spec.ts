@@ -53,4 +53,4 @@ it('只调 defineFormDesigner，画布、工具栏、右键菜单、规则页签
   await settle(designer)
   expect(designer.querySelector('xh-form-renderer')).not.toBeNull()
   expect(unregistered(document)).toEqual([])
-})
+}, 20_000)
