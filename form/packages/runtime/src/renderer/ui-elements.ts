@@ -36,6 +36,7 @@ import {
   XhTagsInputElement,
   XhTextFieldElement,
   XhToggleGroupElement,
+  XhTreeSelectElement,
   XhTypographyElement,
 } from '@xihan-ui/web-components/define'
 
@@ -52,6 +53,7 @@ export function defineRendererElements(): void {
   defineXhElement('xh-tags-input', XhTagsInputElement)
   defineXhElement('xh-select', XhSelectElement)
   defineXhElement('xh-combobox', XhComboboxElement)
+  defineXhElement('xh-tree-select', XhTreeSelectElement)
   defineXhElement('xh-radio-group', XhRadioGroupElement)
   defineXhElement('xh-checkbox-group', XhCheckboxGroupElement)
   defineXhElement('xh-toggle-group', XhToggleGroupElement)

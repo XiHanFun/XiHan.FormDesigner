@@ -124,6 +124,26 @@ describe('选项', () => {
     expect(await rejection(() => controller.searchOptions(level.id, '甲'))).toBe('XH_FORM_RT_NO_OPTION_SOURCE')
   })
 
+  it('loadChildren 的请求带上 parent，返回校验过的子项，不写进字段的选项状态', async () => {
+    const { document, region, level } = sample()
+    const requests: OptionRequest[] = []
+    const controller = createFormController({
+      document,
+      loadOptions: (request) => {
+        requests.push(request)
+        if (request.parent === 'bad')
+          return [{ value: 1, label: 'x' }] as never
+        return request.parent === undefined ? [{ value: 'zj', label: '浙江', hasChildren: true }] : [{ value: 'hz', label: '杭州' }]
+      },
+    })
+    await controller.reloadOptions(region.id)
+    expect(await controller.loadChildren(region.id, 'zj')).toEqual([{ value: 'hz', label: '杭州' }])
+    expect(requests.map(request => request.parent)).toEqual([undefined, 'zj'])
+    expect(controller.getOptions(region.id).items).toEqual([{ value: 'zj', label: '浙江', hasChildren: true }])
+    expect(await rejection(() => controller.loadChildren(region.id, 'bad'))).toBe('XH_FORM_RT_INVALID_OPTIONS')
+    expect(await rejection(() => controller.loadChildren(level.id, 'a'))).toBe('XH_FORM_RT_NO_OPTION_SOURCE')
+  })
+
   it('加载失败或返回的选项不合法时状态为 error', async () => {
     const { document, city, region } = sample()
     const controller = createFormController({

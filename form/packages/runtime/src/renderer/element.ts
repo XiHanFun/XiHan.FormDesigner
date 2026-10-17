@@ -631,6 +631,7 @@ export class XhFormRenderer extends XhReactiveElement {
       options: optionsDescriptor(node, registry) === undefined ? undefined : controller.getOptions(path),
       searchOptions: this.loadOptions === undefined || optionSourceOf(node) === undefined ? undefined : query => void controller.searchOptions(path, query),
       reloadOptions: this.loadOptions === undefined || optionSourceOf(node) === undefined ? undefined : () => void controller.reloadOptions(path),
+      loadChildren: this.loadOptions === undefined || optionSourceOf(node) === undefined ? undefined : parent => controller.loadChildren(path, parent),
       size: (node.appearance.size ?? this.schema?.settings.size ?? 'md') as FieldSize,
       translations: t,
       uploadFile: this.#uploaderOf(node, path),

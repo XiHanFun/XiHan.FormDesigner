@@ -3,8 +3,8 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 选择类字段：下拉、组合框、单选组、多选组、按钮组、勾选框、开关。
-// 组合框、按钮组与开关只建宿主元素，部件由元素按标准结构生成；其余照 UI 文档写部件树，条目节点按值复用。
+// 选择类字段：下拉、组合框、树选择、单选组、多选组、按钮组、勾选框、开关。
+// 组合框、树选择、按钮组与开关只建宿主元素，部件由元素按标准结构生成；其余照 UI 文档写部件树，条目节点按值复用。
 // 选项来自上下文的 options：静态选项或加载结果。
 
 import type { KeyedChildren } from '@xihan-ui/web-components/authoring'
@@ -205,6 +205,51 @@ export const comboboxField: FieldRenderer = (context) => {
     if (items !== last) {
       last = items
       show(items)
+    }
+    assign(element, 'value', toList(next.value))
+  }
+  update(context)
+  return { element, update }
+}
+
+interface TreeNodeData {
+  readonly value: string
+  readonly label: string
+  readonly disabled?: boolean
+  readonly children?: TreeNodeData[]
+  readonly hasChildren?: boolean
+}
+
+/** 选项树写成 xh-tree-select 的节点：值、文字、禁用、子项，以及等懒加载的 hasChildren。 */
+function treeOf(items: readonly OptionItem[]): TreeNodeData[] {
+  return items.map(item => ({
+    value: item.value,
+    label: item.label,
+    ...(item.disabled === true ? { disabled: true } : {}),
+    ...(item.children === undefined ? {} : { children: treeOf(item.children) }),
+    ...(item.hasChildren === true ? { hasChildren: true } : {}),
+  }))
+}
+
+/** 树选择：`xh-tree-select`，选项树是 collection；带 hasChildren 的节点首次展开时经 loadChildren 向宿主要它的子项。 */
+export const treeSelectField: FieldRenderer = (context) => {
+  const element = host(context.document, 'xh-tree-select') as HTMLElement & { loadChildren?: (request: { node: { value: string } }) => Promise<TreeNodeData[]> }
+  const multiple = context.node.data.multiple === true
+  if (multiple)
+    assign(element, 'multiple', true)
+  const ref: ContextRef = { current: context }
+  if (context.loadChildren !== undefined)
+    element.loadChildren = request => ref.current.loadChildren!(request.node.value).then(treeOf)
+  let last: readonly OptionItem[] | undefined
+  on<{ value: string[] }>(element, 'value-change', detail => ref.current.setValue(fromList(detail.value, multiple)))
+  const update = (next: FieldRendererContext): void => {
+    ref.current = next
+    paintCommon(element, next, { placeholder: true })
+    assign(element, 'loading', next.options?.status === 'loading' ? true : undefined)
+    const items = itemsOf(next)
+    if (items !== last) {
+      last = items
+      assign(element, 'collection', treeOf(items))
     }
     assign(element, 'value', toList(next.value))
   }

@@ -617,6 +617,43 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
   })
 })
 
+describe('<xh-form-renderer>：树选择字段', () => {
+  type TreeSelect = HTMLElement & { collection?: unknown[], value?: string[], multiple?: boolean, loadChildren?: (request: { node: { value: string }, signal: AbortSignal }) => Promise<unknown[]>, updateComplete: Promise<boolean> }
+
+  it('只建宿主元素，静态选项树写成 collection；选中写回字段值', async () => {
+    const { registry, ids } = setup()
+    const options = [{ value: 'zj', label: '浙江', children: [{ value: 'hz', label: '杭州' }, { value: 'nb', label: '宁波', disabled: true }] }]
+    const renderer = await mount((element) => {
+      element.schema = documentOf([field(registry, ids, 'tree-select', 'city', { data: { options } })])
+    })
+    const element = group(renderer, ['city']).querySelector('xh-tree-select') as TreeSelect
+    await element.updateComplete
+    expect([...element.children].every(child => child.hasAttribute('data-xh-gen'))).toBe(true)
+    expect(element.collection).toEqual(options)
+    expect(element.loadChildren).toBeUndefined()
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value: ['hz'] }, bubbles: true, composed: true }))
+    expect(renderer.getFormData().city).toBe('hz')
+    expect(element.value).toEqual(['hz'])
+  })
+
+  it('有选项来源时带 hasChildren 的节点经 loadChildren 懒加载：请求带上 parent', async () => {
+    const { registry, ids } = setup()
+    const parents: (string | undefined)[] = []
+    const renderer = await mount((element) => {
+      element.loadOptions = (request) => {
+        parents.push(request.parent)
+        return request.parent === undefined ? [{ value: 'zj', label: '浙江', hasChildren: true }] : [{ value: 'hz', label: '杭州' }]
+      }
+      element.schema = documentOf([field(registry, ids, 'tree-select', 'city', { data: { optionSource: 'regions', multiple: true } })])
+    })
+    const element = group(renderer, ['city']).querySelector('xh-tree-select') as TreeSelect
+    await vi.waitFor(() => expect(element.collection).toEqual([{ value: 'zj', label: '浙江', hasChildren: true }]))
+    expect(element.multiple).toBe(true)
+    expect(await element.loadChildren!({ node: { value: 'zj' }, signal: new AbortController().signal })).toEqual([{ value: 'hz', label: '杭州' }])
+    expect(parents).toEqual([undefined, 'zj'])
+  })
+})
+
 describe('<xh-form-renderer>：组合框字段', () => {
   type Combobox = HTMLElement & { collection?: { value: string, label: string }[], value?: string[], multiple?: boolean, loading?: boolean, empty?: string, updateComplete: Promise<boolean> }
 
