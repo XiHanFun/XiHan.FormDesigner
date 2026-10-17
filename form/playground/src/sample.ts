@@ -3,10 +3,10 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 演示用的费用报销单：栅格、卡片、折叠、标签页与分组排布，带联动、校验、异步选项与级联选项。
+// 演示用的费用报销单：栅格、卡片、折叠、标签页与分组排布，带联动、校验、异步选项、级联选项与附件上传。
 
 import type { ContainerNode, FieldNode, FormDocument, FormNode, LinkageRule, PropertyBag, StaticNode, ValidationRule } from '@xihan-form/core'
-import type { OptionItem, OptionLoader } from '@xihan-form/runtime'
+import type { FileUploader, OptionItem, OptionLoader } from '@xihan-form/runtime'
 import { createBuiltinKindRegistry, createDocument, createNode } from '@xihan-form/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 
@@ -96,13 +96,14 @@ export function expenseForm(): FormDocument {
     linkage: [linkage('require', 'amount > 5000')],
     validation: [rule({ kind: 'length', max: 200 })],
   })
+  const attachments = field('file', 'attachments', '发票附件', { basic: { hint: '支持 PDF 与图片，最多 5 个' }, data: { accept: '.pdf,image/*', maxFiles: 5, uploadTarget: 'invoices' } })
   const urgent = field('switch', 'urgent', '加急处理')
   const urgentNote = field('text', 'urgentNote', '加急原因', { linkage: [linkage('hide', 'urgent != true'), linkage('require', 'urgent == true')] })
 
   const basics = container('grid', [[applicant], [phone], [department], [type], [province], [city], [amount], [invoices]], {
     regionProps: [{ span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }, { span: 6 }],
   })
-  const basicCard = container('card', [[basics, reason]], { basic: { title: '基本信息' } })
+  const basicCard = container('card', [[basics, reason, attachments]], { basic: { title: '基本信息' } })
 
   const satisfaction = field('rating', 'satisfaction', '对流程的满意度')
   const share = field('slider', 'share', '计入项目预算的比例（%）', { basic: { initialValue: 100 } })
@@ -153,4 +154,25 @@ export const loadOptions: OptionLoader = request => new Promise((resolve) => {
     else
       resolve(CITIES[String(request.values.province)] ?? [])
   }, 400)
+})
+
+/** 模拟的上传：一秒内分五步汇报进度，完成后返回附件 id；文件名带「坏」字的在半路失败。 */
+export const uploadFile: FileUploader = request => new Promise((resolve, reject) => {
+  let progress = 0
+  const timer = setInterval(() => {
+    progress += 20
+    request.onProgress(progress)
+    if (progress >= 60 && request.file.name.includes('坏')) {
+      clearInterval(timer)
+      reject(new Error('上传失败'))
+    }
+    else if (progress >= 100) {
+      clearInterval(timer)
+      resolve({ id: `${request.target ?? 'file'}-${crypto.randomUUID()}` })
+    }
+  }, 200)
+  request.signal.addEventListener('abort', () => {
+    clearInterval(timer)
+    reject(request.signal.reason)
+  })
 })

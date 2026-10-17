@@ -13,6 +13,7 @@ import {
   XhCheckboxGroupElement,
   XhFieldElement,
   XhFieldsetElement,
+  XhFileUploadElement,
   XhFormElement,
   XhGridElement,
   XhNumberFieldElement,
@@ -46,6 +47,7 @@ export function defineRendererElements(): void {
   defineXhElement('xh-switch', XhSwitchElement)
   defineXhElement('xh-slider', XhSliderElement)
   defineXhElement('xh-rating', XhRatingElement)
+  defineXhElement('xh-file-upload', XhFileUploadElement)
   defineXhElement('xh-grid', XhGridElement)
   defineXhElement('xh-tabs', XhTabsElement)
   defineXhElement('xh-card', XhCardElement)

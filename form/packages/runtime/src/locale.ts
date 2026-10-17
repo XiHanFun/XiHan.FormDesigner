@@ -21,6 +21,8 @@ export const formZhCN: XhConfig = /* @__PURE__ */ mergeXhConfig(designerShellZhC
       errorSummaryItem: (label: string, message: string) => `${label}：${message}`,
       optionsLoading: '加载中…',
       optionsEmpty: '暂无选项',
+      fileDropzone: '把文件拖到这里，或点击选择',
+      fileTrigger: '选择文件',
       valueRequired: '此项必填',
       valueNotAccepted: '请勾选此项',
       valueTooShort: (min: number) => `至少输入 ${min} 个字符`,

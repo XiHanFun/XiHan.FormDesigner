@@ -16,7 +16,7 @@ import type { FormRuntimeErrorCode } from '../state/errors'
 import type { OptionLoader } from '../state/options'
 import type { FormRendererTranslations } from '../translations'
 import type { FieldShell } from './field-shell'
-import type { FieldRenderer, FieldRendererContext, FieldRendererInstance, FieldSize } from './types'
+import type { FieldRenderer, FieldRendererContext, FieldRendererInstance, FieldSize, FileUploader } from './types'
 import { createBuiltinKindRegistry } from '@xihan-form/core'
 import { isJsonPathPrefix, jsonEquals } from '@xihan-ui/core/json'
 import { createExpressionEngine } from '@xihan-ui/expression'
@@ -127,6 +127,7 @@ export class XhFormRenderer extends XhReactiveElement {
     values: { attribute: false },
     variables: { attribute: false },
     loadOptions: { attribute: false },
+    uploadFile: { attribute: false },
     readonly: { type: Boolean },
     disabled: { type: Boolean },
     validateOn: { attribute: 'validate-on' },
@@ -147,6 +148,8 @@ export class XhFormRenderer extends XhReactiveElement {
   declare variables: Readonly<Record<string, unknown>> | undefined
   /** 选项加载函数。 */
   declare loadOptions: OptionLoader | undefined
+  /** 文件字段的上传函数，交给 xh-file-upload 的 upload；组件自己不发请求。 */
+  declare uploadFile: FileUploader | undefined
   /** 整表只读：仍可提交。 */
   declare readonly: boolean | undefined
   /** 整表禁用：不能提交。 */
@@ -447,9 +450,18 @@ export class XhFormRenderer extends XhReactiveElement {
       options: optionsDescriptor(node, registry) === undefined ? undefined : controller.getOptions(path),
       size: (node.appearance.size ?? this.schema?.settings.size ?? 'md') as FieldSize,
       translations: t,
+      uploadFile: this.#uploaderOf(node, path),
       setValue: value => this.#setValue(path, value),
       commit: () => this.#commit(path),
     }
+  }
+
+  #uploaderOf(node: FieldNode, path: JsonPath): FieldRendererContext['uploadFile'] {
+    const upload = this.uploadFile
+    if (upload === undefined)
+      return undefined
+    const target = stringOf(node.data.uploadTarget)
+    return request => upload({ ...request, target, nodeId: node.id, path })
   }
 
   #setValue(path: JsonPath, value: JsonValue): void {

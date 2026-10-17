@@ -15,6 +15,10 @@ export interface FormRendererTranslations {
   readonly optionsLoading: string
   /** 没有选项。 */
   readonly optionsEmpty: string
+  /** 文件字段投放区的说明。 */
+  readonly fileDropzone: string
+  /** 文件字段打开选择框的按钮。 */
+  readonly fileTrigger: string
   /** 值校验问题的文案，按问题码取。 */
   readonly valueRequired: string
   readonly valueNotAccepted: string
@@ -36,6 +40,8 @@ export const DEFAULT_FORM_RENDERER_TRANSLATIONS: FormRendererTranslations = Obje
   errorSummaryItem: (label: string, message: string) => `${label}: ${message}`,
   optionsLoading: 'Loading…',
   optionsEmpty: 'No options',
+  fileDropzone: 'Drop files here or click to choose',
+  fileTrigger: 'Choose files',
   valueRequired: 'This field is required',
   valueNotAccepted: 'This must be checked',
   valueTooShort: (min: number) => `Enter at least ${min} characters`,

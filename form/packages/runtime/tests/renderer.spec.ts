@@ -9,7 +9,7 @@ import { getFormPathValue } from '@xihan-ui/headless'
 import { mergeXhConfig, setXhConfig } from '@xihan-ui/web-components'
 import { defineXhElements } from '@xihan-ui/web-components/define'
 import { zhCN } from '@xihan-ui/web-components/locale'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineFormRenderer, FORM_RENDERER_TAG, FormRuntimeError } from '../src'
 import { formZhCN } from '../src/locale'
 import { container, documentOf, field, setup } from './helpers'
@@ -314,6 +314,86 @@ describe('<xh-form-renderer>：值与事件', () => {
     expect([input.disabled, input.readOnly]).toEqual([true, true])
     const form = renderer.querySelector('xh-form') as HTMLElement & { disabled?: boolean, readOnly?: boolean }
     expect([form.disabled, form.readOnly]).toEqual([true, true])
+  })
+})
+
+describe('<xh-form-renderer>：文件字段', () => {
+  type Upload = HTMLElement & {
+    remoteFiles?: unknown
+    upload?: unknown
+    accept?: string
+    maxFiles?: number
+    acceptedFiles: File[]
+    addFiles: (files: File[]) => void
+    deleteFile: (file: unknown) => void
+    updateComplete: Promise<boolean>
+  }
+
+  function upload(renderer: XhFormRenderer): Upload {
+    return group(renderer, ['files']).querySelector('xh-file-upload') as Upload
+  }
+
+  it('字段值是 xh-file-upload 的 remoteFiles，一条附件一行；类型与个数取 accept、maxFiles；没给 uploadFile 时不是上传器', async () => {
+    const { registry, ids } = setup()
+    const renderer = await mount((element) => {
+      element.values = { files: [{ id: 'a1', name: '合同.pdf', size: 2048, url: '/f/a1' }] }
+      element.schema = documentOf([field(registry, ids, 'file', 'files', { data: { accept: '.pdf', maxFiles: 3 } })])
+    })
+    const element = upload(renderer)
+    await element.updateComplete
+    expect(element.remoteFiles).toEqual([{ id: 'a1', name: '合同.pdf', size: 2048, url: '/f/a1' }])
+    expect([element.accept, element.maxFiles, element.upload]).toEqual(['.pdf', 3, undefined])
+    expect(element.querySelectorAll('[data-xh-part="item"]')).toHaveLength(1)
+    expect(element.querySelector('[data-xh-part="dropzone"]')!.textContent).toBe('Drop files here or click to choose')
+    expect(element.querySelector('[data-xh-part="trigger"]')!.textContent).toBe('Choose files')
+  })
+
+  it('删除附件经 remote-files-change 写回字段值', async () => {
+    const { registry, ids } = setup()
+    const renderer = await mount((element) => {
+      element.values = { files: [{ id: 'a1', name: '甲.pdf' }, { id: 'a2', name: '乙.pdf' }] }
+      element.schema = documentOf([field(registry, ids, 'file', 'files', { data: { maxFiles: 5 } })])
+    })
+    const element = upload(renderer)
+    await element.updateComplete
+    const changes = events(renderer, 'value-change')
+    element.deleteFile({ id: 'a1', name: '甲.pdf' })
+    expect(renderer.getFormData().files).toEqual([{ id: 'a2', name: '乙.pdf' }])
+    expect(changes).toHaveLength(1)
+    await element.updateComplete
+    expect(element.querySelectorAll('[data-xh-part="item"]')).toHaveLength(1)
+  })
+
+  it('uploadFile 收到带字段信息的请求；返回 id 后文件转成附件记录写进字段值，本地列表随之清空', async () => {
+    const { registry, ids } = setup()
+    const node = field(registry, ids, 'file', 'files', { data: { uploadTarget: 'contracts', maxFiles: 5 } })
+    const requests: { name: string, target: string | undefined, nodeId: string, path: unknown }[] = []
+    const renderer = await mount((element) => {
+      element.uploadFile = (request) => {
+        requests.push({ name: request.file.name, target: request.target, nodeId: request.nodeId, path: request.path })
+        return Promise.resolve({ id: 'r1', url: '/f/r1' })
+      }
+      element.schema = documentOf([node])
+    })
+    const element = upload(renderer)
+    await element.updateComplete
+    element.addFiles([new File(['abc'], 'a.pdf', { type: 'application/pdf' })])
+    await vi.waitFor(() => expect(renderer.getFormData().files).toEqual([{ id: 'r1', name: 'a.pdf', size: 3, type: 'application/pdf', url: '/f/r1' }]))
+    expect(requests).toEqual([{ name: 'a.pdf', target: 'contracts', nodeId: node.id, path: ['files'] }])
+    await vi.waitFor(() => expect(element.acceptedFiles).toEqual([]))
+    await element.updateComplete
+    expect(element.querySelectorAll('[data-xh-part="item"]')).toHaveLength(1)
+  })
+
+  it('投放区与按钮的文字取渲染器语言包', async () => {
+    setXhConfig(mergeXhConfig(zhCN, formZhCN))
+    const { registry, ids } = setup()
+    const renderer = await mount((element) => {
+      element.schema = documentOf([field(registry, ids, 'file', 'files')])
+    })
+    const element = upload(renderer)
+    expect(element.querySelector('[data-xh-part="dropzone"]')!.textContent).toBe('把文件拖到这里，或点击选择')
+    expect(element.querySelector('[data-xh-part="trigger"]')!.textContent).toBe('选择文件')
   })
 })
 

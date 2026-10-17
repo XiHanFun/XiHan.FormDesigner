@@ -231,6 +231,7 @@ export class DesignCanvas {
       options: { status: 'ready', items: options },
       size: (stringOf(node.appearance.size) ?? 'md') as FieldSize,
       translations: this.#host.rendererTranslations(),
+      uploadFile: undefined,
       setValue: () => {},
       commit: () => {},
     }
