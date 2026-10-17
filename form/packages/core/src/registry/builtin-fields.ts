@@ -27,6 +27,10 @@ const MULTIPLE: FormPropertyDescriptor = { path: ['multiple'], control: { kind: 
 const ORIENTATION: FormPropertyDescriptor = { path: ['orientation'], control: { kind: 'select', options: [{ value: 'horizontal' }, { value: 'vertical' }] }, default: 'horizontal' }
 const WITH_TIME: FormPropertyDescriptor = { path: ['withTime'], control: { kind: 'boolean' }, default: false }
 const WITH_SECONDS: FormPropertyDescriptor = { path: ['withSeconds'], control: { kind: 'boolean' }, default: false }
+const AFFIXES: readonly FormPropertyDescriptor[] = [
+  { path: ['prefix'], control: { kind: 'text' } },
+  { path: ['suffix'], control: { kind: 'text' } },
+]
 
 const TEXT_RULES: readonly ValidationKind[] = ['required', 'length', 'pattern', 'expression']
 const NUMBER_RULES: readonly ValidationKind[] = ['required', 'range', 'expression']
@@ -91,6 +95,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     element: 'xh-text-field',
     placeholder: true,
     data: [{ path: ['inputType'], control: { kind: 'select', options: [{ value: 'text' }, { value: 'email' }, { value: 'tel' }, { value: 'url' }] }, default: 'text' }],
+    appearance: AFFIXES,
     validations: TEXT_RULES,
     valueKind: 'string',
     emptyValue: '',
@@ -125,6 +130,7 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
       { path: ['step'], control: { kind: 'number' }, default: 1 },
       { path: ['precision'], control: { kind: 'number', integer: true, min: 0, max: 20 } },
     ],
+    appearance: AFFIXES,
     validations: NUMBER_RULES,
     valueKind: 'number',
     emptyValue: null,

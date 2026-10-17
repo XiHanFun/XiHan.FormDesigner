@@ -17,6 +17,7 @@ import {
   XhFileUploadElement,
   XhFormElement,
   XhGridElement,
+  XhInputGroupElement,
   XhNumberFieldElement,
   XhPasswordInputElement,
   XhPinInputElement,
@@ -39,6 +40,7 @@ export function defineRendererElements(): void {
   defineXhElement('xh-field', XhFieldElement)
   defineXhElement('xh-field-array', XhFieldArrayElement)
   defineXhElement('xh-text-field', XhTextFieldElement)
+  defineXhElement('xh-input-group', XhInputGroupElement)
   defineXhElement('xh-password-input', XhPasswordInputElement)
   defineXhElement('xh-number-field', XhNumberFieldElement)
   defineXhElement('xh-pin-input', XhPinInputElement)

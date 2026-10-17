@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { ContainerNode, FormDocument, StaticNode } from '@xihan-form/core'
+import type { ContainerNode, FieldNode, FormDocument, StaticNode } from '@xihan-form/core'
 import type { JsonValue } from '@xihan-ui/core/json'
 import type { FieldRenderer, FormRendererEventMap, XhFormRenderer } from '../src'
 import { BUILTIN_KINDS, createBuiltinKindRegistry, createKindRegistry, createNode, EMPTY_PROPERTY_SCHEMA, instanceKey } from '@xihan-form/core'
@@ -409,6 +409,26 @@ describe('<xh-form-renderer>：列表容器', () => {
     await renderer.updateComplete
     expect(group(renderer, ['lines']).querySelector('xh-field > [data-xh-part="root"] > [data-xh-part="error-text"]')!.textContent).toBe('至少填一行')
     expect(renderer.querySelector(`[data-xh-part="error-summary-item"][data-path='${JSON.stringify(['lines'])}']`)!.textContent).toBe('明细: 至少填一行')
+  })
+})
+
+describe('<xh-form-renderer>：前后缀', () => {
+  it('文本与数字的外观带前后缀时，控件放进 xh-input-group，前后缀各是一个 item；不带时不包', async () => {
+    const { registry, ids } = setup()
+    const withAffix = (node: FieldNode, appearance: Record<string, string>): FieldNode => ({ ...node, appearance: { ...node.appearance, ...appearance } })
+    const renderer = await mount((element) => {
+      element.schema = documentOf([
+        withAffix(field(registry, ids, 'text', 'site'), { prefix: 'https://', suffix: '.com' }),
+        withAffix(field(registry, ids, 'number', 'price'), { suffix: '元' }),
+        field(registry, ids, 'text', 'plain'),
+      ])
+    })
+    const parts = (key: string): string[] => [...group(renderer, [key]).querySelectorAll('xh-input-group > [data-xh-part="root"] > *')]
+      .map(node => node.localName === 'span' ? `item:${node.textContent}` : node.localName)
+    expect(parts('site')).toEqual(['item:https://', 'xh-text-field', 'item:.com'])
+    expect(parts('price')).toEqual(['xh-number-field', 'item:元'])
+    expect(group(renderer, ['plain']).querySelector('xh-input-group')).toBeNull()
+    expect(group(renderer, ['site']).querySelector('xh-field > [data-xh-part="root"] > xh-input-group')).not.toBeNull()
   })
 })
 

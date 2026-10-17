@@ -81,6 +81,8 @@ const PROPERTIES: Readonly<Record<string, string>> = {
   multiple: '多选',
   orientation: '排列方向',
   inputType: '输入类型',
+  prefix: '前缀',
+  suffix: '后缀',
   minRows: '最少行数',
   maxRows: '最多行数',
   step: '步长',

@@ -6,7 +6,7 @@
 // 文本类字段：单行与多行文本、密码、数字、验证码与标签，部件树照 UI 文档的写法；标签、提示与错误由字段外壳给出。
 // 节点的属性在模板换掉前不变，建节点时写一次；update 只写值与状态。
 
-import type { FieldRenderer, FieldRendererContext } from '../types'
+import type { FieldRenderer, FieldRendererContext, FieldRendererInstance } from '../types'
 import type { ContextRef } from './shared'
 import { assign, host, make, numberOf, stringOf, text } from '../dom'
 import { on, paintCommon, textValue, toList } from './shared'
@@ -18,6 +18,27 @@ function hosted(context: FieldRendererContext, tag: string, control: HTMLElement
   root.append(control)
   element.append(root)
   return element
+}
+
+/** 外观带前缀或后缀时，用 `xh-input-group` 把它们与控件拼成一体；都没有时原样返回。 */
+function affixed(context: FieldRendererContext, instance: FieldRendererInstance): FieldRendererInstance {
+  const doc = context.document
+  const prefix = stringOf(context.node.appearance.prefix) ?? ''
+  const suffix = stringOf(context.node.appearance.suffix) ?? ''
+  if (prefix === '' && suffix === '')
+    return instance
+  const items = (affix: string): HTMLElement[] => {
+    if (affix === '')
+      return []
+    const item = make(doc, 'span', 'item')
+    text(item, affix)
+    return [item]
+  }
+  const root = make(doc, 'div', 'root')
+  root.append(...items(prefix), instance.element, ...items(suffix))
+  const group = host(doc, 'xh-input-group')
+  group.append(root)
+  return { ...instance, element: group }
 }
 
 function textual(context: FieldRendererContext, tag: string, control: HTMLElement, configure: (element: HTMLElement) => void): ReturnType<FieldRenderer> {
@@ -34,11 +55,11 @@ function textual(context: FieldRendererContext, tag: string, control: HTMLElemen
   return { element, update }
 }
 
-/** 单行文本：`xh-text-field`，输入类型取 `data.inputType`。 */
+/** 单行文本：`xh-text-field`，输入类型取 `data.inputType`，可带前后缀。 */
 export const textField: FieldRenderer = (context) => {
   const control = make(context.document, 'div', 'control')
   control.append(make(context.document, 'input', 'input'))
-  return textual(context, 'xh-text-field', control, element => assign(element, 'type', stringOf(context.node.data.inputType) ?? 'text'))
+  return affixed(context, textual(context, 'xh-text-field', control, element => assign(element, 'type', stringOf(context.node.data.inputType) ?? 'text')))
 }
 
 /** 多行文本：`xh-text-field` 的输入部件写成 `<textarea>`，行数取外观的 `minRows` / `maxRows`。 */
@@ -60,7 +81,7 @@ export const passwordField: FieldRenderer = (context) => {
   return textual(context, 'xh-password-input', control, () => {})
 }
 
-/** 数字：`xh-number-field`。UI 的值是文本，表单里是数或 `null`；小数位数取 `precision`。 */
+/** 数字：`xh-number-field`，可带前后缀。UI 的值是文本，表单里是数或 `null`；小数位数取 `precision`。 */
 export const numberField: FieldRenderer = (context) => {
   const doc = context.document
   const control = make(doc, 'div', 'control')
@@ -81,7 +102,7 @@ export const numberField: FieldRenderer = (context) => {
     assign(element, 'value', typeof next.value === 'number' ? format(next.value) : '')
   }
   update(context)
-  return { element, update }
+  return affixed(context, { element, update })
 }
 
 /** 验证码：`xh-pin-input`，位数取 `length`，每位一个输入框。UI 的值是逐位数组，表单里是拼好的字符串。 */
