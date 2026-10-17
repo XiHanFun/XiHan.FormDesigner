@@ -495,6 +495,7 @@ describe('<xh-form-renderer>：文件字段', () => {
     accept?: string
     maxFiles?: number
     acceptedFiles: File[]
+    allFiles: unknown[]
     addFiles: (files: File[]) => void
     deleteFile: (file: unknown) => void
     updateComplete: Promise<boolean>
@@ -502,6 +503,15 @@ describe('<xh-form-renderer>：文件字段', () => {
 
   function upload(renderer: XhFormRenderer): Upload {
     return group(renderer, ['files']).querySelector('xh-file-upload') as Upload
+  }
+
+  /** 列表里各行：可见与否、是否远程附件、文件名。 */
+  function rows(element: Upload): { hidden: boolean, remote: boolean, name: string | null }[] {
+    return [...element.querySelectorAll<HTMLElement>('[data-xh-part="item"]')].map(row => ({
+      hidden: row.hasAttribute('hidden'),
+      remote: row.hasAttribute('data-remote'),
+      name: row.querySelector('[data-xh-part="item-name"]')!.textContent,
+    }))
   }
 
   it('字段值是 xh-file-upload 的 remoteFiles，一条附件一行；类型与个数取 accept、maxFiles；没给 uploadFile 时不是上传器', async () => {
@@ -514,7 +524,7 @@ describe('<xh-form-renderer>：文件字段', () => {
     await element.updateComplete
     expect(element.remoteFiles).toEqual([{ id: 'a1', name: '合同.pdf', size: 2048, url: '/f/a1' }])
     expect([element.accept, element.maxFiles, element.upload]).toEqual(['.pdf', 3, undefined])
-    expect(element.querySelectorAll('[data-xh-part="item"]')).toHaveLength(1)
+    expect(rows(element)).toEqual([{ hidden: false, remote: true, name: '合同.pdf' }])
     expect(element.querySelector('[data-xh-part="dropzone"]')!.textContent).toBe('Drop files here or click to choose')
     expect(element.querySelector('[data-xh-part="trigger"]')!.textContent).toBe('Choose files')
   })
@@ -535,7 +545,7 @@ describe('<xh-form-renderer>：文件字段', () => {
     expect(element.querySelectorAll('[data-xh-part="item"]')).toHaveLength(1)
   })
 
-  it('uploadFile 收到带字段信息的请求；返回 id 后文件转成附件记录写进字段值，本地列表随之清空', async () => {
+  it('uploadFile 收到带字段信息的请求；返回 id 后文件转成附件记录写进字段值，原来那一行仍在、改报远程附件，点删除钮删掉它', async () => {
     const { registry, ids } = setup()
     const node = field(registry, ids, 'file', 'files', { data: { uploadTarget: 'contracts', maxFiles: 5 } })
     const requests: { name: string, target: string | undefined, nodeId: string, path: unknown }[] = []
@@ -553,7 +563,35 @@ describe('<xh-form-renderer>：文件字段', () => {
     expect(requests).toEqual([{ name: 'a.pdf', target: 'contracts', nodeId: node.id, path: ['files'] }])
     await vi.waitFor(() => expect(element.acceptedFiles).toEqual([]))
     await element.updateComplete
-    expect(element.querySelectorAll('[data-xh-part="item"]')).toHaveLength(1)
+    expect(rows(element)).toEqual([{ hidden: false, remote: true, name: 'a.pdf' }])
+    expect(element.allFiles).toEqual([{ id: 'r1', name: 'a.pdf', size: 3, type: 'application/pdf', url: '/f/r1' }])
+    element.querySelector<HTMLButtonElement>('[data-xh-part="item-delete-trigger"]')!.click()
+    expect(renderer.getFormData().files).toEqual([])
+    await element.updateComplete
+    expect(rows(element)).toEqual([])
+  })
+
+  it('放进 xh-field 时投放区接上字段的标签、提示与错误并报 aria-invalid，隐藏输入也取字段的标签作名字', async () => {
+    const { registry, ids } = setup()
+    const node = field(registry, ids, 'file', 'files', { basic: { label: '附件', hint: '最多 3 个' }, validation: [{ id: 'r1', kind: 'required' }] })
+    setXhConfig(formZhCN)
+    const renderer = await mount((element) => {
+      element.schema = documentOf([node])
+    })
+    renderer.validate()
+    await renderer.updateComplete
+    const shell = group(renderer, ['files']).querySelector('xh-field')!
+    await (shell as HTMLElement & { updateComplete?: Promise<boolean> }).updateComplete
+    const label = shell.querySelector('[data-xh-part="label"]')!
+    const description = shell.querySelector('[data-xh-part="description"]')!
+    const error = shell.querySelector('[data-xh-part="error-text"]')!
+    expect([description.textContent, error.textContent]).toEqual(['最多 3 个', '此项必填'])
+    const dropzone = upload(renderer).querySelector('[data-xh-part="dropzone"]')!
+    expect(dropzone.getAttribute('aria-labelledby')!.split(' ')).toContain(label.id)
+    expect(dropzone.getAttribute('aria-describedby')!.split(' ')).toEqual([description.id, error.id])
+    expect(dropzone.getAttribute('aria-invalid')).toBe('true')
+    const hidden = upload(renderer).querySelector('[data-xh-part="hidden-input"]')!
+    expect(hidden.getAttribute('aria-labelledby')!.split(' ')).toContain(label.id)
   })
 
   it('投放区与按钮的文字取渲染器语言包', async () => {
