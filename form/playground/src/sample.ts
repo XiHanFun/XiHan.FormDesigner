@@ -145,7 +145,8 @@ export function expenseForm(): FormDocument {
   const tabs = container('tabs', [[approver], [pin]], { regionProps: [{ title: '审批信息' }, { title: '安全校验' }] })
 
   const agree = field('checkbox', 'agree', '我确认以上费用真实发生', { validation: [rule({ kind: 'accepted', message: '提交前请先确认' })] })
-  const confirm = container('fieldset', [[agree]], { basic: { legend: '确认' } })
+  const signature = field('signature', 'signature', '申请人签名', { basic: { hint: '在框内手写签名，写错了可以清除重签' } })
+  const confirm = container('fieldset', [[agree, signature]], { basic: { legend: '确认' } })
 
   return {
     ...createDocument(),
