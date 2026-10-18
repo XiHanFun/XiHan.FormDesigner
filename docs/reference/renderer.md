@@ -118,7 +118,7 @@ declare function createFormController(options: FormControllerOptions): FormContr
 | `getIssues(): readonly ValueIssue[]` | 当前展示的校验问题。 |
 | `getLinkageIssues(): readonly LinkageIssue[]` | 最近一次联动重算的问题。 |
 | `validate(): ValidationOutcome` | 校验全部字段，隐藏或禁用的实例跳过、值保留；此后每次改值都会重算问题。 |
-| `validateField(path: JsonPath): ValidationOutcome` | 校验一个字段或列表容器（含行内字段）；此后它的问题随改值重算。 |
+| `validateField(path: JsonPath): ValidationOutcome` | 校验一个字段或列表容器（含此刻各行里的字段）；此后它们的问题随改值重算，之后新增的行不算在内。 |
 | `reset(): void` | 回到基准值并清空校验状态；宿主的强制设定与已加载的选项保留。基准是创建时的值，或最近一次带 `baseline` 填入的值。 |
 | `isDirty(): boolean` | 当前值与 `reset` 之后的值是否不同。 |
 | `setHidden(target: FormTarget, hidden: boolean \| null): void` | 强制隐藏、禁用、只读：`true` / `false` 强制，`null` 撤销强制。 |

@@ -122,7 +122,7 @@ export interface FormController {
   readonly getLinkageIssues: () => readonly LinkageIssue[]
   /** 校验全部字段，隐藏或禁用的实例跳过、值保留；此后每次改值都会重算问题。 */
   readonly validate: () => ValidationOutcome
-  /** 校验一个字段或列表容器（含行内字段）；此后它的问题随改值重算。 */
+  /** 校验一个字段或列表容器（含此刻各行里的字段）；此后它们的问题随改值重算，之后新增的行不算在内。 */
   readonly validateField: (path: JsonPath) => ValidationOutcome
   /** 回到基准值并清空校验状态；宿主的强制设定与已加载的选项保留。基准是创建时的值，或最近一次带 `baseline` 填入的值。 */
   readonly reset: () => void
@@ -254,10 +254,26 @@ class Controller implements FormController {
     return validateValues(this.document, this.values, { expressionEngine: this.engine, states: this.states, variables: this.variables })
   }
 
+  /** 已校验过的路径上的问题；整表校验过后全部可见。问题落在规则所在节点自己的路径上，按路径逐个对。 */
   private visibleIssues(all: readonly ValueIssue[]): readonly ValueIssue[] {
     if (this.validated)
       return all
-    return all.filter(issue => this.touched.some(path => isJsonPathPrefix(issue.path, path)))
+    return all.filter(issue => this.touched.some(path => jsonEquals(issue.path as JsonValue, path as JsonValue)))
+  }
+
+  /** 这条路径本身，加上它下面此刻在场的字段与列表容器实例的路径：列表容器连同各行里的。 */
+  private pathsUnder(path: JsonPath): JsonPath[] {
+    const out: JsonPath[] = [[...path]]
+    for (const key of this.states.keys()) {
+      const { nodeId, rowPath } = parseInstanceKey(key)
+      const node = findNode(this.document, nodeId)?.node
+      if (node === undefined || (node.type !== 'field' && !isListContainer(node)))
+        continue
+      const at = this.instancePath(node, rowPath)
+      if (at.length > path.length && isJsonPathPrefix(at, path))
+        out.push(at)
+    }
+    return out
   }
 
   private emit(events: readonly FormEvent[]): void {
@@ -470,8 +486,10 @@ class Controller implements FormController {
     this.alive()
     this.resolve(path)
     const all = this.runValidation()
-    if (!this.touched.some(item => jsonEquals(item as JsonValue, path as JsonValue)))
-      this.touched.push([...path])
+    for (const target of this.pathsUnder(path)) {
+      if (!this.touched.some(item => jsonEquals(item as JsonValue, target as JsonValue)))
+        this.touched.push(target)
+    }
     const before = this.issues
     this.issues = this.visibleIssues(all)
     this.emitIssues(before)
@@ -621,7 +639,7 @@ class Controller implements FormController {
     return { status: 'ready', items: (node.data.options ?? []) as unknown as readonly OptionItem[] }
   }
 
-  private instancePath(node: FieldNode, rowPath: readonly number[]): JsonPath {
+  private instancePath(node: FormNode, rowPath: readonly number[]): JsonPath {
     const binding = listBindings(this.document).find(item => item.node.id === node.id)!
     const path: (string | number)[] = []
     binding.path.forEach((key, index) => {
