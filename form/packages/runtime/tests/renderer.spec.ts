@@ -824,11 +824,12 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['signature', 'xh-signature-pad', 'control'],
     ['transfer', 'xh-transfer', 'item'],
     ['file', 'xh-file-upload', 'dropzone'],
+    ['listbox', 'xh-listbox', 'item'],
     ['cascader', 'xh-cascader', 'trigger'],
   ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
     const { registry, ids } = setup()
     const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]
-    const node = field(registry, ids, kind, 'x', ['toggle-group', 'combobox', 'select', 'radio-group', 'checkbox-group', 'transfer'].includes(kind) ? { data: { options } } : {})
+    const node = field(registry, ids, kind, 'x', ['toggle-group', 'combobox', 'select', 'radio-group', 'checkbox-group', 'transfer', 'listbox'].includes(kind) ? { data: { options } } : {})
     const renderer = await mount((element) => {
       element.schema = documentOf([node])
     })
@@ -1105,6 +1106,72 @@ describe('<xh-form-renderer>：签名字段', () => {
     renderer.setValue(['other'], '改了别的字段')
     await element.updateComplete
     expect(element.value).toBe(shown)
+  })
+})
+
+describe('<xh-form-renderer>：列表字段', () => {
+  type Listbox = HTMLElement & { collection?: unknown[], value?: unknown, selectionMode?: string, loading?: boolean, translations?: unknown, updateComplete: Promise<boolean> }
+  const options: JsonValue[] = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙', disabled: true }, { value: 'c', label: '丙' }]
+
+  async function mountListbox(data: Record<string, JsonValue>, values: Record<string, JsonValue> = {}): Promise<{ renderer: XhFormRenderer, element: Listbox }> {
+    const { registry, ids } = setup()
+    const renderer = await mount((element) => {
+      element.values = values
+      element.schema = documentOf([field(registry, ids, 'listbox', 'pick', { basic: { label: '环节' }, data })])
+    })
+    const element = group(renderer, ['pick']).querySelector('xh-listbox') as Listbox
+    await element.updateComplete
+    return { renderer, element }
+  }
+
+  function pick(element: HTMLElement, value: string[]): void {
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value }, bubbles: true }))
+  }
+
+  it('单选：选项写成 collection，空态文字取表单的 optionsEmpty；值是一个选项值，写给元素时是数组，取消写回 null', async () => {
+    const { renderer, element } = await mountListbox({ options }, { pick: 'c' })
+    expect([element.collection, element.value, element.selectionMode, element.translations]).toEqual([options, ['c'], undefined, { empty: 'No options' }])
+    expect([...element.querySelectorAll('[data-scope="listbox"][data-part="item"]')].map(item => item.getAttribute('value'))).toEqual(['a', 'b', 'c'])
+    pick(element, ['a'])
+    expect(renderer.getFormData().pick).toBe('a')
+    pick(element, [])
+    expect(renderer.getFormData().pick).toBeNull()
+  })
+
+  it('多选：selectionMode 写成 multiple，值是选项值数组', async () => {
+    const { renderer, element } = await mountListbox({ options, multiple: true }, { pick: ['a'] })
+    expect([element.selectionMode, element.value]).toEqual(['multiple', ['a']])
+    pick(element, ['a', 'c'])
+    expect(renderer.getFormData().pick).toEqual(['a', 'c'])
+  })
+
+  it('有选项来源时向宿主取选项，在途时报 loading，取回后写成 collection', async () => {
+    const { registry, ids } = setup()
+    let release!: () => void
+    const renderer = await mount((element) => {
+      element.loadOptions = () => new Promise((resolve) => {
+        release = () => resolve([{ value: 'x', label: '某' }])
+      })
+      element.schema = documentOf([field(registry, ids, 'listbox', 'pick', { data: { optionSource: 'steps' } })])
+    })
+    const element = group(renderer, ['pick']).querySelector('xh-listbox') as Listbox
+    await vi.waitFor(() => expect(element.loading).toBe(true))
+    release()
+    await vi.waitFor(() => expect(element.collection).toEqual([{ value: 'x', label: '某' }]))
+    expect(element.loading).toBeUndefined()
+  })
+
+  // UI 缺口 24：xh-listbox 没有声明字段接线目标，放进 xh-field 时列表不带字段的标题与提示；UI 补上后这条会变红，去掉 fails
+  it.fails('放进字段时列表的名字是字段标题、描述是字段提示', async () => {
+    const { registry, ids } = setup()
+    const renderer = await mount((element) => {
+      element.schema = documentOf([field(registry, ids, 'listbox', 'pick', { basic: { label: '环节', hint: '可多选' }, data: { options } })])
+    })
+    const shell = group(renderer, ['pick']).querySelector('xh-field') as HTMLElement & { updateComplete: Promise<boolean> }
+    await shell.updateComplete
+    const list = shell.querySelector('[data-scope="listbox"][data-part="content"]')!
+    expect(list.getAttribute('aria-labelledby')!.split(' ')).toContain(shell.querySelector('[data-scope="field"][data-part="label"]')!.id)
+    expect(list.getAttribute('aria-describedby')!.split(' ')).toContain(shell.querySelector('[data-scope="field"][data-part="description"]')!.id)
   })
 })
 

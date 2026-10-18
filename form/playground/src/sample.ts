@@ -133,6 +133,10 @@ export function expenseForm(): FormDocument {
   const companions = container('subtable', [[field('text', 'name', '姓名'), field('text', 'phone', '手机号')]], { key: 'companions', basic: { title: '同行人员' }, data: { movable: false } })
 
   const satisfaction = field('rating', 'satisfaction', '对流程的满意度')
+  const focusAreas = field('listbox', 'focusAreas', '希望改进的环节', {
+    basic: { hint: '可多选' },
+    data: { multiple: true, options: [{ value: 'speed', label: '审批速度' }, { value: 'payout', label: '报销到账' }, { value: 'invoice', label: '发票核对' }, { value: 'notice', label: '进度通知', disabled: true }] },
+  })
   const share = field('slider', 'share', '计入项目预算的比例（%）', { basic: { initialValue: 100 } })
   const channels = field('checkbox-group', 'channels', '审批结果通知', { data: { options: [{ value: 'mail', label: '邮件' }, { value: 'sms', label: '短信' }, { value: 'im', label: '即时消息' }] } })
   const tags = field('toggle-group', 'tags', '标签', { data: { multiple: true, options: [{ value: 'project', label: '项目' }, { value: 'client', label: '客户' }, { value: 'internal', label: '内部' }] } })
@@ -143,7 +147,7 @@ export function expenseForm(): FormDocument {
     data: { swatches: ['#d4380d', '#d48806', '#389e0d', '#08979c', '#1d39c4', '#531dab'] },
     appearance: { display: 'swatches' },
   })
-  const extra = container('collapse', [[satisfaction, share], [channels, cc, tags, keywords, tagColor]], {
+  const extra = container('collapse', [[satisfaction, focusAreas, share], [channels, cc, tags, keywords, tagColor]], {
     regionProps: [{ title: '反馈', expanded: true }, { title: '通知与标签', expanded: false }],
   })
 

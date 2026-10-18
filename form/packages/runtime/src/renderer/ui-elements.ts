@@ -27,6 +27,7 @@ import {
   XhGridElement,
   XhImageElement,
   XhInputGroupElement,
+  XhListboxElement,
   XhMatrixCodeElement,
   XhNumberFieldElement,
   XhPasswordInputElement,
@@ -67,6 +68,7 @@ export function defineRendererElements(): void {
   defineXhElement('xh-radio-group', XhRadioGroupElement)
   defineXhElement('xh-checkbox-group', XhCheckboxGroupElement)
   defineXhElement('xh-toggle-group', XhToggleGroupElement)
+  defineXhElement('xh-listbox', XhListboxElement)
   defineXhElement('xh-transfer', XhTransferElement)
   defineXhElement('xh-checkbox', XhCheckboxElement)
   defineXhElement('xh-switch', XhSwitchElement)

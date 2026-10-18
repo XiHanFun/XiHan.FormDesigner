@@ -220,6 +220,15 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     emptyValue: nullOrEmptyList,
   }),
   field({
+    kind: 'listbox',
+    category: 'choice',
+    element: 'xh-listbox',
+    data: [OPTIONS, OPTION_SOURCE, OPTION_DEPENDENCIES, MULTIPLE],
+    validations: CHOICE_RULES,
+    valueKind: singleOrList,
+    emptyValue: nullOrEmptyList,
+  }),
+  field({
     kind: 'transfer',
     category: 'choice',
     element: 'xh-transfer',
