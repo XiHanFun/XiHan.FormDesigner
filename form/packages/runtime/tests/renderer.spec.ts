@@ -823,6 +823,7 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['color', 'xh-color-picker', 'trigger'],
     ['signature', 'xh-signature-pad', 'control'],
     ['transfer', 'xh-transfer', 'item'],
+    ['file', 'xh-file-upload', 'dropzone'],
     ['cascader', 'xh-cascader', 'trigger'],
   ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
     const { registry, ids } = setup()
@@ -1329,7 +1330,7 @@ describe('<xh-form-renderer>：文件字段', () => {
     expect([element.accept, element.maxFiles, element.upload]).toEqual(['.pdf', 3, undefined])
     expect(rows(element)).toEqual([{ hidden: false, remote: true, name: '合同.pdf' }])
     expect(element.querySelector('[data-xh-part="dropzone"]')!.textContent).toBe('Drop files here or click to choose')
-    expect(element.querySelector('[data-xh-part="trigger"]')!.textContent).toBe('Choose files')
+    expect(element.querySelector('[data-xh-part="trigger"]')).toBeNull()
   })
 
   it('删除附件经 remote-files-change 写回字段值', async () => {
@@ -1395,17 +1396,20 @@ describe('<xh-form-renderer>：文件字段', () => {
     expect(dropzone.getAttribute('aria-invalid')).toBe('true')
     const hidden = upload(renderer).querySelector('[data-xh-part="hidden-input"]')!
     expect(hidden.getAttribute('aria-labelledby')!.split(' ')).toContain(label.id)
+    ;(label as HTMLElement).click()
+    expect(document.activeElement).toBe(dropzone)
   })
 
-  it('投放区与按钮的文字取渲染器语言包', async () => {
+  it('投放区的文字取渲染器语言包；投放区是唯一的打开入口，没有另一颗选择钮', async () => {
     setXhConfig(mergeXhConfig(zhCN, formZhCN))
     const { registry, ids } = setup()
     const renderer = await mount((element) => {
       element.schema = documentOf([field(registry, ids, 'file', 'files')])
     })
     const element = upload(renderer)
+    await element.updateComplete
     expect(element.querySelector('[data-xh-part="dropzone"]')!.textContent).toBe('把文件拖到这里，或点击选择')
-    expect(element.querySelector('[data-xh-part="trigger"]')!.textContent).toBe('选择文件')
+    expect(element.querySelector('[data-xh-part="trigger"]')).toBeNull()
   })
 })
 

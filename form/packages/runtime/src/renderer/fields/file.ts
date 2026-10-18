@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 文件字段：`xh-file-upload`，表单值是附件记录 `{ id, name, size?, type?, url? }[]`，即 UI 的 remoteFiles；
+// 文件字段：只建 `xh-file-upload` 宿主，投放区、表单影子与按文件铺的每一行都由元素按标准结构生成。
+// 表单值是附件记录 `{ id, name, size?, type?, url? }[]`，即 UI 的 remoteFiles；
 // 上传交给宿主的 uploadFile，返回带 id 的结果后文件转成附件记录，经 remote-files-change 写回字段值。
 
 import type { JsonValue } from '@xihan-ui/core/json'
@@ -11,7 +12,7 @@ import type { FileUploadRemoteFile, FileUploadRequest } from '@xihan-ui/headless
 import type { FieldRenderer, FieldRendererContext } from '../types'
 import type { ContextRef } from './shared'
 import { jsonEquals } from '@xihan-ui/core/json'
-import { assign, host, make, numberOf, stringOf, text } from '../dom'
+import { assign, host, numberOf, stringOf } from '../dom'
 import { on, paintCommon } from './shared'
 
 /** 字段值里的附件记录；缺 id 或 name 的项不算附件。 */
@@ -46,57 +47,28 @@ function valueOf(files: readonly FileUploadRemoteFile[]): JsonValue {
   })
 }
 
-/** 列表里的一行：缩略图位、文件名、大小、进度与删除钮，文字与可及名由元素填入。 */
-function itemRow(doc: Document): HTMLElement {
-  const item = make(doc, 'div', 'item')
-  const remove = make(doc, 'button', 'item-delete-trigger', { type: 'button' })
-  item.append(make(doc, 'span', 'item-preview'), make(doc, 'span', 'item-name'), make(doc, 'span', 'item-size-text'), make(doc, 'div', 'item-progress'), remove)
-  return item
-}
-
-/** 文件：`xh-file-upload`，类型与个数取 `accept`、`maxFiles`；附件在前、待传的本地文件在后，同列一行一个。 */
+/** 文件：`xh-file-upload`，类型与个数取 `accept`、`maxFiles`；投放区的说明取表单语言包的 fileDropzone。 */
 export const fileField: FieldRenderer = (context) => {
-  const doc = context.document
-  const element = host(doc, 'xh-file-upload')
-  const root = make(doc, 'div', 'root')
-  const dropzone = make(doc, 'div', 'dropzone')
-  const trigger = make(doc, 'button', 'trigger', { type: 'button' })
-  const actions = make(doc, 'div')
-  actions.append(trigger)
-  const list = make(doc, 'div', 'list')
-  root.append(dropzone, actions, make(doc, 'input', 'hidden-input'), list)
-  element.append(root)
+  const element = host(context.document, 'xh-file-upload')
   const data = context.node.data
   assign(element, 'accept', stringOf(data.accept))
   assign(element, 'maxFiles', numberOf(data.maxFiles))
   const ref: ContextRef = { current: context }
-  let records: FileUploadRemoteFile[] = []
   let recorded: JsonValue | undefined
-  let pending = 0
+  let dropzone: string | undefined
   const upload = (request: FileUploadRequest): ReturnType<NonNullable<FieldRendererContext['uploadFile']>> => ref.current.uploadFile?.(request)
-  const layout = (): void => {
-    const count = records.length + pending
-    while (list.children.length < count)
-      list.append(itemRow(doc))
-    while (list.children.length > count)
-      list.lastElementChild!.remove()
-  }
-  on<{ files: File[] }>(element, 'files-change', (detail) => {
-    pending = detail.files.length
-    layout()
-  })
   on<{ files: FileUploadRemoteFile[] }>(element, 'remote-files-change', detail => ref.current.setValue(valueOf(detail.files)))
   const update = (next: FieldRendererContext): void => {
     ref.current = next
     paintCommon(element, next)
-    text(dropzone, next.translations.fileDropzone)
-    text(trigger, next.translations.fileTrigger)
+    if (next.translations.fileDropzone !== dropzone) {
+      dropzone = next.translations.fileDropzone
+      assign(element, 'translations', { dropzone })
+    }
     assign(element, 'upload', next.uploadFile === undefined ? undefined : upload)
     if (recorded === undefined || !jsonEquals(recorded, next.value ?? null)) {
       recorded = next.value ?? null
-      records = recordsOf(next.value)
-      assign(element, 'remoteFiles', records)
-      layout()
+      assign(element, 'remoteFiles', recordsOf(next.value))
     }
   }
   update(context)

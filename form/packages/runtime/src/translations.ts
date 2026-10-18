@@ -17,8 +17,6 @@ export interface FormRendererTranslations {
   readonly addRow: string
   /** 文件字段投放区的说明。 */
   readonly fileDropzone: string
-  /** 文件字段打开选择框的按钮。 */
-  readonly fileTrigger: string
   /** 值校验问题的文案，按问题码取：`XH_FORM_VALUE_REQUIRED`。规则写了 message 时用规则的。 */
   readonly valueRequired: string
   /** `XH_FORM_VALUE_NOT_ACCEPTED`。 */
@@ -52,7 +50,6 @@ export const DEFAULT_FORM_RENDERER_TRANSLATIONS: FormRendererTranslations = Obje
   optionsEmpty: 'No options',
   addRow: 'Add row',
   fileDropzone: 'Drop files here or click to choose',
-  fileTrigger: 'Choose files',
   valueRequired: 'This field is required',
   valueNotAccepted: 'This must be checked',
   valueTooShort: (min: number) => `Enter at least ${min} characters`,
