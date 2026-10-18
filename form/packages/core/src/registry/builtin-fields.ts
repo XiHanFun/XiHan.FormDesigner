@@ -312,7 +312,11 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     kind: 'color',
     category: 'advanced',
     element: 'xh-color-picker',
-    data: [{ path: ['format'], control: { kind: 'select', options: [{ value: 'hex' }, { value: 'rgba' }, { value: 'hsla' }, { value: 'oklch' }] }, default: 'hex' }],
+    data: [
+      { path: ['format'], control: { kind: 'select', options: [{ value: 'hex' }, { value: 'rgba' }, { value: 'hsla' }, { value: 'oklch' }] }, default: 'hex' },
+      { path: ['swatches'], control: { kind: 'tags' }, default: [] },
+    ],
+    appearance: [{ path: ['display'], control: { kind: 'select', options: [{ value: 'picker' }, { value: 'swatches' }] }, default: 'picker' }],
     validations: PLAIN_RULES,
     valueKind: 'string',
     emptyValue: null,

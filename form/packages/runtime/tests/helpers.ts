@@ -14,13 +14,14 @@ export function field(
   ids: IdAllocator,
   kind: string,
   key: string,
-  extra: { validation?: ValidationRule[], linkage?: LinkageRule[], basic?: Record<string, unknown>, data?: Record<string, unknown> } = {},
+  extra: { validation?: ValidationRule[], linkage?: LinkageRule[], basic?: Record<string, unknown>, data?: Record<string, unknown>, appearance?: Record<string, unknown> } = {},
 ): FieldNode {
   const node = createNode(registry, kind, ids, { key }) as FieldNode
   return {
     ...node,
     basic: { ...node.basic, ...extra.basic } as FieldNode['basic'],
     data: { ...node.data, ...extra.data } as FieldNode['data'],
+    appearance: { ...node.appearance, ...extra.appearance } as FieldNode['appearance'],
     validation: extra.validation ?? node.validation,
     linkage: extra.linkage ?? node.linkage,
   }
