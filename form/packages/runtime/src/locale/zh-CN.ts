@@ -48,6 +48,8 @@ const locale: FormLocale = {
     widthFull: '全宽',
     widthTablet: '平板',
     widthPhone: '手机',
+    statusFields: count => `${count} 个字段`,
+    statusSelected: count => `已选 ${count} 个`,
     propertiesTab: '属性',
     validationTab: '校验规则',
     linkageTab: '联动规则',

@@ -48,6 +48,8 @@ const locale: FormLocale = {
     widthFull: '全幅',
     widthTablet: 'タブレット',
     widthPhone: 'スマートフォン',
+    statusFields: count => `${count} 個のフィールド`,
+    statusSelected: count => `${count} 個を選択中`,
     propertiesTab: 'プロパティ',
     validationTab: '検証ルール',
     linkageTab: '連動ルール',

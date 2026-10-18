@@ -43,6 +43,10 @@ export interface FormDesignerTranslations {
   readonly widthTablet: string
   /** 手机宽度。 */
   readonly widthPhone: string
+  /** 状态栏：什么都没选中时写表单里的字段数。 */
+  readonly statusFields: (count: number) => string
+  /** 状态栏：选中多项时写已选的个数。 */
+  readonly statusSelected: (count: number) => string
   /** 属性区的「属性」页签。 */
   readonly propertiesTab: string
   /** 属性区的「校验」页签。 */
@@ -221,6 +225,8 @@ export const DEFAULT_FORM_DESIGNER_TRANSLATIONS: FormDesignerTranslations = Obje
   widthFull: 'Full',
   widthTablet: 'Tablet',
   widthPhone: 'Phone',
+  statusFields: (count: number) => (count === 1 ? '1 field' : `${count} fields`),
+  statusSelected: (count: number) => `${count} selected`,
   propertiesTab: 'Properties',
   validationTab: 'Validation',
   linkageTab: 'Linkage',

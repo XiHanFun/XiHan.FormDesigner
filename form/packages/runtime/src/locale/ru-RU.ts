@@ -59,6 +59,8 @@ const locale: FormLocale = {
     widthFull: 'Во всю ширину',
     widthTablet: 'Планшет',
     widthPhone: 'Телефон',
+    statusFields: count => `${count} ${plural(count, 'поле', 'поля', 'полей')}`,
+    statusSelected: count => `Выбрано: ${count}`,
     propertiesTab: 'Свойства',
     validationTab: 'Проверка',
     linkageTab: 'Условная логика',

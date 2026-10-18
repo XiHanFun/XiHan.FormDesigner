@@ -50,12 +50,12 @@ function pages(): string[] {
 }
 
 describe('<xh-form-designer>：设置', () => {
-  it('openSettings 打开设置对话框：只有基础一页，外框还没放状态栏，状态栏一项不显示', async () => {
+  it('openSettings 打开设置对话框：只有基础一页，列出主题、工具栏显示方式与状态栏', async () => {
     const designer = await mount()
     designer.openSettings()
     await settle(designer)
     expect(pages()).toEqual(['general'])
-    expect([row('general.theme') !== null, row('general.toolbarDisplay') !== null, row('general.statusBar')]).toEqual([true, true, null])
+    expect(['theme', 'toolbarDisplay', 'statusBar'].map(id => row(`general.${id}`) !== null)).toEqual([true, true, true])
     expect(designer.querySelector('xh-designer-frame + xh-designer-settings')).not.toBeNull()
   })
 
@@ -147,5 +147,23 @@ describe('<xh-form-designer>：设置', () => {
     designer.settings = { 'general.toolbarDisplay': 'text' }
     await designer.updateComplete
     expect(shell().getAttribute('data-display')).toBe('text')
+  })
+
+  it('设置里关掉状态栏：外框不显示它；这时关掉一块面板，panels 仍留着 status，再打开状态栏照样出现', async () => {
+    const designer = await mount()
+    const frame = designer.querySelector<HTMLElement & { showsPanel: (name: string) => boolean, updateComplete: Promise<unknown> }>('xh-designer-frame')!
+    await frame.updateComplete
+    expect(frame.showsPanel('status')).toBe(true)
+    designer.settings = { 'general.statusBar': false }
+    await designer.updateComplete
+    await frame.updateComplete
+    expect(frame.showsPanel('status')).toBe(false)
+    frame.querySelector<HTMLButtonElement>('[data-region="palette"] [data-part="panel-close"]')!.click()
+    await designer.updateComplete
+    expect(designer.panels!.split(' ')).toContain('status')
+    designer.settings = {}
+    await designer.updateComplete
+    await frame.updateComplete
+    expect(frame.showsPanel('status')).toBe(true)
   })
 })

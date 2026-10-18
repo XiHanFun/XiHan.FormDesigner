@@ -48,6 +48,8 @@ const locale: FormLocale = {
     widthFull: 'Largura total',
     widthTablet: 'Tablet',
     widthPhone: 'Celular',
+    statusFields: count => (count === 1 ? '1 campo' : `${count} campos`),
+    statusSelected: count => (count === 1 ? '1 selecionado' : `${count} selecionados`),
     propertiesTab: 'Propriedades',
     validationTab: 'Validação',
     linkageTab: 'Lógica condicional',
