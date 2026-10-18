@@ -128,7 +128,7 @@ describe('<xh-form-designer>：设置', () => {
     await settle(designer)
     expect(pages()).toEqual(['general', 'acme'])
     expect(row('acme.token')!.querySelector('xh-password-input')).not.toBeNull()
-    designer.querySelector<HTMLButtonElement>('[data-part="toolbar"] button[value="acme.read"]')!.click()
+    designer.querySelector<HTMLButtonElement>('[data-part="command-bar"] button[value="acme.read"]')!.click()
     expect(seen).toEqual([{ 'acme.token': 'k', 'acme.dense': false }])
     const before = designer.extensions
     const clash = (extensions: readonly FormDesignerExtension[]) => (): unknown => (designer.extensions = extensions)

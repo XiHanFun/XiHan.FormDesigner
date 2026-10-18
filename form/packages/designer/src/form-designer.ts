@@ -601,7 +601,7 @@ export class XhFormDesigner extends XhReactiveElement {
       return this.#parts
     const doc = this.ownerDocument
     const commandBar = createCommandToolbar<FormDesignerContext>(doc, { platform: this.#kbdPlatform() })
-    const toolbar = createAuthoredElement(doc, 'div', { 'data-part': 'toolbar', 'slot': 'toolbar' }, [commandBar.element])
+    const toolbar = createAuthoredElement(doc, 'div', { 'data-part': 'command-bar', 'slot': 'toolbar' }, [commandBar.element])
     const dropIndicator = createAuthoredElement(doc, 'div', { 'data-part': 'drop-indicator', 'aria-hidden': 'true', 'hidden': true })
     const canvas = createAuthoredElement(doc, 'div', { 'data-part': 'canvas', 'slot': 'canvas', 'tabindex': '0' }, [this.#canvas.element, dropIndicator])
     const catalog = createAuthoredElement(doc, 'xh-designer-palette', { 'data-part': 'catalog', 'searchable': true, 'collapsible': true })
