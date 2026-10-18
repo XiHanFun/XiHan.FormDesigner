@@ -11,7 +11,7 @@ import type { FormDesignerTranslations, FormRendererTranslations, OptionLoader, 
 import type { IconRecord } from '@xihan-ui/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { ExecuteOptions, ExtensionHost } from '@xihan-ui/designer-kit'
-import type { CommandToolbar, DesignerCommandLayout, DesignerFrameRegion, DesignerIssuesEventMap, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, PanRequestDetail } from '@xihan-ui/designer-shell'
+import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameRegion, DesignerIssuesEventMap, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
 import type { CanvasDrop, CanvasTarget } from './canvas'
@@ -25,9 +25,9 @@ import { createDocument, findNode, findRegion, PROPERTY_GROUPS, validateDocument
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
 import { commandForShortcut, createExtensionHost } from '@xihan-ui/designer-kit'
-import { arrangeCommands, createCommandToolbar, createPanelHost, defineDesignerShellElement, DESIGNER_FRAME_REGIONS, parseDesignerPanels, registerDropTarget, renderCommandMenu, runCommand, startDrag, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
+import { arrangeCommands, createCommandToolbar, createPanelHost, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_FRAME_REGIONS, parseDesignerPanels, registerDropTarget, renderCommandMenu, runCommand, startDrag, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
-import { ArrowDownIcon, ArrowUpIcon, ArrowUpLeftIcon, CopyIcon, TrashIcon } from '@xihan-ui/icons'
+import { ArrowDownIcon, ArrowUpIcon, CopyPlusIcon, CornerLeftUpIcon, TrashIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
 import { BOOLEAN_CONVERTER, createAuthoredElement, emitEvent, registerElement, setAttributes, setText, SVG_NS, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { defineXhElement, XhButtonElement, XhContextMenuElement, XhExpressionInputElement, XhIconElement, XhMenuElement, XhToolbarElement } from '@xihan-ui/web-components/define'
@@ -95,13 +95,13 @@ const TAB_LABELS: Readonly<Record<InspectorTab, 'propertiesTab' | 'validationTab
   linkage: 'linkageTab',
 }
 
-/** 选中节点右下角小工具条上的按钮：选父级、上移、下移、再制、删除。 */
-const NODE_ACTIONS: readonly { readonly action: NodeAction, readonly icon: IconRecord, readonly label: 'selectParent' | 'moveUp' | 'moveDown' | 'duplicate' | 'delete' }[] = [
-  { action: 'parent', icon: ArrowUpLeftIcon, label: 'selectParent' },
-  { action: 'up', icon: ArrowUpIcon, label: 'moveUp' },
-  { action: 'down', icon: ArrowDownIcon, label: 'moveDown' },
-  { action: 'duplicate', icon: CopyIcon, label: 'duplicate' },
-  { action: 'delete', icon: TrashIcon, label: 'delete' },
+/** 选中节点右下角小工具条上的按钮：选父级、上移、下移、创建副本、删除；图标与名字和同名命令一致。 */
+const NODE_ACTIONS: readonly { readonly action: NodeAction, readonly icon: IconRecord, readonly label: (t: FormDesignerTranslations, commands: DesignerCommandsTranslations) => string, readonly tone?: 'danger' }[] = [
+  { action: 'parent', icon: CornerLeftUpIcon, label: t => t.selectParent },
+  { action: 'up', icon: ArrowUpIcon, label: t => t.moveUp },
+  { action: 'down', icon: ArrowDownIcon, label: t => t.moveDown },
+  { action: 'duplicate', icon: CopyPlusIcon, label: (_, commands) => commands.duplicate },
+  { action: 'delete', icon: TrashIcon, label: (_, commands) => commands.delete, tone: 'danger' },
 ]
 
 /** 设计器的各个部件；面板与画布按 slot 放进外框的同名区。 */
@@ -501,9 +501,14 @@ export class XhFormDesigner extends XhReactiveElement {
     return this.#config.translations<FormDesignerTranslations>('xh-form-designer', DEFAULT_FORM_DESIGNER_TRANSLATIONS, this.translations)
   }
 
+  /** 四款共用的命令文案：designer-shell 语言包的 xh-designer-commands。 */
+  #commandTexts(): DesignerCommandsTranslations {
+    return this.#config.translations<DesignerCommandsTranslations>('xh-designer-commands', DESIGNER_COMMANDS_EN_US)
+  }
+
   /** 交给命令、面板与扩展 setup 的上下文。 */
   #context(t: FormDesignerTranslations = this.#t()): FormDesignerContext {
-    return { designer: this, translations: t }
+    return { designer: this, translations: t, commands: this.#commandTexts() }
   }
 
   #kbdPlatform(): 'mac' | 'other' {
@@ -542,7 +547,7 @@ export class XhFormDesigner extends XhReactiveElement {
     if (this.#parts !== undefined)
       return this.#parts
     const doc = this.ownerDocument
-    const commandBar = createCommandToolbar<FormDesignerContext>(doc)
+    const commandBar = createCommandToolbar<FormDesignerContext>(doc, { platform: this.#kbdPlatform() })
     const toolbar = createAuthoredElement(doc, 'div', { 'data-part': 'toolbar', 'slot': 'toolbar' }, [commandBar.element])
     const dropIndicator = createAuthoredElement(doc, 'div', { 'data-part': 'drop-indicator', 'aria-hidden': 'true', 'hidden': true })
     const canvas = createAuthoredElement(doc, 'div', { 'data-part': 'canvas', 'slot': 'canvas', 'tabindex': '0' }, [this.#canvas.element, dropIndicator])
@@ -606,7 +611,7 @@ export class XhFormDesigner extends XhReactiveElement {
 
   /** 外框的区：内置区的名字换成文案（供分隔条的无障碍名称使用），后面接扩展面板的区；文案与面板都没变时不重设。 */
   #syncRegions(frame: XhDesignerFrameElement, t: FormDesignerTranslations): void {
-    const labels: Readonly<Record<string, string>> = { toolbar: t.toolbar, palette: t.palette, canvas: t.canvas, properties: t.properties, issues: t.issues }
+    const labels: Readonly<Record<string, string>> = { toolbar: this.#commandTexts().toolbar, palette: t.palette, canvas: t.canvas, properties: t.properties, issues: t.issues }
     const regions: DesignerFrameRegion[] = [
       ...DESIGNER_FRAME_REGIONS.map(region => ({ ...region, label: labels[region.name] ?? region.name })),
       ...this.#model.extensions.flatMap(extension => (extension.panels ?? []).map(panel => panel.region)),
@@ -619,7 +624,7 @@ export class XhFormDesigner extends XhReactiveElement {
   }
 
   #buildNodeToolbar(doc: Document): HTMLElement {
-    const items = NODE_ACTIONS.map(({ action, icon }) => {
+    const items = NODE_ACTIONS.map(({ action, icon, tone }) => {
       const svg = doc.createElementNS(SVG_NS, 'svg')
       svg.setAttribute('data-xh-part', 'root')
       const glyph = doc.createElementNS(SVG_NS, 'g')
@@ -627,7 +632,7 @@ export class XhFormDesigner extends XhReactiveElement {
       svg.append(glyph)
       const mark: HTMLElement & { icon?: IconRecord } = createAuthoredElement(doc, 'xh-icon', { size: 'sm' }, [svg])
       mark.icon = icon
-      return createAuthoredElement(doc, 'button', { 'data-xh-part': 'item', 'type': 'button', 'value': action }, [mark])
+      return createAuthoredElement(doc, 'button', { 'data-xh-part': 'item', 'type': 'button', 'value': action, 'data-tone': tone }, [mark])
     })
     const root = createAuthoredElement(doc, 'div', { 'data-xh-part': 'root' }, [createAuthoredElement(doc, 'div', { 'data-xh-part': 'group' }, items)])
     const toolbar = createAuthoredElement(doc, 'div', { 'data-part': 'node-toolbar' }, [createAuthoredElement(doc, 'xh-toolbar', { size: 'sm' }, [root])])
@@ -659,9 +664,11 @@ export class XhFormDesigner extends XhReactiveElement {
       delete: true,
     }
     setAttributes(toolbar.querySelector<HTMLElement>('[data-xh-part="root"]')!, { 'aria-label': t.nodeTag(found.node.kind, found.node.type === 'static' ? undefined : found.node.key) })
+    const commands = this.#commandTexts()
     for (const button of toolbar.querySelectorAll<HTMLButtonElement>('button[value]')) {
       const entry = NODE_ACTIONS.find(item => item.action === button.value)!
-      setAttributes(button, { 'aria-label': t[entry.label], 'title': t[entry.label] })
+      const label = entry.label(t, commands)
+      setAttributes(button, { 'aria-label': label, 'title': label })
       if (button.disabled !== !enabled[entry.action])
         button.disabled = !enabled[entry.action]
     }
@@ -699,7 +706,8 @@ export class XhFormDesigner extends XhReactiveElement {
   /** 工具栏按 commandLayout 或缺省排列铺命令，文字、可用与选中状态每次刷新。 */
   #syncToolbar(t: FormDesignerTranslations): void {
     const { commands } = this.#model
-    this.#ensureParts().commandBar.update(arrangeCommands('toolbar', commands, FORM_TOOLBAR_LAYOUT, this.commandLayout), commands, this.#context(t), t.toolbar)
+    const context = this.#context(t)
+    this.#ensureParts().commandBar.update(arrangeCommands('toolbar', commands, FORM_TOOLBAR_LAYOUT, this.commandLayout), commands, context, context.commands.toolbar)
   }
 
   #setMode(mode: FormDesignerMode): void {

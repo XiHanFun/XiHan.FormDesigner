@@ -131,6 +131,7 @@ schema-change 的来源。取值：`execute`、`undo`、`redo`、`load`。
 | --- | --- | --- |
 | `designer` | `XhFormDesigner` | 这个设计器实例。 |
 | `translations` | `FormDesignerTranslations` | 此刻生效的设计器文案。 |
+| `commands` | `DesignerCommandsTranslations` | 此刻生效的共用命令文案（designer-shell 语言包的 xh-designer-commands）：撤销、剪切、删除、设计与预览这些四款都有的命令。 |
 
 ### FormDesignerCommand {#formdesignercommand}
 
@@ -155,26 +156,15 @@ type FormDesignerCommand = DesignerCommand<FormDesignerContext>
 | 属性 | 类型 | 说明 |
 | --- | --- | --- |
 | `label` | `string` | 设计器的可访问名。 |
-| `toolbar` | `string` | 工具栏的可访问名。 |
 | `canvas` | `string` | 画布的可访问名。 |
 | `palette` | `string` | 物料面板的标题。 |
 | `properties` | `string` | 属性面板的标题。 |
 | `issues` | `string` | 问题列表的标题。 |
-| `undo` | `string` | 撤销命令。 |
-| `redo` | `string` | 重做命令。 |
-| `cut` | `string` | 剪切命令。 |
-| `copy` | `string` | 复制命令。 |
-| `paste` | `string` | 粘贴命令。 |
-| `duplicate` | `string` | 再制命令：复制并紧跟着粘贴。 |
-| `delete` | `string` | 删除命令。 |
 | `selectParent` | `string` | 选中上一级命令。 |
 | `moveUp` | `string` | 上移命令。 |
 | `moveDown` | `string` | 下移命令。 |
-| `selectAll` | `string` | 全选命令。 |
 | `save` | `string` | 保存命令。 |
 | `clear` | `string` | 清空命令。 |
-| `design` | `string` | 切到设计态。 |
-| `preview` | `string` | 切到预览态。 |
 | `previewWidth` | `string` | 预览宽度这组按钮的可访问名。 |
 | `widthFull` | `string` | 全宽。 |
 | `widthTablet` | `string` | 平板宽度。 |

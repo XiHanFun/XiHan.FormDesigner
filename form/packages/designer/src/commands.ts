@@ -9,10 +9,12 @@
 import type { FormDocument, KindRegistry } from '@xihan-form/core'
 import type { FormDesignerTranslations } from '@xihan-form/runtime'
 import type { DesignerCommand } from '@xihan-ui/designer-kit'
+import type { DesignerCommandsTranslations } from '@xihan-ui/designer-shell'
 import type { FormSelection } from './editor'
 import type { XhFormDesigner } from './form-designer'
 import type { FormDesignerInternals } from './internals'
 import { findNode, findRegion, mergeTableCells, removeTableLine } from '@xihan-form/core'
+import { ArrowDownIcon, ArrowUpIcon, ClipboardIcon, CopyIcon, CopyPlusIcon, CornerLeftUpIcon, EyeIcon, MonitorIcon, PencilIcon, RedoIcon, SaveIcon, ScissorsIcon, SmartphoneIcon, SquareDashedIcon, TableCellsMergeIcon, TableCellsSplitIcon, TableColumnInsertLeftIcon, TableColumnInsertRightIcon, TableColumnRemoveIcon, TableRowInsertAboveIcon, TableRowInsertBelowIcon, TableRowRemoveIcon, TabletIcon, TrashIcon, UndoIcon } from '@xihan-ui/icons'
 import { internalsOf } from './internals'
 
 /** 命令、面板与扩展装上时拿到的上下文。 */
@@ -21,6 +23,8 @@ export interface FormDesignerContext {
   readonly designer: XhFormDesigner
   /** 此刻生效的设计器文案。 */
   readonly translations: FormDesignerTranslations
+  /** 此刻生效的共用命令文案（designer-shell 语言包的 xh-designer-commands）：撤销、剪切、删除、设计与预览这些四款都有的命令。 */
+  readonly commands: DesignerCommandsTranslations
 }
 
 /** 设计器的命令。 */
@@ -42,7 +46,7 @@ export const FORM_TOOLBAR_LAYOUT: readonly (readonly string[])[] = [
 
 /** 右键菜单各主体的缺省排列；commandLayout 没写 menu:<主体> 时用它。 */
 export const FORM_MENU_LAYOUTS: Readonly<Record<FormMenuSubject, readonly (readonly string[])[]>> = {
-  node: [['copy', 'cut', 'paste', 'duplicate'], ['select-parent', 'move-up', 'move-down'], ['delete']],
+  node: [['cut', 'copy', 'paste', 'duplicate'], ['select-parent', 'move-up', 'move-down'], ['delete']],
   region: [['paste'], ['select-parent'], ['delete']],
   cell: [['paste'], ['select-parent'], ['merge-cells', 'split-cell'], ['insert-row-above', 'insert-row-below', 'insert-column-left', 'insert-column-right'], ['remove-row', 'remove-column']],
   blank: [['paste']],
@@ -137,6 +141,8 @@ type TextKey = { [K in keyof FormDesignerTranslations]: FormDesignerTranslations
 
 const text = (key: TextKey) => (context: FormDesignerContext): string => context.translations[key]
 
+const shared = (key: keyof DesignerCommandsTranslations) => (context: FormDesignerContext): string => context.commands[key]
+
 /** 只在可编辑时可用。 */
 function editing(test: (state: CommandState) => boolean) {
   return (context: FormDesignerContext): boolean => {
@@ -147,15 +153,16 @@ function editing(test: (state: CommandState) => boolean) {
 
 /** 内置命令。 */
 export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
-  { id: 'undo', label: text('undo'), shortcut: ['Mod', 'Z'], enabled: context => context.designer.readonly !== true && context.designer.canUndo, run: ({ designer }) => void designer.undo() },
-  { id: 'redo', label: text('redo'), shortcut: ['Mod', 'Shift', 'Z'], enabled: context => context.designer.readonly !== true && context.designer.canRedo, run: ({ designer }) => void designer.redo() },
-  { id: 'copy', label: text('copy'), enabled: context => stateOf(context).selection.nodes.length > 0, run: ({ designer }) => void designer.copy() },
-  { id: 'cut', label: text('cut'), enabled: editing(state => state.selection.nodes.length > 0), run: ({ designer }) => void designer.cut() },
-  { id: 'paste', label: text('paste'), enabled: context => context.designer.readonly !== true && context.designer.canPaste, run: ({ designer }) => void designer.paste() },
-  { id: 'duplicate', label: text('duplicate'), shortcut: ['Mod', 'D'], enabled: editing(state => state.design && state.selection.nodes.length > 0), run: ({ designer }) => void designer.duplicate() },
+  { id: 'undo', label: shared('undo'), icon: UndoIcon, shortcut: ['Mod', 'Z'], enabled: context => context.designer.readonly !== true && context.designer.canUndo, run: ({ designer }) => void designer.undo() },
+  { id: 'redo', label: shared('redo'), icon: RedoIcon, shortcut: ['Mod', 'Shift', 'Z'], enabled: context => context.designer.readonly !== true && context.designer.canRedo, run: ({ designer }) => void designer.redo() },
+  { id: 'copy', label: shared('copy'), icon: CopyIcon, enabled: context => stateOf(context).selection.nodes.length > 0, run: ({ designer }) => void designer.copy() },
+  { id: 'cut', label: shared('cut'), icon: ScissorsIcon, enabled: editing(state => state.selection.nodes.length > 0), run: ({ designer }) => void designer.cut() },
+  { id: 'paste', label: shared('paste'), icon: ClipboardIcon, enabled: context => context.designer.readonly !== true && context.designer.canPaste, run: ({ designer }) => void designer.paste() },
+  { id: 'duplicate', label: shared('duplicate'), icon: CopyPlusIcon, shortcut: ['Mod', 'D'], enabled: editing(state => state.design && state.selection.nodes.length > 0), run: ({ designer }) => void designer.duplicate() },
   {
     id: 'delete',
-    label: text('delete'),
+    label: shared('delete'),
+    icon: TrashIcon,
     tone: 'danger',
     shortcut: ['Delete'],
     enabled: editing(state => state.design && (state.regions.length > 0 ? regionsDeletable(state, state.internals.registry()) : state.selection.nodes.length > 0)),
@@ -163,7 +170,8 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
   },
   {
     id: 'select-all',
-    label: text('selectAll'),
+    label: shared('selectAll'),
+    icon: SquareDashedIcon,
     shortcut: ['Mod', 'A'],
     enabled: context => context.designer.schema.children.length > 0,
     run: ({ designer }) => designer.select({ nodes: designer.schema.children.map(node => node.id) }),
@@ -171,6 +179,7 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
   {
     id: 'select-parent',
     label: text('selectParent'),
+    icon: CornerLeftUpIcon,
     enabled: (context) => {
       const state = stateOf(context)
       if (state.regions.length > 0)
@@ -181,10 +190,11 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
     },
     run: context => stateOf(context).internals.selectParent(),
   },
-  { id: 'move-up', label: text('moveUp'), enabled: editing(state => (soleNode(state)?.index ?? 0) > 0), run: context => stateOf(context).internals.moveSelected(-1) },
+  { id: 'move-up', label: text('moveUp'), icon: ArrowUpIcon, enabled: editing(state => (soleNode(state)?.index ?? 0) > 0), run: context => stateOf(context).internals.moveSelected(-1) },
   {
     id: 'move-down',
     label: text('moveDown'),
+    icon: ArrowDownIcon,
     enabled: editing((state) => {
       const sole = soleNode(state)
       return sole !== undefined && sole.index < sole.count - 1
@@ -194,20 +204,22 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
   {
     id: 'merge-cells',
     label: text('mergeCells'),
+    icon: TableCellsMergeIcon,
     enabled: editing((state) => {
       const table = cellTable(state)
       return table !== undefined && state.regions.length >= 2 && feasible(() => mergeTableCells(state.document, table, state.regions))
     }),
     run: context => stateOf(context).internals.mergeCells(),
   },
-  { id: 'split-cell', label: text('splitCell'), enabled: editing(state => soleCell(state)?.spans === true), run: context => stateOf(context).internals.splitCell() },
-  { id: 'insert-row-above', label: text('insertRowAbove'), enabled: editing(state => soleCell(state) !== undefined), run: context => stateOf(context).internals.insertTableLine('row', false) },
-  { id: 'insert-row-below', label: text('insertRowBelow'), enabled: editing(state => soleCell(state) !== undefined), run: context => stateOf(context).internals.insertTableLine('row', true) },
-  { id: 'insert-column-left', label: text('insertColumnLeft'), enabled: editing(state => soleCell(state) !== undefined), run: context => stateOf(context).internals.insertTableLine('column', false) },
-  { id: 'insert-column-right', label: text('insertColumnRight'), enabled: editing(state => soleCell(state) !== undefined), run: context => stateOf(context).internals.insertTableLine('column', true) },
+  { id: 'split-cell', label: text('splitCell'), icon: TableCellsSplitIcon, enabled: editing(state => soleCell(state)?.spans === true), run: context => stateOf(context).internals.splitCell() },
+  { id: 'insert-row-above', label: text('insertRowAbove'), icon: TableRowInsertAboveIcon, enabled: editing(state => soleCell(state) !== undefined), run: context => stateOf(context).internals.insertTableLine('row', false) },
+  { id: 'insert-row-below', label: text('insertRowBelow'), icon: TableRowInsertBelowIcon, enabled: editing(state => soleCell(state) !== undefined), run: context => stateOf(context).internals.insertTableLine('row', true) },
+  { id: 'insert-column-left', label: text('insertColumnLeft'), icon: TableColumnInsertLeftIcon, enabled: editing(state => soleCell(state) !== undefined), run: context => stateOf(context).internals.insertTableLine('column', false) },
+  { id: 'insert-column-right', label: text('insertColumnRight'), icon: TableColumnInsertRightIcon, enabled: editing(state => soleCell(state) !== undefined), run: context => stateOf(context).internals.insertTableLine('column', true) },
   {
     id: 'remove-row',
     label: text('removeRow'),
+    icon: TableRowRemoveIcon,
     tone: 'danger',
     enabled: editing((state) => {
       const cell = soleCell(state)
@@ -218,6 +230,7 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
   {
     id: 'remove-column',
     label: text('removeColumn'),
+    icon: TableColumnRemoveIcon,
     tone: 'danger',
     enabled: editing((state) => {
       const cell = soleCell(state)
@@ -225,10 +238,10 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
     }),
     run: context => stateOf(context).internals.removeTableLine('column'),
   },
-  { id: 'design', label: text('design'), checked: ({ designer }) => (designer.mode ?? 'design') === 'design', run: context => stateOf(context).internals.setMode('design') },
-  { id: 'preview', label: text('preview'), checked: ({ designer }) => designer.mode === 'preview', run: context => stateOf(context).internals.setMode('preview') },
-  { id: 'width-full', label: text('widthFull'), checked: ({ designer }) => (designer.previewWidth ?? 'full') === 'full', run: ({ designer }) => void (designer.previewWidth = 'full') },
-  { id: 'width-tablet', label: text('widthTablet'), checked: ({ designer }) => designer.previewWidth === 'tablet', run: ({ designer }) => void (designer.previewWidth = 'tablet') },
-  { id: 'width-phone', label: text('widthPhone'), checked: ({ designer }) => designer.previewWidth === 'phone', run: ({ designer }) => void (designer.previewWidth = 'phone') },
-  { id: 'save', label: text('save'), shortcut: ['Mod', 'S'], run: context => stateOf(context).internals.save() },
+  { id: 'design', label: shared('design'), icon: PencilIcon, checked: ({ designer }) => (designer.mode ?? 'design') === 'design', run: context => stateOf(context).internals.setMode('design') },
+  { id: 'preview', label: shared('preview'), icon: EyeIcon, checked: ({ designer }) => designer.mode === 'preview', run: context => stateOf(context).internals.setMode('preview') },
+  { id: 'width-full', label: text('widthFull'), icon: MonitorIcon, checked: ({ designer }) => (designer.previewWidth ?? 'full') === 'full', run: ({ designer }) => void (designer.previewWidth = 'full') },
+  { id: 'width-tablet', label: text('widthTablet'), icon: TabletIcon, checked: ({ designer }) => designer.previewWidth === 'tablet', run: ({ designer }) => void (designer.previewWidth = 'tablet') },
+  { id: 'width-phone', label: text('widthPhone'), icon: SmartphoneIcon, checked: ({ designer }) => designer.previewWidth === 'phone', run: ({ designer }) => void (designer.previewWidth = 'phone') },
+  { id: 'save', label: text('save'), icon: SaveIcon, shortcut: ['Mod', 'S'], run: context => stateOf(context).internals.save() },
 ] satisfies FormDesignerCommand[])

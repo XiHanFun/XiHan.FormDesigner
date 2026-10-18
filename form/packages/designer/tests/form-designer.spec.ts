@@ -171,7 +171,7 @@ describe('<xh-form-designer>：编辑', () => {
     expect(findNode(designer.schema, inner.id)).toBeDefined()
   })
 
-  it('复制、粘贴、再制；只读时不能改', async () => {
+  it('复制、粘贴、创建副本；只读时不能改', async () => {
     const { document, name } = sample()
     const designer = await mount((element) => {
       element.schema = document
@@ -241,6 +241,19 @@ describe('<xh-form-designer>：面板与模式', () => {
     designer.panels = undefined
     await settle(designer)
     expect(shown()).toEqual(['toolbar', 'palette', 'canvas', 'properties', 'issues'])
+  })
+
+  it('工具栏：内置命令带图标、缺省只显示图标，名字与快捷键写在按钮上，共用命令取 xh-designer-commands 的文案，删除带危险语气', async () => {
+    const designer = await mount(() => {})
+    const bar = designer.querySelector<HTMLElement>('[data-part="toolbar"]')!
+    const button = (value: string): HTMLButtonElement => bar.querySelector<HTMLButtonElement>(`button[value="${value}"]`)!
+    expect(bar.querySelector('xh-tooltip')!.getAttribute('data-display')).toBe('icon')
+    expect(bar.querySelector('xh-toolbar [data-xh-part="root"]')!.getAttribute('aria-label')).toBe('Designer actions')
+    expect(['undo', 'redo', 'delete', 'duplicate', 'design', 'preview', 'width-full', 'width-tablet', 'width-phone'].filter(value => button(value).getAttribute('data-icon') === null)).toEqual([])
+    expect([button('undo').getAttribute('aria-label'), button('undo').getAttribute('aria-keyshortcuts')]).toEqual(['Undo', 'Control+Z'])
+    expect([button('duplicate').getAttribute('aria-label'), button('width-tablet').getAttribute('aria-label')]).toEqual(['Duplicate', 'Tablet'])
+    expect([button('delete').getAttribute('data-tone'), button('undo').getAttribute('data-tone')]).toEqual(['danger', null])
+    expect(button('design').getAttribute('aria-pressed')).toBe('true')
   })
 
   it('切到预览态时画布换成渲染器，派发 mode-change', async () => {
@@ -403,6 +416,7 @@ describe('<xh-form-designer>：节点小工具条', () => {
     expect(toolbar()!.parentElement).toBe(block(designer, name.id))
     expect(disabled()).toEqual([true, true, false, false, false])
     expect(button('down').getAttribute('aria-label')).toBe(DEFAULT_FORM_DESIGNER_TRANSLATIONS.moveDown)
+    expect([button('duplicate').getAttribute('aria-label'), button('delete').getAttribute('aria-label'), button('delete').getAttribute('data-tone')]).toEqual(['Duplicate', 'Delete', 'danger'])
     button('down').click()
     await settle(designer)
     expect(designer.schema.children.map(node => node.id)).toEqual([card.id, name.id])
@@ -470,7 +484,8 @@ describe('<xh-form-designer>：右键菜单', () => {
     expect(opened).toEqual([{ id: name.id, x: 10, y: 20 }])
     await menu.updateComplete
     const items = [...menu.querySelectorAll<HTMLElement>('[data-xh-part="item"]')]
-    expect(items.map(item => item.getAttribute('value'))).toEqual(['copy', 'cut', 'paste', 'duplicate', 'select-parent', 'move-up', 'move-down', 'delete'])
+    expect(items.map(item => item.getAttribute('value'))).toEqual(['cut', 'copy', 'paste', 'duplicate', 'select-parent', 'move-up', 'move-down', 'delete'])
+    expect(items.every(item => item.querySelector('[data-xh-part="item-icon"] > xh-icon') !== null)).toBe(true)
     expect(items.filter(item => item.getAttribute('aria-disabled') === 'true').map(item => item.getAttribute('value'))).toEqual(['paste', 'select-parent', 'move-up'])
     expect(items.at(-1)!.getAttribute('data-tone')).toBe('danger')
     expect(items.find(item => item.getAttribute('value') === 'duplicate')!.querySelector('[data-xh-part="item-shortcut"]')!.textContent).toBe('Ctrl+D')

@@ -11,8 +11,6 @@ import type { FormSchemaIssue } from '@xihan-form/core'
 export interface FormDesignerTranslations {
   /** 设计器的可访问名。 */
   readonly label: string
-  /** 工具栏的可访问名。 */
-  readonly toolbar: string
   /** 画布的可访问名。 */
   readonly canvas: string
   /** 物料面板的标题。 */
@@ -21,36 +19,16 @@ export interface FormDesignerTranslations {
   readonly properties: string
   /** 问题列表的标题。 */
   readonly issues: string
-  /** 撤销命令。 */
-  readonly undo: string
-  /** 重做命令。 */
-  readonly redo: string
-  /** 剪切命令。 */
-  readonly cut: string
-  /** 复制命令。 */
-  readonly copy: string
-  /** 粘贴命令。 */
-  readonly paste: string
-  /** 再制命令：复制并紧跟着粘贴。 */
-  readonly duplicate: string
-  /** 删除命令。 */
-  readonly delete: string
   /** 选中上一级命令。 */
   readonly selectParent: string
   /** 上移命令。 */
   readonly moveUp: string
   /** 下移命令。 */
   readonly moveDown: string
-  /** 全选命令。 */
-  readonly selectAll: string
   /** 保存命令。 */
   readonly save: string
   /** 清空命令。 */
   readonly clear: string
-  /** 切到设计态。 */
-  readonly design: string
-  /** 切到预览态。 */
-  readonly preview: string
   /** 预览宽度这组按钮的可访问名。 */
   readonly previewWidth: string
   /** 全宽。 */
@@ -221,26 +199,15 @@ function englishIssue(issue: FormSchemaIssue): string {
 /** 表单设计器的缺省文案。 */
 export const DEFAULT_FORM_DESIGNER_TRANSLATIONS: FormDesignerTranslations = Object.freeze({
   label: 'Form designer',
-  toolbar: 'Designer actions',
   canvas: 'Canvas',
   palette: 'Components',
   properties: 'Properties',
   issues: 'Issues',
-  undo: 'Undo',
-  redo: 'Redo',
-  cut: 'Cut',
-  copy: 'Copy',
-  paste: 'Paste',
-  duplicate: 'Duplicate',
-  delete: 'Delete',
   selectParent: 'Select parent',
   moveUp: 'Move up',
   moveDown: 'Move down',
-  selectAll: 'Select all',
   save: 'Save',
   clear: 'Clear',
-  design: 'Design',
-  preview: 'Preview',
   previewWidth: 'Preview width',
   widthFull: 'Full',
   widthTablet: 'Tablet',

@@ -80,6 +80,8 @@ describe('formZhCN', () => {
     expect(zh.option('display', 'swatches')).toBe('色板')
     expect(translations['xh-designer-properties']).toMatchObject({ title: '属性' })
     expect(translations['xh-designer-issues']).toBeDefined()
+    expect(translations['xh-designer-commands']).toMatchObject({ duplicate: '创建副本', toolbar: '设计器操作' })
+    expect([zh.insertRowAbove, zh.insertColumnLeft, zh.removeColumn]).toEqual(['在上方插入行', '在左侧插入列', '删除列'])
   })
 
   it('问题说明带上参数与内建名字，认不出的种类、属性与问题码原样显示', () => {

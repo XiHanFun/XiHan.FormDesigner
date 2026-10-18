@@ -5,6 +5,7 @@ import type { XhFormDesigner } from '../src/form-designer'
 import { createDocument, createFormModel, createNode } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
+import { DESIGNER_COMMANDS_EN_US } from '@xihan-ui/designer-shell'
 import { describe, expect, it } from 'vitest'
 import { FORM_COMMANDS, FORM_MENU_LAYOUTS } from '../src'
 import { menuSubject } from '../src/commands'
@@ -32,7 +33,7 @@ function context(schema: FormDocument, selection: FormSelection, state: FakeStat
   const designer = { schema, getSelection: () => selection, canUndo: false, canRedo: false, canPaste: false, ...state }
   const noop = (): void => {}
   provideInternals(designer, { registry: () => registry, setMode: noop, save: noop, selectParent: noop, moveSelected: noop, mergeCells: noop, splitCell: noop, insertTableLine: noop, removeTableLine: noop })
-  return { designer: designer as unknown as XhFormDesigner, translations: DEFAULT_FORM_DESIGNER_TRANSLATIONS }
+  return { designer: designer as unknown as XhFormDesigner, translations: DEFAULT_FORM_DESIGNER_TRANSLATIONS, commands: DESIGNER_COMMANDS_EN_US }
 }
 
 /** 某个菜单主体的缺省排列里，各命令此刻可不可用。 */
@@ -42,15 +43,28 @@ function states(subject: FormMenuSubject, ctx: FormDesignerContext): Record<stri
 }
 
 describe('内置命令与右键菜单', () => {
+  it('内置命令都带图标；四款共用的命令取 xh-designer-commands 的文案，表单专属的取设计器文案；会删掉内容的带危险语气', () => {
+    const { document } = sample()
+    const ctx = { ...context(document, { nodes: [] }), commands: { ...DESIGNER_COMMANDS_EN_US, duplicate: 'Shared duplicate', preview: 'Shared preview' } }
+    const label = (id: string): string => {
+      const found = FORM_COMMANDS.find(command => command.id === id)!.label
+      return typeof found === 'function' ? found(ctx) : found
+    }
+    expect(FORM_COMMANDS.filter(command => command.icon === undefined).map(command => command.id)).toEqual([])
+    expect([label('duplicate'), label('preview'), label('undo'), label('select-all')]).toEqual(['Shared duplicate', 'Shared preview', 'Undo', 'Select all'])
+    expect([label('select-parent'), label('insert-column-left'), label('remove-row')]).toEqual(['Select parent', 'Insert column left', 'Delete row'])
+    expect(FORM_COMMANDS.filter(command => command.tone === 'danger').map(command => command.id)).toEqual(['delete', 'remove-row', 'remove-column'])
+  })
+
   it('选中节点：剪贴板、层级与删除；顶层第一个不能选父级、不能上移，没有剪贴板内容不能粘贴', () => {
     const { document, a } = sample()
     expect(menuSubject(document, { nodes: [a.id] })).toBe('node')
-    expect(FORM_MENU_LAYOUTS.node).toEqual([['copy', 'cut', 'paste', 'duplicate'], ['select-parent', 'move-up', 'move-down'], ['delete']])
+    expect(FORM_MENU_LAYOUTS.node).toEqual([['cut', 'copy', 'paste', 'duplicate'], ['select-parent', 'move-up', 'move-down'], ['delete']])
     expect(states('node', context(document, { nodes: [a.id] }))).toMatchObject({ 'copy': true, 'paste': false, 'select-parent': false, 'move-up': false, 'move-down': true, 'delete': true })
     expect(states('node', context(document, { nodes: [a.id] }, { canPaste: true }))).toMatchObject({ paste: true })
   })
 
-  it('只读时只能复制与选父级；预览态不能删除与再制', () => {
+  it('只读时只能复制与选父级；预览态不能删除与创建副本', () => {
     const { document, grid } = sample()
     const inner = { nodes: [], regions: [grid.regions[0]!.id] }
     expect(states('node', context(document, { nodes: [grid.id] }, { readonly: true, canPaste: true }))).toMatchObject({ copy: true, cut: false, paste: false, duplicate: false, delete: false })
