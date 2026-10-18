@@ -245,7 +245,7 @@ describe('<xh-form-designer>：面板与模式', () => {
 
   it('工具栏：内置命令带图标、缺省只显示图标，名字与快捷键写在按钮上，共用命令取 xh-designer-commands 的文案，删除带危险语气', async () => {
     const designer = await mount(() => {})
-    const bar = designer.querySelector<HTMLElement>('[data-part="toolbar"]')!
+    const bar = designer.querySelector<HTMLElement>('[data-part="command-bar"]')!
     const button = (value: string): HTMLButtonElement => bar.querySelector<HTMLButtonElement>(`button[value="${value}"]`)!
     expect(bar.querySelector('xh-tooltip')!.getAttribute('data-display')).toBe('icon')
     expect(bar.querySelector('xh-toolbar [data-xh-part="root"]')!.getAttribute('aria-label')).toBe('Designer actions')
@@ -662,7 +662,7 @@ describe('<xh-form-designer>：扩展', () => {
     })
     const catalog = designer.querySelector('xh-designer-palette') as HTMLElement & { groups?: { id: string, items: { id: string }[] }[] }
     expect(catalog.groups!.find(group => group.id === 'acme')!.items.map(item => item.id)).toEqual(['slug'])
-    const toolbar = [...designer.querySelectorAll<HTMLButtonElement>('[data-part="toolbar"] button[data-xh-part="item"]')].map(button => button.value)
+    const toolbar = [...designer.querySelectorAll<HTMLButtonElement>('[data-part="command-bar"] button[data-xh-part="item"]')].map(button => button.value)
     expect(toolbar.at(-1)).toBe('@acme/slug.ping')
     const frame = designer.querySelector('xh-designer-frame') as HTMLElement & { regions?: { name: string }[] }
     expect(frame.regions!.at(-1)!.name).toBe('acme')
@@ -678,7 +678,7 @@ describe('<xh-form-designer>：扩展', () => {
     const designer = await mount((element) => {
       element.commandLayout = { toolbar: [['redo', 'undo']] }
     })
-    expect([...designer.querySelectorAll<HTMLButtonElement>('[data-part="toolbar"] button[data-xh-part="item"]')].map(button => button.value)).toEqual(['redo', 'undo'])
+    expect([...designer.querySelectorAll<HTMLButtonElement>('[data-part="command-bar"] button[data-xh-part="item"]')].map(button => button.value)).toEqual(['redo', 'undo'])
   })
 
   it('与内置重名时赋值就抛扩展冲突，extensions 与界面保持原样', async () => {
