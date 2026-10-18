@@ -11,7 +11,7 @@ import type { OptionItem } from '../../state/options'
 import type { FieldRenderer, FieldRendererContext } from '../types'
 import type { ContextRef } from './shared'
 import { assign, host, stringOf } from '../dom'
-import { fromList, on, paintCommon, toList } from './shared'
+import { fromList, on, paintClearable, paintCommon, toList } from './shared'
 
 function itemsOf(context: FieldRendererContext): readonly OptionItem[] {
   return context.options?.items ?? []
@@ -34,6 +34,7 @@ export const selectField: FieldRenderer = (context) => {
   const update = (next: FieldRendererContext): void => {
     ref.current = next
     paintCommon(element, next, { placeholder: true })
+    paintClearable(element, next, multiple)
     assign(element, 'empty', next.translations.optionsEmpty)
     assign(element, 'loading', next.options?.status === 'loading' ? true : undefined)
     assign(element, 'error', next.options?.status === 'error' ? true : undefined)
@@ -205,6 +206,7 @@ export const treeSelectField: FieldRenderer = (context) => {
   const update = (next: FieldRendererContext): void => {
     ref.current = next
     paintCommon(element, next, { placeholder: true })
+    paintClearable(element, next, multiple)
     assign(element, 'loading', next.options?.status === 'loading' ? true : undefined)
     const items = itemsOf(next)
     if (items !== last) {
@@ -249,6 +251,7 @@ export const cascaderField: FieldRenderer = (context) => {
   const update = (next: FieldRendererContext): void => {
     ref.current = next
     paintCommon(element, next, { placeholder: true })
+    paintClearable(element, next, multiple)
     assign(element, 'loading', next.options?.status === 'loading' ? true : undefined)
     if (itemsOf(next) !== items) {
       items = itemsOf(next)

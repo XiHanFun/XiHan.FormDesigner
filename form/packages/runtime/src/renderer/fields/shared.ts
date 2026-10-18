@@ -16,6 +16,14 @@ export function paintCommon(element: HTMLElement, context: FieldRendererContext,
   applyControlState(element, context.state)
 }
 
+/**
+ * 单选的下拉、树选择与级联：字段此刻不必填（规则与联动都算）时带清空钮，由元素按标准结构放在展开钮那一格；
+ * 必填时不带；多选能逐个去掉已选项，不带。
+ */
+export function paintClearable(element: HTMLElement, context: FieldRendererContext, multiple: boolean): void {
+  assign(element, 'clearable', !multiple && !context.state.required ? true : undefined)
+}
+
 /** 持有最新上下文：事件回调总拿到最近一次 update 交来的那份。 */
 export interface ContextRef {
   current: FieldRendererContext
