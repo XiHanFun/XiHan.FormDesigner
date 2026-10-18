@@ -138,7 +138,11 @@ export function expenseForm(): FormDocument {
   const tags = field('toggle-group', 'tags', '标签', { data: { multiple: true, options: [{ value: 'project', label: '项目' }, { value: 'client', label: '客户' }, { value: 'internal', label: '内部' }] } })
   const keywords = field('tags', 'keywords', '关键词', { basic: { placeholder: '输入后回车' }, data: { max: 5 } })
   const cc = field('transfer', 'cc', '抄送人', { basic: { hint: '审批结果同时抄送给右侧的同事' }, data: { optionSource: 'colleagues' } })
-  const tagColor = field('color', 'tagColor', '标签颜色', { basic: { hint: '列表里按这个颜色标出这张单据' } })
+  const tagColor = field('color', 'tagColor', '标签颜色', {
+    basic: { hint: '列表里按这个颜色标出这张单据' },
+    data: { swatches: ['#d4380d', '#d48806', '#389e0d', '#08979c', '#1d39c4', '#531dab'] },
+    appearance: { display: 'swatches' },
+  })
   const extra = container('collapse', [[satisfaction, share], [channels, cc, tags, keywords, tagColor]], {
     regionProps: [{ title: '反馈', expanded: true }, { title: '通知与标签', expanded: false }],
   })

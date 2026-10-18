@@ -1017,13 +1017,13 @@ describe('<xh-form-renderer>：日期时间字段', () => {
 })
 
 describe('<xh-form-renderer>：颜色字段', () => {
-  type Picker = HTMLElement & { value?: unknown, format?: string, updateComplete: Promise<boolean> }
+  type Picker = HTMLElement & { value?: unknown, format?: string, swatches?: unknown, updateComplete: Promise<boolean> }
 
-  async function mountColor(data: Record<string, JsonValue>, values: Record<string, JsonValue> = {}): Promise<{ renderer: XhFormRenderer, element: Picker }> {
+  async function mountColor(data: Record<string, JsonValue>, values: Record<string, JsonValue> = {}, appearance: Record<string, JsonValue> = {}): Promise<{ renderer: XhFormRenderer, element: Picker }> {
     const { registry, ids } = setup()
     const renderer = await mount((element) => {
       element.values = values
-      element.schema = documentOf([field(registry, ids, 'color', 'tint', { data })])
+      element.schema = documentOf([field(registry, ids, 'color', 'tint', { data, appearance })])
     })
     const element = group(renderer, ['tint']).querySelector<Picker>('[slot="control"]')!
     await element.updateComplete
@@ -1040,9 +1040,27 @@ describe('<xh-form-renderer>：颜色字段', () => {
     expect(renderer.getFormData().tint).toBeNull()
   })
 
-  it('新建的颜色字段 format 是 hex；字段值为 null 时元素拿到空数组', async () => {
+  it('新建的颜色字段 format 是 hex、展示方式是取色器、不带预设色；字段值为 null 时元素拿到空数组', async () => {
     const { element } = await mountColor({})
-    expect([element.value, element.format]).toEqual([[], 'hex'])
+    expect([element.localName, element.value, element.format, element.swatches]).toEqual(['xh-color-picker', [], 'hex', undefined])
+  })
+
+  it('取色器给了色板颜色时，浮层里带这组预设色', async () => {
+    const { element } = await mountColor({ swatches: ['#1677ff', '#52c41a'] })
+    expect(element.swatches).toEqual(['#1677ff', '#52c41a'])
+  })
+
+  it('展示方式是色板：建 xh-color-swatch-picker，每格是一个色板颜色；值是选中那格的颜色串，没选时为 null', async () => {
+    const { renderer, element } = await mountColor({ swatches: ['#1677ff', '#52c41a'] }, { tint: '#52c41a' }, { display: 'swatches' })
+    expect(element.localName).toBe('xh-color-swatch-picker')
+    expect([element.swatches, element.value]).toEqual([[{ value: '#1677ff' }, { value: '#52c41a' }], '#52c41a'])
+    expect([...element.querySelectorAll('[data-scope="color-swatch-picker"][data-part="item"]')].map(item => item.getAttribute('value'))).toEqual(['#1677ff', '#52c41a'])
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value: '#1677ff' }, bubbles: true }))
+    expect(renderer.getFormData().tint).toBe('#1677ff')
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value: null }, bubbles: true }))
+    expect(renderer.getFormData().tint).toBeNull()
+    await element.updateComplete
+    expect(element.value).toBeNull()
   })
 })
 

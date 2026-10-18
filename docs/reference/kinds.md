@@ -415,8 +415,10 @@
 | `basic.disabled` | 禁用 | 布尔 | `false` |
 | `basic.readOnly` | 只读 | 布尔 | `false` |
 | `data.format` | 格式 | `hex`、`rgba`、`hsla`、`oklch` | `"hex"` |
+| `data.swatches` | 色板颜色 | 字符串数组 | `[]` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.display` | 展示方式 | `picker` 取色器、`swatches` 色板 | `"picker"` |
 
 ### 标签 `tags` {#tags}
 
