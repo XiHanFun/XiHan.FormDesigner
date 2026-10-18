@@ -132,7 +132,7 @@ const NODE_ACTIONS: readonly { readonly action: NodeAction, readonly icon: IconR
 ]
 
 /** 节点小工具条上提示的锚点：工具条里的每颗按钮。 */
-const NODE_ACTION_ANCHORS = "button[data-xh-part='item']"
+const NODE_ACTION_ANCHORS = 'button[data-xh-part=\'item\']'
 
 /** 设计器的各个部件；面板与画布按 slot 放进外框的同名区。 */
 interface DesignerParts {
