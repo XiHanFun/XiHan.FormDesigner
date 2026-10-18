@@ -722,6 +722,33 @@ describe('<xh-form-renderer>：标签字段', () => {
 })
 
 describe('<xh-form-renderer>：控件状态', () => {
+  it('单选的下拉、树选择与级联在不必填时带清空钮，点了值清成空；必填（规则或联动）与多选时不带', async () => {
+    const { registry, ids } = setup()
+    const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]
+    const tree = [{ value: 'a', label: '甲', children: [{ value: 'a1', label: '甲一' }] }]
+    const renderer = await mount((element) => {
+      element.values = { sel: 'a' }
+      element.schema = documentOf([
+        field(registry, ids, 'select', 'sel', { data: { options } }),
+        field(registry, ids, 'select', 'req', { data: { options }, validation: [{ id: 'r', kind: 'required' }] }),
+        field(registry, ids, 'select', 'linked', { data: { options }, linkage: [{ id: 'l', action: 'require', when: 'true' }] }),
+        field(registry, ids, 'select', 'many', { data: { options, multiple: true } }),
+        field(registry, ids, 'tree-select', 'tree', { data: { options: tree } }),
+        field(registry, ids, 'cascader', 'path', { data: { options: tree } }),
+      ])
+    })
+    type Clearable = HTMLElement & { clearable?: boolean, updateComplete: Promise<boolean> }
+    const element = (key: string, tag: string): Clearable => group(renderer, [key]).querySelector(tag) as Clearable
+    const clearable = [['sel', 'xh-select'], ['req', 'xh-select'], ['linked', 'xh-select'], ['many', 'xh-select'], ['tree', 'xh-tree-select'], ['path', 'xh-cascader']].map(([key, tag]) => element(key!, tag!).clearable === true)
+    expect(clearable).toEqual([true, false, false, false, true, true])
+    const select = element('sel', 'xh-select')
+    await select.updateComplete
+    expect(select.querySelectorAll('[data-scope="select"][data-part="clear-trigger"]')).toHaveLength(1)
+    expect(element('req', 'xh-select').querySelector('[data-scope="select"][data-part="clear-trigger"]')).toBeNull()
+    select.querySelector<HTMLButtonElement>('[data-scope="select"][data-part="clear-trigger"]')!.click()
+    expect(renderer.getFormData().sel).toBeNull()
+  })
+
   it.each([
     ['toggle-group', 'xh-toggle-group'],
     ['checkbox-group', 'xh-checkbox-group'],
