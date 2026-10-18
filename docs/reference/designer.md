@@ -16,6 +16,7 @@
 | `commandLayout` | — | `DesignerCommandLayout \| undefined` | 顶栏、工具栏与右键菜单的排列：位置（header、toolbar、menu:node、menu:region、menu:cell、menu:blank）→ 若干组命令 id，内置命令与扩展命令混排。写了某个位置就只显示列出的；没写的位置用内置的缺省排列，再把 placement 含它的扩展命令追加成一组。 |
 | `previewValues` | — | `Readonly<Record<string, JsonValue>> \| undefined` | 预览的示例数据。 |
 | `loadOptions` | — | `OptionLoader \| undefined` | 预览的选项加载。 |
+| `uploadFile` | — | `FileUploader \| undefined` | 预览里文件字段的上传函数，与渲染器的同名属性一样交给 xh-file-upload；组件自己不发请求。 |
 | `translations` | — | `Partial<FormDesignerTranslations> \| undefined` | 元素自己的文案，压在全局配置之上。 |
 | `readonly` | `readonly` | `boolean \| undefined` | 可选择、浏览与预览，不能修改。attribute 按三态读：没写或写 "false" 为可修改，其余写法为只读。 |
 | `mode` | `mode` | `FormDesignerMode \| undefined` | 设计态或预览态，缺省 design。 |

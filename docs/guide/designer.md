@@ -92,7 +92,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 ## 预览
 
-工具栏的「预览」或 `mode = 'preview'` 切到预览态：画布换成真实的渲染器，可以填写、校验、看联动，外框只留工具栏与状态栏。`previewValues` 是预览用的示例数据，`loadOptions` 是预览时的选项加载函数，与渲染器的同名属性一样。
+工具栏的「预览」或 `mode = 'preview'` 切到预览态：画布换成真实的渲染器，可以填写、校验、看联动，外框只留工具栏与状态栏。`previewValues` 是预览用的示例数据，`loadOptions` 是预览时的选项加载函数，`uploadFile` 是预览里文件字段的上传函数，都与渲染器的同名属性一样；不给 `uploadFile` 时，预览里选的文件不会上传，也不会写进字段值。
 
 预览宽度有全宽、平板与手机三档（`previewWidth`），设计态的画布也按这个宽度排。
 
