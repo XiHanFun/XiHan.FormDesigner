@@ -172,6 +172,39 @@ describe('<xh-form-designer>：编辑', () => {
     expect(findNode(designer.schema, inner.id)).toBeDefined()
   })
 
+  it('快捷键在整个设计器里认：焦点在物料、属性面板时 Ctrl+Z / Ctrl+D 照样生效，单键不抢；文字输入里与组件已处理过的键不接', async () => {
+    const { document, name, inner } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    const key = (target: Element, init: KeyboardEventInit): KeyboardEvent => {
+      const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init })
+      target.dispatchEvent(event)
+      return event
+    }
+    const palette = designer.querySelector('[data-part="catalog"]')!
+    const item = palette.querySelector<HTMLElement>('[data-scope="designer-palette"][data-part="item"]') ?? palette
+    const search = palette.querySelector('input')!
+    designer.select({ nodes: [inner.id] })
+    designer.deleteSelection()
+    expect(findNode(designer.schema, inner.id)).toBeUndefined()
+    expect(key(search, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(false)
+    expect(findNode(designer.schema, inner.id)).toBeUndefined()
+    expect(key(item, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(true)
+    expect(findNode(designer.schema, inner.id)).toBeDefined()
+    designer.select({ nodes: [name.id] })
+    const inspector = designer.querySelector('[data-part="inspector-tabs"]')!
+    key(inspector, { key: 'd', ctrlKey: true })
+    expect(designer.schema.children).toHaveLength(3)
+    key(item, { key: 'Delete' })
+    key(inspector, { key: 'ArrowDown', altKey: true })
+    expect(designer.schema.children).toHaveLength(3)
+    const handled = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true })
+    handled.preventDefault()
+    item.dispatchEvent(handled)
+    expect(designer.canRedo).toBe(false)
+  })
+
   it('复制、粘贴、创建副本；只读时不能改', async () => {
     const { document, name } = sample()
     const designer = await mount((element) => {

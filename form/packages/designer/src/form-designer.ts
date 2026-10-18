@@ -93,6 +93,21 @@ export interface FormDesignerEventMap {
 
 const CLIPBOARD_EVENTS = ['copy', 'cut', 'paste'] as const
 
+/** 不能输入文字的 input 类型：焦点在这些上面时，撤销、复制这些键仍归设计器。 */
+const NON_TEXT_INPUTS: ReadonlySet<string> = new Set(['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'])
+
+/** 焦点在能输入文字的地方（输入框、文本框、可编辑区）：撤销、全选、复制粘贴这些键归它自己。 */
+function isTextEntry(target: EventTarget | null): boolean {
+  const element = target as Element | null
+  if (element === null || typeof element.closest !== 'function')
+    return false
+  if (element.localName === 'textarea')
+    return true
+  if (element.localName === 'input')
+    return !NON_TEXT_INPUTS.has((element as HTMLInputElement).type)
+  return element.closest('[contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]') !== null
+}
+
 const NO_EXTENSIONS: readonly FormDesignerExtension[] = Object.freeze([])
 
 type NodeAction = 'parent' | 'up' | 'down' | 'duplicate' | 'delete'
@@ -663,10 +678,11 @@ export class XhFormDesigner extends XhReactiveElement {
     inspector.headless = true
     problems.headless = true
     frame.addEventListener('panels-change', this.#onPanelsChange)
+    // 快捷键在整个设计器里认：画布、物料、属性与问题列表
+    this.addEventListener('keydown', this.#onKeyDown)
     canvas.addEventListener('click', this.#onCanvasClick)
     canvas.addEventListener('dblclick', this.#onCanvasDblclick)
     canvas.addEventListener('contextmenu', this.#onCanvasContextMenu)
-    canvas.addEventListener('keydown', this.#onKeyDown)
     canvas.addEventListener('pointerdown', this.#onCanvasPointerDown)
     canvas.addEventListener('pan-request', this.#onPanRequest)
     catalog.addEventListener('item-activate', this.#onPaletteActivate)
@@ -1372,11 +1388,18 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#editor.seal()
   }
 
-  /** 画布有焦点时，复制、剪切写进剪贴板事件的数据，粘贴读出表单的剪贴板内容；别的内容不处理。 */
+  /**
+   * 焦点在设计器里时，复制、剪切写进剪贴板事件的数据，粘贴读出表单的剪贴板内容；别的内容不处理。
+   * 焦点在文字输入里时归输入框；画布外页面上选着一段文字时，复制与剪切归浏览器。
+   */
   readonly #onClipboard = (event: ClipboardEvent): void => {
     const data = event.clipboardData
-    const canvas = this.#parts?.canvas
-    if (!data || !canvas || !canvas.contains(this.ownerDocument.activeElement) || (this.mode ?? 'design') !== 'design')
+    const parts = this.#parts
+    const active = this.ownerDocument.activeElement
+    if (!data || !parts || active === null || !parts.frame.contains(active) || isTextEntry(active) || (this.mode ?? 'design') !== 'design')
+      return
+    const selected = this.ownerDocument.getSelection()
+    if (event.type !== 'paste' && !parts.canvas.contains(active) && selected !== null && !selected.isCollapsed)
       return
     if (event.type === 'paste') {
       const content = this.readonly === true ? undefined : readFormClipboard(data, this.#extensions)
@@ -1396,11 +1419,16 @@ export class XhFormDesigner extends XhReactiveElement {
   /**
    * 菜单键与 Shift+F10 打开右键菜单；命令的快捷键按平台认 Mod（macOS 上是 ⌘）执行命中的可用命令。
    * 没有命令占用时：Ctrl / ⌘+Y 重做，Backspace 删除，方向键在同一层里移动选择，Alt 加方向键移动节点，Enter 选第一个子节点，Esc 选上一级再清空。
+   * 焦点在画布外（物料、属性、问题列表）时只认带 Ctrl / ⌘ 的快捷键，单键留给那里的列表与控件；焦点在文字输入里、
+   * 或里面的组件已经处理过这个键时不接，输入框自己的撤销照旧。
    */
   readonly #onKeyDown = (event: KeyboardEvent): void => {
     if ((this.mode ?? 'design') !== 'design')
       return
-    if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey)) {
+    const inCanvas = this.#parts?.canvas.contains(event.target as Node | null) === true
+    if (!inCanvas && (event.defaultPrevented || isTextEntry(event.target) || !(event.ctrlKey || event.metaKey)))
+      return
+    if (inCanvas && (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey))) {
       event.preventDefault()
       this.#requestMenu(this.#editor.selection.nodes.at(-1), this.#selectionAnchor())
       return
@@ -1419,7 +1447,7 @@ export class XhFormDesigner extends XhReactiveElement {
         this.redo()
       return
     }
-    if (!command && this.#onPlainKey(event))
+    if (inCanvas && !command && this.#onPlainKey(event))
       event.preventDefault()
   }
 
