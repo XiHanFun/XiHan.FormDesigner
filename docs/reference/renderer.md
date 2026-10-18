@@ -330,7 +330,7 @@ type FieldRenderer = (context: FieldRendererContext) => FieldRendererInstance
 
 | 名称 | 种类 | 说明 |
 | --- | --- | --- |
-| `DEFAULT_FORM_DESIGNER_TRANSLATIONS` | 常量 | 表单设计器的缺省文案。 |
+| `DEFAULT_FORM_DESIGNER_TRANSLATIONS` | 常量 | 表单设计器的缺省文案：英文，与其余语言同一张表组出，种类、属性与选项写可读的名字。 |
 | `FormDesignerTranslations` | 接口 | 表单设计器的文案：无参的是字符串，带参的是函数。 |
 
 ### extensions

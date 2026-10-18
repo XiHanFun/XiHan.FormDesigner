@@ -6,6 +6,8 @@
 // 表单设计器的文案键与缺省英文文案：类型放在 runtime，与渲染器的文案同一份语言包，并补进 UI 的 XhTranslationOverrides。
 
 import type { FormSchemaIssue } from '@xihan-form/core'
+import { ENGLISH_DESIGNER_LOCALE } from './designer-english'
+import { formDesignerTranslations } from './locale/types'
 
 /** 表单设计器的文案：无参的是字符串，带参的是函数。 */
 export interface FormDesignerTranslations {
@@ -135,146 +137,8 @@ export interface FormDesignerTranslations {
   readonly issue: (issue: FormSchemaIssue) => string
 }
 
-function words(name: string): string {
-  const spaced = name.replace(/-/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
-}
-
-function param(issue: FormSchemaIssue, key: string): string {
-  const value = issue.params?.[key]
-  return value === undefined ? '' : String(value)
-}
-
-function englishIssue(issue: FormSchemaIssue): string {
-  switch (issue.code) {
-    case 'required':
-      return 'A required value is missing'
-    case 'invalid-type':
-      return 'The value has the wrong type'
-    case 'invalid-value':
-      return 'The value is not valid'
-    case 'out-of-range':
-      return 'The value is out of range'
-    case 'not-integer':
-      return 'The value must be a whole number'
-    case 'invalid-option':
-      return 'The value is not one of the allowed options'
-    case 'invalid-color':
-      return 'The color is not valid'
-    case 'empty':
-      return 'The value must not be empty'
-    case 'unknown-key':
-      return 'Unknown property'
-    case 'duplicate-key':
-      return `The data key ${param(issue, 'key')} is used more than once`
-    case 'duplicate-id':
-      return `The id ${param(issue, 'id')} is used more than once`
-    case 'unknown-control':
-      return 'This kind of editor is not registered'
-    case 'document.unsupportedVersion':
-      return `Unsupported schema version ${param(issue, 'version')}`
-    case 'document.tooDeep':
-      return `Nodes are nested deeper than ${param(issue, 'max')} levels`
-    case 'node.unknownKind':
-      return `Unknown kind ${param(issue, 'kind')}`
-    case 'node.kindTypeMismatch':
-      return `The kind ${param(issue, 'kind')} is not a ${param(issue, 'type')}`
-    case 'region.childNotAllowed':
-      return `This region does not accept ${param(issue, 'kind')}`
-    case 'table.cellOutOfBounds':
-      return 'The cell lies outside the table'
-    case 'table.cellOverlap':
-      return 'The cell overlaps another cell'
-    case 'table.cellGap':
-      return `The table has an empty slot at row ${param(issue, 'row')}, column ${param(issue, 'column')}`
-    case 'rule.notApplicable':
-      return `The ${param(issue, 'kind')} rule does not apply to this field`
-    case 'rule.boundsMissing':
-      return 'Give a minimum, a maximum or both'
-    case 'rule.invalidRange':
-      return 'The minimum is greater than the maximum'
-    case 'rule.invalidPattern':
-      return 'The regular expression is not valid'
-    case 'linkage.actionNotApplicable':
-      return `The ${param(issue, 'action')} action does not apply here`
-    case 'expression.invalid':
-      return 'The expression is not valid'
-    case 'field.dependencyWithoutSource':
-      return 'Option dependencies need an option source'
-    case 'field.unknownDependency':
-      return `No field named ${param(issue, 'key')} to depend on`
-    case 'field.selfDependency':
-      return 'A field cannot depend on itself'
-    default:
-      return issue.code
-  }
-}
-
-/** 表单设计器的缺省文案。 */
-export const DEFAULT_FORM_DESIGNER_TRANSLATIONS: FormDesignerTranslations = Object.freeze({
-  label: 'Form designer',
-  canvas: 'Canvas',
-  palette: 'Components',
-  properties: 'Properties',
-  issues: 'Issues',
-  paletteHelp: 'Drag a component onto the canvas, or click it to add it after the selection.',
-  propertiesHelp: 'Edit the selected component or region, with its validation and linkage rules. With nothing selected, edit the form settings.',
-  issuesHelp: 'Problems found when checking the form template. Click one to select where it is.',
-  selectParent: 'Select parent',
-  moveUp: 'Move up',
-  moveDown: 'Move down',
-  save: 'Save',
-  clear: 'Clear',
-  previewWidth: 'Preview width',
-  widthFull: 'Full',
-  widthTablet: 'Tablet',
-  widthPhone: 'Phone',
-  statusFields: (count: number) => (count === 1 ? '1 field' : `${count} fields`),
-  statusSelected: (count: number) => `${count} selected`,
-  insertToolbar: 'Insert fields',
-  insertField: (label: string) => `Add ${label}`,
-  propertiesTab: 'Properties',
-  validationTab: 'Validation',
-  linkageTab: 'Linkage',
-  emptyCanvas: 'Drag a component here, or select one and press Enter',
-  emptyRegion: 'Drop here',
-  settings: 'Form settings',
-  nodeTag: (kind: string, key: string | undefined) => (key === undefined ? kind : `${kind} · ${key}`),
-  category: words,
-  kind: words,
-  group: words,
-  property: (_kind: string, _group: string, name: string) => words(name),
-  option: (_name: string, value: string) => words(value),
-  ruleKind: words,
-  linkageAction: words,
-  addRule: 'Add rule',
-  removeRule: 'Remove rule',
-  ruleMessage: 'Message',
-  ruleWhen: 'When',
-  ruleValue: 'Value',
-  ruleMin: 'Minimum',
-  ruleMax: 'Maximum',
-  rulePattern: 'Pattern',
-  ruleFlags: 'Flags',
-  ruleExpression: 'Expression',
-  ruleAction: 'Action',
-  noRules: 'No rules',
-  variableValue: 'Value of this field or list',
-  variableRow: 'Data of the current row',
-  variableIndex: 'Index of the current row, from 0',
-  mergeCells: 'Merge cells',
-  splitCell: 'Split cell',
-  insertRowAbove: 'Insert row above',
-  insertRowBelow: 'Insert row below',
-  insertColumnLeft: 'Insert column left',
-  insertColumnRight: 'Insert column right',
-  removeRow: 'Delete row',
-  removeColumn: 'Delete column',
-  sourceStructure: 'Structure',
-  sourceBinding: 'Binding',
-  unboundKey: (key: string) => `${key} is not in the data model`,
-  issue: englishIssue,
-})
+/** 表单设计器的缺省文案：英文，与其余语言同一张表组出，种类、属性与选项写可读的名字。 */
+export const DEFAULT_FORM_DESIGNER_TRANSLATIONS: FormDesignerTranslations = /* @__PURE__ */ Object.freeze(formDesignerTranslations(ENGLISH_DESIGNER_LOCALE))
 
 declare module '@xihan-ui/web-components' {
   interface XhTranslationOverrides {

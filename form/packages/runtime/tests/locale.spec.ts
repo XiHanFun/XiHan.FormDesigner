@@ -94,6 +94,20 @@ describe('formZhCN', () => {
   })
 })
 
+describe('缺省英文', () => {
+  it('种类、属性、选项与节点标签写可读的名字；问题说明里写名字不写键，表格的行列从 1 数', () => {
+    const en = DEFAULT_FORM_DESIGNER_TRANSLATIONS
+    expect([en.kind('qrcode'), en.kind('tree-select'), en.property('image', 'basic', 'src'), en.property('text', 'data', 'inputType'), en.option('inputType', 'tel'), en.group('appearance')])
+      .toEqual(['QR code', 'Tree select', 'Image URL', 'Input type', 'Phone', 'Appearance'])
+    expect(en.nodeTag('text', 'name')).toBe('Single-line text · name')
+    expect(en.issue(issue('table.cellGap'))).toBe('The table has an empty cell at row 1, column 2')
+    expect(en.issue(issue('region.childNotAllowed', { kind: 'subtable' }))).toBe('Subtable cannot be placed here')
+    expect(en.issue(issue('rule.notApplicable', { kind: 'length' }))).toBe('The “Length” rule does not apply to this field')
+    expect(en.issue(issue('linkage.actionNotApplicable'))).toBe('“Assign” does not apply here')
+    expect([en.kind('vendor-kind'), en.property('vendor-kind', 'data', 'extra'), en.issue(issue('vendor.custom'))]).toEqual(['vendor-kind', 'extra', 'vendor.custom'])
+  })
+})
+
 describe('各语言的语言包', () => {
   it('语言与 UI 的内建语言包一一对应，导出名是 form 加 UI 的语言包名', () => {
     const expected = Object.keys(uiLocales).map(name => `form${suffix(name)}`).sort()
