@@ -34,6 +34,7 @@ aside: false
 | --- | --- |
 | `type` | `field`、`container` 或 `static` |
 | `kind` | 种类名，不能与内置的或别的扩展的重名 |
+| `label` | 可选，显示名，按语言各给一个，见[名字](#名字) |
 | `category` | 物料面板里的分类，内置的有 `input`、`choice`、`datetime`、`advanced`、`layout`、`data`、`static` |
 | `element` | 缺省渲染用的 XiHan.UI 元素标签 |
 | `properties` | 三组属性描述，属性面板按它们给出编辑方式，模板自检按它们检查取值；写法见[种类与属性](../reference/kinds)里内置种类的属性表 |
@@ -64,9 +65,9 @@ aside: false
 
 ## 名字
 
-物料、画布与问题列表里种类的名字取设计器文案的 `kind` 与 `nodeTag`，分类名取 `category`，属性名取 `property`。新种类的名字由宿主补进文案：
+新种类在物料、画布、属性面板、状态栏与问题列表里的名字，写在种类的 `label` 上，按语言各给一个，键是 BCP 47 语言标记，与 XiHan.UI 内建语言包的语言一一对应（`en-US`、`zh-CN`……）。设计器按全局配置的 `locale`（与 XiHan.UI 的语言包合并后就有）取名：先找语言标记完全相同的，再找同一语种的（没写 `zh-TW` 时用 `zh-CN`），再用 `en-US`；都没有时显示种类的键。宿主不用再往文案里补这些名字；真要换个说法，给设计器元素的 `translations` 写 `kind`，它压在 `label` 之上。上面[种类](#种类)里的身份证号就给了十种语言的名字。
 
-<<< @/examples/demos/extension.ts#names
+分类名取设计器文案的 `category`，属性名取 `property`，扩展新加的分类与属性的名字仍由宿主补进文案。
 
 <<< @/examples/demos/extension.ts#use
 

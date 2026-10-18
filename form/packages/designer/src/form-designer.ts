@@ -24,7 +24,7 @@ import type { FormDesignerExtension, FormDesignerModel } from './extensions'
 import type { FormDesignerMode } from './internals'
 import type { FormCanvasDragPayload, FormDragSubject } from './palette'
 import type { PropertyView } from './properties'
-import { createDocument, findNode, findRegion, PROPERTY_GROUPS, validateDocument, walkNodes } from '@xihan-form/core'
+import { createDocument, findNode, findRegion, kindLabel, PROPERTY_GROUPS, validateDocument, walkNodes } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
 import { commandForShortcut, createExtensionHost } from '@xihan-ui/designer-kit'
@@ -163,6 +163,23 @@ interface DesignerParts {
   readonly selectionStatus: DesignerStatusItem
   /** 状态栏右段：预览宽度，点了回到全宽。 */
   readonly widthStatus: DesignerStatusItem
+}
+
+/**
+ * 文案里接上种类自带的显示名（扩展登记的种类用 label 按语言给）：种类名、节点标签与问题说明里的种类都换成它，
+ * 没写 label 的种类照语言包。
+ */
+function withKindLabels(t: FormDesignerTranslations, labelOf: (kind: string) => string | undefined): FormDesignerTranslations {
+  return {
+    ...t,
+    kind: kind => labelOf(kind) ?? t.kind(kind),
+    nodeTag: (kind, key) => t.nodeTag(labelOf(kind) ?? kind, key),
+    issue: (issue) => {
+      const kind = issue.params?.kind
+      const label = typeof kind === 'string' ? labelOf(kind) : undefined
+      return t.issue(label === undefined ? issue : { ...issue, params: { ...issue.params, kind: label } })
+    },
+  }
 }
 
 function sameIssues(a: readonly FormSchemaIssue[], b: readonly FormSchemaIssue[]): boolean {
@@ -578,8 +595,14 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#canvas.nodeElement(id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }
 
+  /** 设计器文案：语言包垫底，种类自带的显示名压上去，元素自己的 translations 再压在最上面。 */
   #t(): FormDesignerTranslations {
-    return this.#config.translations<FormDesignerTranslations>('xh-form-designer', DEFAULT_FORM_DESIGNER_TRANSLATIONS, this.translations)
+    const pack = this.#config.translations<FormDesignerTranslations>('xh-form-designer', DEFAULT_FORM_DESIGNER_TRANSLATIONS)
+    const registry = this.#editor.registry
+    const locale = this.#config.locale
+    const labeled = withKindLabels(pack, kind => kindLabel(registry.get(kind), locale))
+    const own = Object.entries(this.translations ?? {}).filter(([, value]) => value !== undefined)
+    return own.length === 0 ? labeled : { ...labeled, ...Object.fromEntries(own) }
   }
 
   /** 四款共用的命令文案：designer-shell 语言包的 xh-designer-commands。 */

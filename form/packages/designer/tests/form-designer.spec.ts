@@ -8,6 +8,7 @@ import { BUILTIN_FIELDS, createDocument, createFormModel, createNode, findNode, 
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
+import { setXhConfig } from '@xihan-ui/web-components'
 import { defineXhElements } from '@xihan-ui/web-components/define'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineFormDesigner, FORM_DESIGNER_HELP_URL, FORM_DESIGNER_TAG } from '../src'
@@ -810,6 +811,38 @@ describe('<xh-form-designer>：扩展', () => {
       ...extra,
     }
   }
+
+  it('扩展的种类自带按语言给的名字：物料、节点标签、状态栏与问题说明都用它；元素自己的 translations 仍压在上面', async () => {
+    setXhConfig({ locale: 'zh-TW' })
+    try {
+      const labelled: FormDesignerExtension = {
+        id: '@acme/id',
+        kinds: [{ ...text, kind: 'id-card', label: { 'en-US': 'ID card', 'zh-CN': '身份证号', 'zh-TW': '身分證號' } }],
+        fieldRenderers: { 'id-card': context => ({ element: context.document.createElement('input') }) },
+      }
+      const ids = createIdAllocator('k')
+      const node = { ...createNode(createFormModel([labelled]).registry, 'id-card', ids, { key: 'card' }) } as FieldNode
+      const designer = await mount((element) => {
+        element.extensions = [labelled]
+        element.schema = { ...createDocument(), children: [node, { ...node, id: 'k-dup' }] }
+      })
+      const catalog = designer.querySelector('xh-designer-palette') as HTMLElement & { groups?: { items: { id: string, label: string }[] }[] }
+      expect(catalog.groups!.flatMap(group => group.items).find(item => item.id === 'id-card')!.label).toBe('身分證號')
+      designer.select({ nodes: [node.id] })
+      await settle(designer)
+      const frame = designer.querySelector('xh-designer-frame')!
+      expect(frame.regions!.find(region => region.name === 'properties')!.subtitle).toBe('身分證號 · card')
+      expect(frame.querySelector('[data-region="status"] [data-zone="start"]')!.textContent).toContain('身分證號')
+      const problems = designer.querySelector('xh-designer-issues')!
+      expect(problems.items!.map(item => item.subject)).toContain('身分證號 · card')
+      designer.translations = { kind: kind => (kind === 'id-card' ? '证件号' : kind) }
+      await settle(designer)
+      expect(catalog.groups!.flatMap(group => group.items).find(item => item.id === 'id-card')!.label).toBe('证件号')
+    }
+    finally {
+      setXhConfig({})
+    }
+  })
 
   it('扩展的种类进物料，命令进工具栏与快捷键，面板进外框的命名区，表单设置追加在内置之后', async () => {
     const log: string[] = []
