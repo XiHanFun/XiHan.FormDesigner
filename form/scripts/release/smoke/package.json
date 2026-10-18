@@ -1,0 +1,19 @@
+{
+  "name": "xihan-form-smoke",
+  "type": "module",
+  "private": true,
+  "description": "发布后冒烟用的宿主项目模板：版本留空，由 scripts/release/smoke.mjs 填。",
+  "dependencies": {
+    "@xihan-form/core": "",
+    "@xihan-form/designer": "",
+    "@xihan-form/runtime": "",
+    "@xihan-ui/designer-kit": "",
+    "@xihan-ui/designer-shell": "",
+    "@xihan-ui/styles": "",
+    "@xihan-ui/web-components": ""
+  },
+  "devDependencies": {
+    "typescript": "",
+    "vite": ""
+  }
+}
