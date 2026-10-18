@@ -6,7 +6,7 @@
 // 导出 @xihan-form/designer 的公共接口。
 
 export { checkFormClipboard, decodeFormClipboard, encodeFormClipboard, readFormClipboard, writeFormClipboard } from './clipboard'
-export { FORM_COMMANDS, FORM_MENU_LAYOUTS, FORM_TOOLBAR_LAYOUT } from './commands'
+export { FORM_COMMANDS, FORM_DESIGNER_HELP_URL, FORM_MENU_LAYOUTS, FORM_TOOLBAR_LAYOUT } from './commands'
 export type { FormDesignerCommand, FormDesignerContext, FormMenuSubject } from './commands'
 export { createFormEditor } from './editor'
 export type { FormClipboard, FormDropTarget, FormEditor, FormEditorChange, FormEditorOptions, FormRuleInit, FormSelection, FormSelectMode } from './editor'

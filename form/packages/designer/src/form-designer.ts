@@ -561,7 +561,7 @@ export class XhFormDesigner extends XhReactiveElement {
 
   /** 交给命令、面板与扩展 setup 的上下文。 */
   #context(t: FormDesignerTranslations = this.#t()): FormDesignerContext {
-    return { designer: this, translations: t, commands: this.#commandTexts(), settings: this.#resolvedSettings }
+    return { designer: this, translations: t, commands: this.#commandTexts(), settings: this.#resolvedSettings, frame: this.#parts?.frame }
   }
 
   #kbdPlatform(): 'mac' | 'other' {

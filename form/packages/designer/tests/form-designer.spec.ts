@@ -8,8 +8,8 @@ import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { defineXhElements } from '@xihan-ui/web-components/define'
-import { afterEach, describe, expect, it } from 'vitest'
-import { defineFormDesigner, FORM_DESIGNER_TAG } from '../src'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { defineFormDesigner, FORM_DESIGNER_HELP_URL, FORM_DESIGNER_TAG } from '../src'
 
 defineXhElements()
 defineFormDesigner()
@@ -290,6 +290,46 @@ describe('<xh-form-designer>：面板卡片', () => {
     expect(frame.querySelector('[data-region="properties"] [data-part="panel-subtitle"]')!.textContent).toBe(T.nodeTag('text', 'name'))
     expect(frame.querySelector('[data-region="properties"] [data-part="panel-body"] > [data-part="inspector-tabs"]')).not.toBeNull()
     expect(['catalog', 'inspector', 'problems'].map(part => designer.querySelector<HTMLElement & { headless?: boolean }>(`[data-part="${part}"]`)!.headless)).toEqual([true, true, true])
+  })
+
+  it('工具栏末组是 designer-shell 内置的面板、设置与帮助：设置打开设置对话框，帮助在新窗口打开文档站的设计器一页', async () => {
+    const designer = await mount(() => {})
+    const button = (value: string): HTMLButtonElement => designer.querySelector<HTMLButtonElement>(`[data-part="command-bar"] button[value="${value}"]`)!
+    const groups = Array.from(designer.querySelectorAll('[data-part="command-bar"] [data-xh-part="group"]'), group => Array.from(group.querySelectorAll('button'), item => item.value))
+    expect(groups.at(-1)).toEqual(['panels', 'settings', 'help'])
+    expect(['panels', 'settings', 'help'].map(value => [button(value).getAttribute('aria-label'), button(value).hasAttribute('data-icon')])).toEqual([['Panels', true], ['Settings', true], ['Help', true]])
+    button('settings').click()
+    await designer.updateComplete
+    expect(designer.querySelector<HTMLElement & { open?: boolean }>('xh-designer-settings')!.open).toBe(true)
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    try {
+      button('help').click()
+      expect(open).toHaveBeenCalledWith(FORM_DESIGNER_HELP_URL, '_blank', 'noopener,noreferrer')
+    }
+    finally {
+      open.mockRestore()
+    }
+  })
+
+  it('「面板」点开一张锚在按钮上的菜单，列出物料、属性与问题，勾选的显示；点一项开关它并派发 panels-change', async () => {
+    const designer = await mount(() => {})
+    const button = designer.querySelector<HTMLButtonElement>('[data-part="command-bar"] button[value="panels"]')!
+    button.click()
+    await settle(designer)
+    type MenuHost = HTMLElement & { open?: boolean, anchor?: HTMLElement | null, collection?: readonly { value: string }[], checkboxValue?: readonly string[] }
+    const menu = designer.querySelector<MenuHost>('[data-part="command-bar"] xh-menu')!
+    expect([menu.open, menu.anchor]).toEqual([true, button])
+    expect(menu.collection!.map(item => item.value)).toEqual(['item:palette', 'item:properties', 'item:issues'])
+    expect(menu.checkboxValue).toEqual(['item:palette', 'item:properties', 'item:issues'])
+    const changes = events(designer, 'panels-change')
+    window.document.querySelector<HTMLElement>('[data-scope="menu"][data-part="item"][data-value="item:palette"]')!.click()
+    await settle(designer)
+    expect(changes).toEqual([{ panels: designer.panels! }])
+    expect(designer.panels!.split(' ')).not.toContain('palette')
+    expect(menu.checkboxValue).toEqual(['item:properties', 'item:issues'])
+    window.document.querySelector<HTMLElement>('[data-scope="menu"][data-part="item"][data-value="item:palette"]')!.click()
+    await settle(designer)
+    expect(designer.panels!.split(' ')).toContain('palette')
   })
 
   it('点面板头的关闭钮：收起这块面板，panels 换成外框剩下的区并派发 panels-change，外框的同名事件不冒出设计器', async () => {

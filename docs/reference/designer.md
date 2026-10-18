@@ -142,6 +142,7 @@ schema-change 的来源。取值：`execute`、`undo`、`redo`、`load`。
 | `translations` | `FormDesignerTranslations` | 此刻生效的设计器文案。 |
 | `commands` | `DesignerCommandsTranslations` | 此刻生效的共用命令文案（designer-shell 语言包的 xh-designer-commands）：撤销、剪切、删除、设计与预览这些四款都有的命令。 |
 | `settings` | `DesignerSettings` | 此刻生效的设置：键是「分区 id.条目 id」，各分区没写的条目取了缺省值。 |
+| `frame` | `XhDesignerFrameElement \| undefined` | 设计器的外框：面板的开关经它；外框还没建出来时为 undefined。 |
 
 ### FormDesignerCommand {#formdesignercommand}
 
@@ -321,6 +322,7 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 | 名称 | 种类 | 说明 |
 | --- | --- | --- |
 | `FORM_COMMANDS` | 常量 | 内置命令。 |
+| `FORM_DESIGNER_HELP_URL` | 常量 | 表单文档站上设计器的一页，工具栏的「帮助」在新窗口打开它。 |
 | `FORM_MENU_LAYOUTS` | 常量 | 右键菜单各主体的缺省排列；commandLayout 没写 menu:&lt;主体&gt; 时用它。 |
 | `FORM_TOOLBAR_LAYOUT` | 常量 | 工具栏的缺省排列；commandLayout 没写 toolbar 时用它，再把 placement 含 toolbar 的扩展命令追加成一组。 |
 | `FormDesignerCommand` | 类型 | 设计器的命令。 |
