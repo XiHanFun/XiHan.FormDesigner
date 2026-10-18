@@ -290,6 +290,7 @@ const locale: FormLocale = {
       'unknown-key': () => 'Неизвестное свойство',
       'duplicate-key': t => `Ключ данных ${t.param('key')} используется несколько раз`,
       'duplicate-id': t => `Идентификатор ${t.param('id')} используется несколько раз`,
+      'duplicate-value': () => 'Повторяющееся значение варианта',
       'unknown-control': () => 'Этот тип редактора не зарегистрирован',
       'document.unsupportedVersion': t => `Версия шаблона ${t.param('version')} не поддерживается`,
       'document.tooDeep': (t) => {

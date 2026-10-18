@@ -211,6 +211,4 @@
 
 ## 选项 {#options}
 
-表单内置扩展登记的两种编辑方式：
-- `options`：选项数组，元素是 `{ value: string, label: string, disabled?: boolean, tone?: Tone, description?: string }`；
-- `tree-options`：选项树，元素在 `options` 的基础上可带 `children` 与 `hasChildren`。两者的结构由 `@xihan-ui/headless` 的 `findOptionViolation` 判定（要求 label、不许多余的键、同一层 value 不重复、最多 32 层），不符时为 `invalid-value`。
+表单内置扩展登记的编辑方式 `tree-options`：选项树，元素是 `{ value: string, label: string, disabled?: boolean, tone?: Tone, description?: string }`，另可带 `children` 与 `hasChildren`。结构由 `@xihan-ui/core/options` 的 `findOptionViolation` 判定（要求 label、不许多余的键、同一层 value 不重复、最多 32 层），不符时为 `invalid-value`。选项列表用 designer-kit 的内建编辑方式 `options`（表单的描述写 `requireLabel: true`）。

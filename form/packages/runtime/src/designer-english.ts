@@ -257,6 +257,7 @@ export const ENGLISH_DESIGNER_LOCALE: FormDesignerLocale = {
     'unknown-key': () => 'Unknown property',
     'duplicate-key': t => `The data key ${t.param('key')} is used more than once`,
     'duplicate-id': t => `The id ${t.param('id')} is used more than once`,
+    'duplicate-value': () => 'Duplicate option value',
     'unknown-control': () => 'This kind of editor is not registered',
     'document.unsupportedVersion': t => `Unsupported template version ${t.param('version')}`,
     'document.tooDeep': t => `Nodes are nested deeper than ${t.param('max')} levels`,

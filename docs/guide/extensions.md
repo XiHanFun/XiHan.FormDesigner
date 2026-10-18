@@ -85,7 +85,7 @@ aside: false
 
 ## 属性编辑器与编辑方式
 
-- `controls` 登记新的编辑方式：键是属性描述里的 `control.kind`，值的 `check(value)` 返回问题码或 `undefined`，模板自检按它检查取值。内置的除了文本、数字、开关、下拉等，还有选项表 `options` 与选项树 `tree-options`。
+- `controls` 登记新的编辑方式：键是属性描述里的 `control.kind`，值的 `check(value)` 返回问题码或 `undefined`，模板自检按它检查取值。文本、数字、开关、下拉、选项表 `options` 等是 designer-kit 的内建编辑方式；表单自己登记了选项树 `tree-options`。
 - `editors` 给属性面板换上自己的编辑器，可以按编辑方式、属性路径或「种类 + 路径」查找；路径带分组前缀，如 `basic.label`、`data.options`，数据键是 `key`；种类在节点上是种类名，区域是 `region`，表单设置是 `settings`。编辑器的写法见视图组件文档的 [designer-kit](https://ui.docs.xihanfun.com/runtime/designer-kit)。
 - `documentProperties` 给表单设置加属性，没有选中节点时属性面板编辑它们。
 

@@ -279,6 +279,7 @@ const locale: FormLocale = {
       'unknown-key': () => '未定義的屬性',
       'duplicate-key': t => `資料鍵 ${t.param('key')} 重複`,
       'duplicate-id': t => `識別碼 ${t.param('id')} 重複`,
+      'duplicate-value': () => '選項的值重複',
       'unknown-control': () => '沒有登錄這種編輯方式',
       'document.unsupportedVersion': t => `不支援的範本版本 ${t.param('version')}`,
       'document.tooDeep': t => `巢狀超過 ${t.param('max')} 層`,

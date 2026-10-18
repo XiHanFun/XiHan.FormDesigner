@@ -89,7 +89,7 @@ describe('propertyErrors', () => {
     expect(errors).toContainEqual({ target: { kind: 'text', id: name.id }, path: ['basic', 'hidden'], message: 'invalid-type' })
   })
 
-  it('依赖键的问题取到 data.optionDependencies；别的节点的问题不算', () => {
+  it('依赖键的问题落在 data.optionDependencies 里那一项上，属性面板把它归到这一行；别的节点的问题不算', () => {
     const ids = createIdAllocator('q')
     const select = createNode(registry, 'select', ids, { key: 'city' }) as FieldNode
     const other = createNode(registry, 'text', ids, { key: '2bad' }) as FieldNode
@@ -99,7 +99,7 @@ describe('propertyErrors', () => {
     ]).document
     const view = propertyView(document, registry, { nodes: [select.id] })
     const errors = propertyErrors(document, view, validateDocument(document), message)
-    expect(errors).toEqual([{ target: { kind: 'select', id: select.id }, path: ['data', 'optionDependencies'], message: 'field.unknownDependency' }])
+    expect(errors).toEqual([{ target: { kind: 'select', id: select.id }, path: ['data', 'optionDependencies', 0], message: 'field.unknownDependency' }])
   })
 
   it('区域与表单设置的问题去掉前缀后落在属性名上', () => {

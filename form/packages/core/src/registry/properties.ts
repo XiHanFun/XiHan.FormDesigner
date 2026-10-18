@@ -4,25 +4,24 @@
  */
 
 // 表单的属性描述：沿用 @xihan-ui/designer-kit/properties 的描述模型；内建编辑方式之外的编辑方式由扩展登记，
-// 表单自己的选项列表与选项树也是这样登记的两种。
+// 表单自己的选项树也是这样登记的。
 
+import type { JsonPath } from '@xihan-ui/core/json'
 import type { ControlKind, PropertyControl, PropertyDescriptor, PropertyEditorTable } from '@xihan-ui/designer-kit/properties'
 import type { PropertyGroup } from '../schema'
 import { isJsonValue } from '@xihan-ui/core/json'
-import { BUILTIN_CONTROL_KINDS, checkPropertyValue } from '@xihan-ui/designer-kit/properties'
-import { findOptionViolation } from '@xihan-ui/headless'
+import { findOptionViolation } from '@xihan-ui/core/options'
+import { BUILTIN_CONTROL_KINDS, findPropertyValueIssue } from '@xihan-ui/designer-kit/properties'
 
 /** 表单的编辑方式：designer-kit 的内建编辑方式，或扩展登记的编辑方式（`kind` 是登记的键）。 */
 export type FormPropertyControl = PropertyControl | { readonly kind: string }
 
 /**
- * 表单内置扩展登记的两种编辑方式：
- * - `options`：选项数组，元素是 `{ value: string, label: string, disabled?: boolean, tone?: Tone, description?: string }`；
- * - `tree-options`：选项树，元素在 `options` 的基础上可带 `children` 与 `hasChildren`。
- * 两者的结构由 `@xihan-ui/headless` 的 `findOptionViolation` 判定（要求 label、不许多余的键、同一层 value 不重复、最多 32 层），不符时为 `invalid-value`。
+ * 表单内置扩展登记的编辑方式 `tree-options`：选项树，元素是 `{ value: string, label: string, disabled?: boolean, tone?: Tone, description?: string }`，
+ * 另可带 `children` 与 `hasChildren`。结构由 `@xihan-ui/core/options` 的 `findOptionViolation` 判定（要求 label、不许多余的键、同一层 value 不重复、最多 32 层），
+ * 不符时为 `invalid-value`。选项列表用 designer-kit 的内建编辑方式 `options`（表单的描述写 `requireLabel: true`）。
  */
 export const FORM_CONTROLS: Readonly<Record<string, ControlKind>> = Object.freeze({
-  'options': { check: value => (findOptionViolation(value, { requireLabel: true, strict: true }) === undefined ? undefined : 'invalid-value') },
   'tree-options': { check: value => (findOptionViolation(value, { tree: true, requireLabel: true, strict: true }) === undefined ? undefined : 'invalid-value') },
 })
 
@@ -45,17 +44,30 @@ export function propertyName(descriptor: FormPropertyDescriptor): string {
   return String(descriptor.path[0])
 }
 
+/** 属性值的一处问题：`path` 相对这个值，落在值本身时是 `[]`。 */
+export interface FormPropertyValueIssue {
+  readonly code: string
+  readonly path: JsonPath
+}
+
 /**
- * 检查属性值是否符合编辑方式；符合时为 `undefined`，否则给出问题码。不是 JSON 值时为 `invalid-type`；
- * 内建编辑方式交给 designer-kit 的 `checkPropertyValue`，登记在 `controls` 里的交给它的 `check`，两边都没有时为 `unknown-control`。
- * `controls` 缺省为表单内置的两种，按扩展合出的表见 `createFormModel` 的 `controls`。
+ * 找出属性值第一处不符合编辑方式的地方；符合时为 `undefined`。不是 JSON 值时为 `invalid-type`；
+ * 内建编辑方式交给 designer-kit 的 `findPropertyValueIssue`（选项列表 `options` 的问题落在那一项的那个键上，如 `[2, "value"]`），
+ * 登记在 `controls` 里的交给它的 `check`，两边都没有时为 `unknown-control`，这两种落在值本身。
+ * `controls` 缺省为表单内置的那一种，按扩展合出的表见 `createFormModel` 的 `controls`。
  */
-export function checkFormPropertyValue(control: FormPropertyControl, value: unknown, controls: Readonly<Record<string, ControlKind>> = FORM_CONTROLS): string | undefined {
+export function findFormPropertyValueIssue(control: FormPropertyControl, value: unknown, controls: Readonly<Record<string, ControlKind>> = FORM_CONTROLS): FormPropertyValueIssue | undefined {
   if (!isJsonValue(value))
-    return 'invalid-type'
+    return { code: 'invalid-type', path: [] }
   if ((BUILTIN_CONTROL_KINDS as readonly string[]).includes(control.kind))
-    return checkPropertyValue(control as PropertyControl, value)
-  return Object.hasOwn(controls, control.kind) ? controls[control.kind]!.check?.(value, control) : 'unknown-control'
+    return findPropertyValueIssue(control as PropertyControl, value)
+  const code = Object.hasOwn(controls, control.kind) ? controls[control.kind]!.check?.(value, control) : 'unknown-control'
+  return code === undefined ? undefined : { code, path: [] }
+}
+
+/** 检查属性值是否符合编辑方式；符合时为 `undefined`，否则给出问题码。规则同 `findFormPropertyValueIssue`。 */
+export function checkFormPropertyValue(control: FormPropertyControl, value: unknown, controls: Readonly<Record<string, ControlKind>> = FORM_CONTROLS): string | undefined {
+  return findFormPropertyValueIssue(control, value, controls)?.code
 }
 
 /** 属性值是否符合描述；`controls` 同 `checkFormPropertyValue`。 */

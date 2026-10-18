@@ -27,6 +27,7 @@
 | `unknown-key` | 未定义的属性 | — |
 | `duplicate-key` | 数据键 {key} 重复 | `key` |
 | `duplicate-id` | id {id} 重复 | `id` |
+| `duplicate-value` | 选项的值重复 | — |
 | `unknown-control` | 没有登记这种编辑方式 | — |
 
 ### 表单问题码

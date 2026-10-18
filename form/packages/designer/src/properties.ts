@@ -154,16 +154,19 @@ function startsWith(path: JsonPath, prefix: JsonPath): boolean {
   return prefix.length <= path.length && prefix.every((segment, index) => path[index] === segment)
 }
 
-/** 面板上的路径：问题落在属性值里面时取到属性这一层。 */
+/**
+ * 面板上的路径：从属性起算。问题落在属性值里面时保留里层的路径（如选项表第 3 项的值 ["data", "options", 2, "value"]），
+ * 属性面板把它归到所属的那一行，复合编辑器据此标到子项上。
+ */
 export function fieldPath(scope: PropertyScope, rest: JsonPath): JsonPath | undefined {
   if (scope === 'nodes') {
     if (rest[0] === 'key')
-      return ['key']
-    return isGroup(rest[0]) && rest.length >= 2 ? rest.slice(0, 2) : undefined
+      return rest
+    return isGroup(rest[0]) && rest.length >= 2 ? rest : undefined
   }
   if (scope === 'regions')
-    return rest[0] === 'props' && rest.length >= 2 ? rest.slice(1, 2) : undefined
-  return rest.length >= 1 ? rest.slice(0, 1) : undefined
+    return rest[0] === 'props' && rest.length >= 2 ? rest.slice(1) : undefined
+  return rest.length >= 1 ? rest : undefined
 }
 
 /** 把模板结构问题里落在当前编辑对象属性上的那些，换成面板字段上的错误。 */

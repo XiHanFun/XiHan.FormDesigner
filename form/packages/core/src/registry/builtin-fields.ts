@@ -21,7 +21,7 @@ const LABEL_HIDDEN: FormPropertyDescriptor = { path: ['labelHidden'], control: {
 const SIZE: FormPropertyDescriptor = { path: ['size'], control: { kind: 'select', options: [{ value: 'sm' }, { value: 'md' }, { value: 'lg' }] }, default: 'md' }
 /** 放在子表里作一列时这一列的最小宽度（px）：各列下限加起来超过子表宽时，子表的表格区横向滚动。 */
 const COLUMN_MIN_WIDTH: FormPropertyDescriptor = { path: ['columnMinWidth'], control: { kind: 'number', integer: true, min: 48, max: 1024, unit: 'px' } }
-const OPTIONS: FormPropertyDescriptor = { path: ['options'], control: { kind: 'options' }, default: [] }
+const OPTIONS: FormPropertyDescriptor = { path: ['options'], control: { kind: 'options', requireLabel: true }, default: [] }
 const TREE_OPTIONS: FormPropertyDescriptor = { path: ['options'], control: { kind: 'tree-options' }, default: [] }
 const OPTION_SOURCE: FormPropertyDescriptor = { path: ['optionSource'], control: { kind: 'text' } }
 const OPTION_DEPENDENCIES: FormPropertyDescriptor = { path: ['optionDependencies'], control: { kind: 'tags' } }

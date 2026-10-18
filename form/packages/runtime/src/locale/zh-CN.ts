@@ -279,6 +279,7 @@ const locale: FormLocale = {
       'unknown-key': () => '未定义的属性',
       'duplicate-key': t => `数据键 ${t.param('key')} 重复`,
       'duplicate-id': t => `id ${t.param('id')} 重复`,
+      'duplicate-value': () => '选项的值重复',
       'unknown-control': () => '没有登记这种编辑方式',
       'document.unsupportedVersion': t => `不支持的模板版本 ${t.param('version')}`,
       'document.tooDeep': t => `嵌套超过 ${t.param('max')} 层`,

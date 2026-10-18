@@ -24,7 +24,7 @@ import { isValidKey } from './create'
 import { RUNTIME_VARIABLES } from './expression'
 import { createFormModel } from './extensions'
 import { LINKAGE_ACTIONS } from './registry/kinds'
-import { checkFormPropertyValue, propertyName } from './registry/properties'
+import { findFormPropertyValueIssue, propertyName } from './registry/properties'
 import { FORM_SCHEMA_VERSION, PROPERTY_GROUPS } from './schema'
 
 /** schema 自校验的选项。 */
@@ -150,9 +150,9 @@ class DocumentChecker {
         this.report('unknown-key', [...path, name], target)
         continue
       }
-      const code = checkFormPropertyValue(descriptor.control, value, this.controls)
-      if (code !== undefined)
-        this.report(code, [...path, name], target)
+      const issue = findFormPropertyValueIssue(descriptor.control, value, this.controls)
+      if (issue !== undefined)
+        this.report(issue.code, [...path, name, ...issue.path], target)
     }
   }
 

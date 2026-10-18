@@ -478,6 +478,31 @@ describe('<xh-form-designer>：属性面板', () => {
     await inspector(designer).updateComplete
   }
 
+  it('选项是一张选项表；第 3 项的值出错时，错误标在第 3 行值那一格的控件上，名字与 aria-invalid 也落在那里', async () => {
+    const ids = createIdAllocator('o')
+    const select = createNode(registry, 'select', ids, { key: 'city' }) as FieldNode
+    const options = [{ value: 'bj', label: '北京' }, { value: 'sh', label: '上海' }, { value: '', label: '广州' }]
+    const filled: FieldNode = { ...select, data: { ...select.data, options } }
+    const designer = await mount((element) => {
+      element.schema = { ...createDocument(), children: [filled] }
+    })
+    await pick(designer, { nodes: [select.id] })
+    const panel = inspector(designer)
+    const row = panel.querySelector<HTMLElement>('[data-path="data.options"]')!
+    expect(row.querySelector('[data-control="unsupported"]')).toBeNull()
+    const table = row.querySelector<HTMLElement & { items: readonly { key: string }[], updateComplete: Promise<unknown> }>('xh-field-array')!
+    await table.updateComplete
+    expect(panel.errors).toContainEqual({ target: { kind: 'select', id: select.id }, path: ['data', 'options', 2, 'value'], message: expect.any(String) })
+    const cell = (index: number, column: string): HTMLElement => table.querySelector<HTMLElement>(`[slot="item-cell:${table.items[index]!.key}:${column}"]`)!
+    const input = (index: number): HTMLInputElement => cell(index, 'value').querySelector('input')!
+    await (cell(2, 'value') as HTMLElement & { updateComplete: Promise<unknown> }).updateComplete
+    expect(cell(2, 'value').querySelector('xh-text-field')!.getAttribute('aria-label')).toBe('Value, option 3')
+    expect(input(2).getAttribute('aria-invalid')).toBe('true')
+    const described = (input(2).getAttribute('aria-describedby') ?? '').split(/\s+/).map(id => document.getElementById(id)?.textContent ?? '').join(' ')
+    expect(described).toContain(panel.errors!.find(error => error.path.at(-1) === 'value')!.message)
+    expect([input(0), input(1)].map(item => item.getAttribute('aria-invalid'))).not.toContain('true')
+  })
+
   it('列最小宽度只在子表里的字段上列出', async () => {
     const ids = createIdAllocator('w')
     const loose = createNode(registry, 'number', ids, { key: 'loose' }) as FieldNode
