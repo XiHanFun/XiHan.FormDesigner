@@ -88,7 +88,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 <<< @/examples/demos/designer.ts#save
 
-`readonly` 让设计器只能选择、浏览与预览，不能修改。
+`readonly` 让设计器只能选择、浏览与预览，不能修改。写成特性（attribute）时按三态读：没写或写 `"false"` 可修改，空串、`"true"` 与别的写法只读，移除后回到可修改。这是一处行为变化：此前 `readonly="false"` 也算只读，现在是可修改。
 
 ## 工具栏与菜单的排列
 

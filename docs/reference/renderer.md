@@ -18,8 +18,8 @@
 | `variables` | — | `Readonly<Record<string, unknown>> \| undefined` | 宿主提供给表达式的变量，名字以 `$` 开头。 |
 | `loadOptions` | — | `OptionLoader \| undefined` | 选项加载函数。 |
 | `uploadFile` | — | `FileUploader \| undefined` | 文件字段的上传函数，交给 xh-file-upload 的 upload；组件自己不发请求。 |
-| `readonly` | `readonly` | `boolean \| undefined` | 整表只读：仍可提交。 |
-| `disabled` | `disabled` | `boolean \| undefined` | 整表禁用：不能提交。 |
+| `readonly` | `readonly` | `boolean \| undefined` | 整表只读：仍可提交。attribute 按三态读：没写或写 "false" 不生效，其余写法生效。 |
+| `disabled` | `disabled` | `boolean \| undefined` | 整表禁用：不能提交。attribute 按三态读：没写或写 "false" 不生效，其余写法生效。 |
 | `validateOn` | `validate-on` | `FormValidateOn \| undefined` | 单字段首次校验的时机，缺省 `blur`；校验过的字段此后随改值重算。 |
 | `submitAction` | — | `FormSubmitAction \| undefined` | 提交通过校验后调用的异步动作。 |
 | `translations` | — | `Partial<FormRendererTranslations> \| undefined` | 元素自己的文案，压在全局配置之上。 |

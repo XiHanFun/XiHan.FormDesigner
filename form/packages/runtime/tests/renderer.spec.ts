@@ -344,6 +344,33 @@ describe('<xh-form-renderer>：值与事件', () => {
     expect(await names()).toEqual([1, 2, 3, 4, 5].map(value => `${value} 星，共 5 星`))
   })
 
+  it('readonly、disabled attribute 按三态读：没写与写 "false" 都不生效，空串、"true" 与别的写法生效，移除后回到不生效', async () => {
+    const { document } = sample()
+    const renderer = await mount((element) => {
+      element.schema = document
+    })
+    const states: [string | null, boolean | undefined, boolean][] = [
+      [null, undefined, false],
+      ['false', false, false],
+      ['', true, true],
+      ['true', true, true],
+      ['on', true, true],
+      [null, undefined, false],
+    ]
+    for (const name of ['readonly', 'disabled'] as const) {
+      for (const [attribute, property, applied] of states) {
+        if (attribute === null)
+          renderer.removeAttribute(name)
+        else
+          renderer.setAttribute(name, attribute)
+        await renderer.updateComplete
+        const form = renderer.querySelector('xh-form') as HTMLElement & { disabled?: boolean, readOnly?: boolean }
+        expect(renderer[name], `${name}=${attribute}`).toBe(property)
+        expect((name === 'readonly' ? form.readOnly : form.disabled) === true, `${name}=${attribute}`).toBe(applied)
+      }
+    }
+  })
+
   it('整表只读与禁用合进字段状态；表单设置里的也算', async () => {
     const { document } = sample()
     const renderer = await mount((element) => {

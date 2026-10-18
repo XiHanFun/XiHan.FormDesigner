@@ -189,6 +189,31 @@ describe('<xh-form-designer>：编辑', () => {
     expect(designer.deleteSelection()).toBe(false)
   })
 
+  it('readonly attribute 按三态读：没写与写 "false" 都可修改，空串、"true" 与别的写法只读，移除后回到可修改', async () => {
+    const { document } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    const frame = designer.querySelector('xh-designer-frame')!
+    const states: [string | null, boolean | undefined, boolean][] = [
+      [null, undefined, false],
+      ['false', false, false],
+      ['', true, true],
+      ['true', true, true],
+      ['readonly', true, true],
+      [null, undefined, false],
+    ]
+    for (const [attribute, property, readonly] of states) {
+      if (attribute === null)
+        designer.removeAttribute('readonly')
+      else
+        designer.setAttribute('readonly', attribute)
+      await settle(designer)
+      expect(designer.readonly, `readonly=${attribute}`).toBe(property)
+      expect(frame.hasAttribute('data-readonly'), `readonly=${attribute}`).toBe(readonly)
+    }
+  })
+
   it('问题变了才派发 issues-change；validate 返回同形的问题', async () => {
     const { document, name } = sample()
     const designer = await mount((element) => {
