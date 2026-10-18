@@ -193,6 +193,8 @@ export class XhFormDesigner extends XhReactiveElement {
 
   #platform: 'mac' | 'other' | undefined
   #frameRegionsKey = ''
+  /** 上次交给外框的区表；扩展的面板宿主换过外框的区后，这一份就不再是外框手上的那一份。 */
+  #frameRegionList: readonly DesignerFrameRegion[] | undefined
   #preview: XhFormRenderer | undefined
   #rendered: FormDocument | undefined
   #clipboard: FormClipboard | undefined
@@ -583,7 +585,10 @@ export class XhFormDesigner extends XhReactiveElement {
     ])
     menu.addEventListener('select', this.#onMenuSelect)
     menu.addEventListener('open-change', this.#onMenuOpenChange)
-    const frame = createAuthoredElement(doc, 'xh-designer-frame', { 'data-part': 'frame', 'role': 'application' }, [toolbar, palette, canvas, inspectorTabs, issues, menu])
+    // 问题列表带计数的严重程度开关放进它所在卡片的面板头
+    const issueSummary = problems.summary
+    issueSummary.slot = 'issues-actions'
+    const frame = createAuthoredElement(doc, 'xh-designer-frame', { 'data-part': 'frame', 'role': 'application' }, [toolbar, palette, canvas, inspectorTabs, issues, issueSummary, menu])
     // 三个零件只画内容，标题、副标题与帮助由外框画在卡片的面板头上
     catalog.headless = true
     inspector.headless = true
@@ -617,7 +622,7 @@ export class XhFormDesigner extends XhReactiveElement {
 
   /**
    * 外框的区：工具栏与画布带上本地化的区名（分隔条的无障碍名称要用）；物料、属性与问题画成卡片，面板头写标题与帮助，
-   * 属性面板的副标题是当前编辑的对象。后面接扩展面板的区；内容都没变时不重设。
+   * 属性面板的副标题是当前编辑的对象。后面接扩展面板的区；内容没变、外框手上也还是上次给的那一份时不重设。
    */
   #syncRegions(frame: XhDesignerFrameElement, t: FormDesignerTranslations): void {
     const described: Readonly<Record<string, Partial<DesignerFrameRegion>>> = {
@@ -632,9 +637,10 @@ export class XhFormDesigner extends XhReactiveElement {
       ...this.#model.extensions.flatMap(extension => (extension.panels ?? []).map(panel => panel.region)),
     ]
     const key = JSON.stringify(regions)
-    if (key === this.#frameRegionsKey && frame.regions?.length === regions.length)
+    if (key === this.#frameRegionsKey && frame.regions === this.#frameRegionList)
       return
     this.#frameRegionsKey = key
+    this.#frameRegionList = regions
     frame.regions = regions
   }
 

@@ -429,6 +429,27 @@ describe('<xh-form-designer>：问题列表', () => {
     expect(window.document.activeElement?.closest('[data-path]')?.getAttribute('data-path')).toBe('key')
   })
 
+  it('错误、警告数在问题卡片的面板头里，零件自己的头部不再画；再给 extensions 赋值两次后仍在文档里', async () => {
+    const { document, name } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    designer.execute([{ type: 'setKey', nodeId: name.id, key: '1bad' }])
+    await settle(designer)
+    const filter = (): HTMLElement => designer.querySelector<HTMLElement>('[data-region="issues"] [data-part="panel-actions"] > [data-part="filter"]')!
+    expect(filter().querySelector('button[value="error"]')!.textContent).toBe('1 error')
+    expect(designer.querySelector('xh-designer-issues [data-part="filter"]')).toBeNull()
+    for (let round = 0; round < 2; round++) {
+      designer.extensions = [...(designer.extensions ?? [])]
+      await settle(designer)
+    }
+    expect(filter().isConnected).toBe(true)
+    expect(filter().parentElement!.hidden).toBe(false)
+    designer.execute([{ type: 'setKey', nodeId: name.id, key: 'name' }])
+    await settle(designer)
+    expect(filter().querySelector('button[value="error"]')!.textContent).toBe('0 errors')
+  })
+
   it('规则里的表达式按 expressionEngine 检查', async () => {
     const { document, name } = sample()
     const designer = await mount((element) => {
