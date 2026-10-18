@@ -44,6 +44,12 @@
   border-radius: var(--xh-radius-md);
 }
 
+/* 全屏时舞台占满组件下方的高度，设计器的高度由舞台按剩下的空间写在元素上 */
+.xh-fullscreen[data-fullscreen] .form-demo__stage {
+  flex: 1 1 0;
+  min-block-size: 0;
+}
+
 /* 示例里直接写的原生按钮 */
 .form-demo__stage > button {
   margin-block-end: var(--xh-space-3);

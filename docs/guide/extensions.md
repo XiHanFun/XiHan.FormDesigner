@@ -70,7 +70,7 @@ aside: false
 
 <<< @/examples/demos/extension.ts#use
 
-<FormDemo name="extension" />
+<FormDemo name="extension" fullscreen />
 
 物料的「输入」分类末尾多了身份证号；点它放进画布，问题列表给出一条警告；工具栏末尾多了「复制 JSON」。
 

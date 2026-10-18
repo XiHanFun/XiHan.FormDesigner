@@ -145,4 +145,4 @@ designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
 
 出差申请：点物料加一个字段，状态行显示有未保存的修改；点一下画布再按 Ctrl / ⌘ + S，或点工具栏的保存，状态行显示已保存。
 
-<FormDemo name="designer" />
+<FormDemo name="designer" fullscreen />
