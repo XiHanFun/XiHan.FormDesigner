@@ -1163,8 +1163,7 @@ describe('<xh-form-renderer>：列表字段', () => {
     expect(element.loading).toBeUndefined()
   })
 
-  // UI 缺口 24：xh-listbox 没有声明字段接线目标，放进 xh-field 时列表不带字段的标题与提示；UI 补上后这条会变红，去掉 fails
-  it.fails('放进字段时列表的名字是字段标题、描述是字段提示', async () => {
+  it('放进字段时列表的名字是字段标题、描述是字段提示', async () => {
     const { registry, ids } = setup()
     const renderer = await mount((element) => {
       element.schema = documentOf([field(registry, ids, 'listbox', 'pick', { basic: { label: '环节', hint: '可多选' }, data: { options } })])
@@ -1271,8 +1270,7 @@ describe('<xh-form-renderer>：可选标签字段', () => {
     expect(renderer.getFormData().scene).toEqual(['a', 'c'])
   })
 
-  // UI 缺口 25：xh-tag-group 没有声明字段接线目标，放进 xh-field 时标签列表不带字段的标题与提示；UI 补上后这条会变红，去掉 fails
-  it.fails('放进字段时标签列表的名字是字段标题、描述是字段提示', async () => {
+  it('放进字段时标签列表的名字是字段标题、描述是字段提示', async () => {
     const { renderer } = await mountTags({ options })
     const shell = group(renderer, ['scene']).querySelector('xh-field') as HTMLElement & { updateComplete: Promise<boolean> }
     await shell.updateComplete
