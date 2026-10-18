@@ -448,8 +448,10 @@ function exportIndex(entry) {
   return groups
 }
 
+/** 导出索引：entry.group 给了时全部导出归在这一组名下，不按源文件分组。 */
 function exportIndexSection(title, entry) {
-  const groups = exportIndex(entry)
+  const found = exportIndex(entry)
+  const groups = entry.group === undefined ? found : new Map([[entry.group, [...found.values()].flat()]])
   const parts = [`## ${title}`]
   for (const [module, items] of [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     parts.push(`### ${module}`)
@@ -738,17 +740,19 @@ function sampleIssue(issueCode) {
   return { text: t.issue({ code: issueCode, path: [], params }).replace(/NaN/g, '…'), keys }
 }
 
-/** 中文语言包里 issue 文案按问题码分支的全部问题码。 */
+/** 中文语言包 issueTexts 对照表里的全部问题码，按书写顺序。 */
 function translatedIssueCodes() {
-  const file = packageSource('runtime', 'src', 'designer-zh-cn.ts')
-  const { node } = declaration(file, 'issue')
+  const file = packageSource('runtime', 'src', 'locale', 'zh-CN.ts')
   const codes = []
   const visit = (child) => {
-    if (ts.isCaseClause(child) && ts.isStringLiteral(child.expression))
-      codes.push(child.expression.text)
+    if (ts.isPropertyAssignment(child) && child.name.getText() === 'issueTexts' && ts.isObjectLiteralExpression(child.initializer)) {
+      for (const property of child.initializer.properties)
+        codes.push(ts.isStringLiteral(property.name) ? property.name.text : property.name.getText())
+      return
+    }
     ts.forEachChild(child, visit)
   }
-  visit(node)
+  visit(sourceFile(file))
   return codes
 }
 
@@ -836,7 +840,7 @@ function rendererPage() {
   const extensions = packageSource('runtime', 'src', 'extensions.ts')
   const translations = packageSource('runtime', 'src', 'translations.ts')
   const root = packageSource('runtime', 'src')
-  return page('渲染器', `${code('@xihan-form/runtime')} 的公开接口：渲染器元素、表单控制器与相关类型。样式在 ${code('@xihan-form/runtime/style.css')}，中文语言包在 ${code('@xihan-form/runtime/locale')}。`, [
+  return page('渲染器', `${code('@xihan-form/runtime')} 的公开接口：渲染器元素、表单控制器与相关类型。样式在 ${code('@xihan-form/runtime/style.css')}，语言包在 ${code('@xihan-form/runtime/locale')}。`, [
     `## ${code('<xh-form-renderer>')}`,
     blockDoc(functionSignature(element, 'defineFormRenderer').doc),
     elementSections(element, 'XhFormRenderer', 'FormRendererEventMap'),
@@ -863,9 +867,9 @@ function rendererPage() {
     interfaceSection(types, 'FieldRendererContext'),
     interfaceSection(types, 'FieldRendererInstance'),
     '## 文案',
-    interfaceSection(translations, 'FormRendererTranslations', '###', `文案键是 ${code('xh-form-renderer')}，中文在 ${code('@xihan-form/runtime/locale')} 的 ${code('formZhCN')} 里。`),
+    interfaceSection(translations, 'FormRendererTranslations', '###', `文案键是 ${code('xh-form-renderer')}，各语言的文案在 ${code('@xihan-form/runtime/locale')}，如中文的 ${code('formZhCN')}。`),
     exportIndexSection('全部导出', { root, file: join(root, 'index.ts') }),
-    exportIndexSection(`${code('@xihan-form/runtime/locale')} 的导出`, { root, file: join(root, 'locale.ts') }),
+    exportIndexSection(`${code('@xihan-form/runtime/locale')} 的导出`, { root, file: join(root, 'locale', 'index.ts'), group: 'locale' }),
   ])
 }
 
@@ -901,7 +905,7 @@ function designerPage() {
     typeSection(commands, 'FormDesignerCommand'),
     unionSection(commands, 'FormMenuSubject'),
     '## 文案',
-    interfaceSection(translations, 'FormDesignerTranslations', '###', `文案键是 ${code('xh-form-designer')}，中文在 ${code('@xihan-form/runtime/locale')} 的 ${code('formZhCN')} 里。`),
+    interfaceSection(translations, 'FormDesignerTranslations', '###', `文案键是 ${code('xh-form-designer')}，各语言的文案在 ${code('@xihan-form/runtime/locale')}，如中文的 ${code('formZhCN')}。`),
     '## 编辑模型',
     `设计器内部的编辑模型也一并导出，不显示界面、只想按操作改模板时可以直接用。${blockDoc(functionSignature(editor, 'createFormEditor').doc)}`,
     fence(functionSignature(editor, 'createFormEditor').signature),

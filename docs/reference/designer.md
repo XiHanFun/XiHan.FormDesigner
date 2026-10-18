@@ -150,7 +150,7 @@ type FormDesignerCommand = DesignerCommand<FormDesignerContext>
 
 表单设计器的文案：无参的是字符串，带参的是函数。
 
-文案键是 `xh-form-designer`，中文在 `@xihan-form/runtime/locale` 的 `formZhCN` 里。
+文案键是 `xh-form-designer`，各语言的文案在 `@xihan-form/runtime/locale`，如中文的 `formZhCN`。
 
 | 属性 | 类型 | 说明 |
 | --- | --- | --- |

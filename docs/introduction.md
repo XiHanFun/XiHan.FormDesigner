@@ -33,7 +33,7 @@
 | --- | --- |
 | `@xihan-form/core` | 模板的类型定义、模板自检、取值校验、联动求值与编辑操作。纯 TypeScript，不依赖 DOM，浏览器与 Node.js 里都能用 |
 | `@xihan-form/runtime` | 业务页面用的 `<xh-form-renderer>` 与表单控制器 `createFormController`，样式在 `@xihan-form/runtime/style.css` |
-| `@xihan-form/runtime/locale` | 中文语言包 `formZhCN`，渲染器与设计器共用 |
+| `@xihan-form/runtime/locale` | 语言包，与 XiHan.UI 的内建语言一一对应（`formZhCN`、`formJaJP` 等），渲染器与设计器共用 |
 | `@xihan-form/designer` | `<xh-form-designer>`，样式在 `@xihan-form/designer/style.css` |
 
 依赖方向固定为 `designer → runtime → core`。业务页面只需要 runtime，设计器只在需要编辑模板的地方加载。
