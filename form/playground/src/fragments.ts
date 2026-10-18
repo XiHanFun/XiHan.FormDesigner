@@ -29,14 +29,14 @@ function fragmentGroups(): DesignerPaletteGroup[] {
   }]
 }
 
-/** 「常用片段」面板：放在物料下面。 */
+/** 「常用片段」面板：放在物料下面，画成带标题与帮助的卡片，可从工具栏的「面板」菜单开关。 */
 export const fragmentLibrary: FormDesignerExtension = {
   id: '@xihan-form/playground/fragments',
   panels: [{
-    region: { name: 'fragments', position: 'start', label: '常用片段' },
+    region: { name: 'fragments', position: 'start', title: '常用片段', help: '常用的几组字段：拖到画布上，或点一下插到选中节点之后。' },
     create: ({ designer }) => {
       const element = designer.ownerDocument.createElement('xh-designer-palette') as XhDesignerPaletteElement
-      element.translations = { title: '常用片段' }
+      element.headless = true
       element.groups = fragmentGroups()
       element.addEventListener('item-activate', (event) => {
         event.stopPropagation()
