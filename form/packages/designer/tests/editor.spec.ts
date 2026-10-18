@@ -217,7 +217,7 @@ describe('剪贴板', () => {
     expect(validateDocument(editor.document)).toEqual([])
   })
 
-  it('剪切后粘贴回原处；再制紧跟在原节点之后且不改动剪贴板', () => {
+  it('剪切后粘贴回原处；创建副本紧跟在原节点之后且不改动剪贴板', () => {
     const { document, name, card } = sample()
     const editor = editorOf(document)
     editor.select({ nodes: [name.id] })
