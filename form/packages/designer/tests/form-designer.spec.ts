@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import type { ContainerNode, FieldNode, FormDocument } from '@xihan-form/core'
+import type { XhFormRenderer } from '@xihan-form/runtime'
 import type { DesignerFrameRegion, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
 import type { FormDesignerEventMap, FormDesignerExtension, XhFormDesigner } from '../src'
 import { BUILTIN_FIELDS, createDocument, createFormModel, createNode, findNode, findRegion } from '@xihan-form/core'
@@ -254,6 +255,32 @@ describe('<xh-form-designer>：面板与模式', () => {
     expect([button('duplicate').getAttribute('aria-label'), button('width-tablet').getAttribute('aria-label')]).toEqual(['Duplicate', 'Tablet'])
     expect([button('delete').getAttribute('data-tone'), button('undo').getAttribute('data-tone')]).toEqual(['danger', null])
     expect(button('design').getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('预览里的文件字段用设计器的 uploadFile 上传，返回的附件记录写进预览数据；换了函数预览跟着换', async () => {
+    const ids = createIdAllocator('u')
+    const files = createNode(registry, 'file', ids, { key: 'files' }) as FieldNode
+    const names: string[] = []
+    const designer = await mount((element) => {
+      element.schema = { ...createDocument(), children: [files] }
+      element.uploadFile = (request) => {
+        names.push(request.file.name)
+        return Promise.resolve({ id: 'r1' })
+      }
+      element.mode = 'preview'
+    })
+    const preview = designer.querySelector('[data-part="canvas"] > xh-form-renderer') as XhFormRenderer
+    await preview.updateComplete
+    expect(preview.uploadFile).toBe(designer.uploadFile)
+    const upload = preview.querySelector('xh-file-upload') as HTMLElement & { addFiles: (files: File[]) => void, updateComplete: Promise<boolean> }
+    await upload.updateComplete
+    upload.addFiles([new File(['abc'], 'a.pdf', { type: 'application/pdf' })])
+    await vi.waitFor(() => expect(preview.getFormData().files).toEqual([{ id: 'r1', name: 'a.pdf', size: 3, type: 'application/pdf' }]))
+    expect(names).toEqual(['a.pdf'])
+    const next = (): undefined => undefined
+    designer.uploadFile = next
+    await designer.updateComplete
+    expect(preview.uploadFile).toBe(next)
   })
 
   it('切到预览态时画布换成渲染器，派发 mode-change', async () => {

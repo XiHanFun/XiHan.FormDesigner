@@ -8,7 +8,7 @@
 // 设置对话框（openSettings()）里是基础分区与各扩展的分区，值经 settings 与 settings-change 交给宿主。
 
 import type { FormDocument, FormNode, FormOperation, FormSchemaIssue, RuleList } from '@xihan-form/core'
-import type { FormDesignerTranslations, FormRendererTranslations, OptionLoader, XhFormRenderer } from '@xihan-form/runtime'
+import type { FileUploader, FormDesignerTranslations, FormRendererTranslations, OptionLoader, XhFormRenderer } from '@xihan-form/runtime'
 import type { IconRecord } from '@xihan-ui/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { VisualEnvironmentStorageError } from '@xihan-ui/core/visual-environment'
@@ -164,6 +164,7 @@ export class XhFormDesigner extends XhReactiveElement {
     commandLayout: { attribute: false },
     previewValues: { attribute: false },
     loadOptions: { attribute: false },
+    uploadFile: { attribute: false },
     translations: { attribute: false },
     // 三态：没写为 undefined，写 "false" 为 false，其余写法为 true
     readonly: { converter: BOOLEAN_CONVERTER },
@@ -188,6 +189,8 @@ export class XhFormDesigner extends XhReactiveElement {
   declare previewValues: Readonly<Record<string, JsonValue>> | undefined
   /** 预览的选项加载。 */
   declare loadOptions: OptionLoader | undefined
+  /** 预览里文件字段的上传函数，与渲染器的同名属性一样交给 xh-file-upload；组件自己不发请求。 */
+  declare uploadFile: FileUploader | undefined
   /** 元素自己的文案，压在全局配置之上。 */
   declare translations: Partial<FormDesignerTranslations> | undefined
   /** 可选择、浏览与预览，不能修改。attribute 按三态读：没写或写 "false" 为可修改，其余写法为只读。 */
@@ -950,6 +953,7 @@ export class XhFormDesigner extends XhReactiveElement {
     preview.extensions = this.#extensions
     preview.expressionEngine = this.#engine()
     preview.loadOptions = this.loadOptions
+    preview.uploadFile = this.uploadFile
     preview.values = this.previewValues
     preview.schema = this.#editor.document
   }
