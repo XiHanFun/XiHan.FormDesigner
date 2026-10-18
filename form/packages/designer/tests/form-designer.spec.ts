@@ -634,6 +634,9 @@ describe('<xh-form-designer>：节点小工具条', () => {
     expect(disabled()).toEqual([true, true, false, false, false])
     expect(button('down').getAttribute('aria-label')).toBe(DEFAULT_FORM_DESIGNER_TRANSLATIONS.moveDown)
     expect([button('duplicate').getAttribute('aria-label'), button('delete').getAttribute('aria-label'), button('delete').getAttribute('data-tone')]).toEqual(['Duplicate', 'Delete', 'danger'])
+    // 名字只写在 aria-label 上，悬停与聚焦的提示由整条工具条的委托提示给，不用原生 title
+    expect(Array.from(toolbar()!.querySelectorAll('button[value]'), item => item.hasAttribute('title'))).toEqual([false, false, false, false, false])
+    expect(toolbar()!.querySelector(':scope > xh-tooltip')!.getAttribute('delegate')).toBe("button[data-xh-part='item']")
     button('down').click()
     await settle(designer)
     expect(designer.schema.children.map(node => node.id)).toEqual([card.id, name.id])

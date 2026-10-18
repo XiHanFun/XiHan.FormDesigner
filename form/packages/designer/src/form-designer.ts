@@ -33,7 +33,7 @@ import { createExpressionEngine } from '@xihan-ui/expression'
 import { ArrowDownIcon, ArrowUpIcon, CopyPlusIcon, CornerLeftUpIcon, TrashIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
 import { BOOLEAN_CONVERTER, createAuthoredElement, emitEvent, registerElement, setAttributes, setText, SVG_NS, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
-import { defineXhElement, XhButtonElement, XhContextMenuElement, XhExpressionInputElement, XhIconElement, XhMenuElement, XhToolbarElement } from '@xihan-ui/web-components/define'
+import { defineXhElement, XhButtonElement, XhContextMenuElement, XhExpressionInputElement, XhIconElement, XhMenuElement, XhToolbarElement, XhTooltipElement } from '@xihan-ui/web-components/define'
 import { DesignCanvas, spanColumns } from './canvas'
 import { checkFormClipboard, readFormClipboard, writeFormClipboard } from './clipboard'
 import { FORM_MENU_LAYOUTS, FORM_TOOLBAR_LAYOUT, menuSubject } from './commands'
@@ -130,6 +130,9 @@ const NODE_ACTIONS: readonly { readonly action: NodeAction, readonly icon: IconR
   { action: 'duplicate', icon: CopyPlusIcon, label: (_, commands) => commands.duplicate },
   { action: 'delete', icon: TrashIcon, label: (_, commands) => commands.delete, tone: 'danger' },
 ]
+
+/** 节点小工具条上提示的锚点：工具条里的每颗按钮。 */
+const NODE_ACTION_ANCHORS = "button[data-xh-part='item']"
 
 /** 设计器的各个部件；面板与画布按 slot 放进外框的同名区。 */
 interface DesignerParts {
@@ -877,7 +880,14 @@ export class XhFormDesigner extends XhReactiveElement {
       return createAuthoredElement(doc, 'button', { 'data-xh-part': 'item', 'type': 'button', 'value': action, 'data-tone': tone }, [mark])
     })
     const root = createAuthoredElement(doc, 'div', { 'data-xh-part': 'root' }, [createAuthoredElement(doc, 'div', { 'data-xh-part': 'group' }, items)])
-    const toolbar = createAuthoredElement(doc, 'div', { 'data-part': 'node-toolbar' }, [createAuthoredElement(doc, 'xh-toolbar', { size: 'sm' }, [root])])
+    // 一个委托模式的提示管整条：悬停或键盘聚焦到按钮时显示按钮的名字，与命令工具栏同一种提示
+    const tooltip = createAuthoredElement(doc, 'xh-tooltip', { delegate: NODE_ACTION_ANCHORS }, [
+      createAuthoredElement(doc, 'div', { 'data-xh-part': 'trigger' }, [createAuthoredElement(doc, 'xh-toolbar', { size: 'sm' }, [root])]),
+      createAuthoredElement(doc, 'div', { 'data-xh-part': 'positioner' }, [
+        createAuthoredElement(doc, 'div', { 'data-xh-part': 'content' }, [createAuthoredElement(doc, 'div', { 'data-xh-part': 'arrow' })]),
+      ]),
+    ])
+    const toolbar = createAuthoredElement(doc, 'div', { 'data-part': 'node-toolbar' }, [tooltip])
     toolbar.addEventListener('click', this.#onNodeToolbarClick)
     for (const type of ['pointerdown', 'dblclick', 'keydown', 'contextmenu'])
       toolbar.addEventListener(type, event => event.stopPropagation())
@@ -910,7 +920,7 @@ export class XhFormDesigner extends XhReactiveElement {
     for (const button of toolbar.querySelectorAll<HTMLButtonElement>('button[value]')) {
       const entry = NODE_ACTIONS.find(item => item.action === button.value)!
       const label = entry.label(t, commands)
-      setAttributes(button, { 'aria-label': label, 'title': label })
+      setAttributes(button, { 'aria-label': label })
       if (button.disabled !== !enabled[entry.action])
         button.disabled = !enabled[entry.action]
     }
@@ -1555,6 +1565,7 @@ export class XhFormDesigner extends XhReactiveElement {
 export function defineFormDesigner(): void {
   defineFormRenderer()
   defineXhElement('xh-toolbar', XhToolbarElement)
+  defineXhElement('xh-tooltip', XhTooltipElement)
   defineXhElement('xh-button', XhButtonElement)
   defineXhElement('xh-icon', XhIconElement)
   defineXhElement('xh-menu', XhMenuElement)
