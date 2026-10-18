@@ -20,7 +20,7 @@
 | `readonly` | `readonly` | `boolean \| undefined` | 可选择、浏览与预览，不能修改。attribute 按三态读：没写或写 "false" 为可修改，其余写法为只读。 |
 | `mode` | `mode` | `FormDesignerMode \| undefined` | 设计态或预览态，缺省 design。 |
 | `previewWidth` | `preview-width` | `FormPreviewWidth \| undefined` | 预览宽度，缺省 full。 |
-| `panels` | `panels` | `string \| undefined` | 空格分隔的 toolbar palette properties issues，缺省全部；画布常驻。 |
+| `panels` | `panels` | `string \| undefined` | 空格分隔的 toolbar palette properties issues，缺省全部；画布常驻。点了面板头的关闭钮时设计器改写它并派发 panels-change。 |
 
 ### 存取器
 
@@ -68,6 +68,7 @@
 | `node-contextmenu` | `{ id: string, x: number, y: number }` | 要在节点上打开右键菜单，`x`、`y` 是视口坐标；可取消，取消后不打开内建菜单。 |
 | `blank-contextmenu` | `{ x: number, y: number }` | 要在画布空白处打开右键菜单；可取消，取消后不打开内建菜单。 |
 | `mode-change` | `{ mode: FormDesignerMode }` | 在设计态与预览态之间切换了。 |
+| `panels-change` | `{ panels: string }` | 点了面板头的关闭钮，设计器已收起这块面板：panels 是收起之后要显示的面板（空格分隔），设计器的 panels 已换成它。 |
 
 ## 类型
 
@@ -160,6 +161,9 @@ type FormDesignerCommand = DesignerCommand<FormDesignerContext>
 | `palette` | `string` | 物料面板的标题。 |
 | `properties` | `string` | 属性面板的标题。 |
 | `issues` | `string` | 问题列表的标题。 |
+| `paletteHelp` | `string` | 物料面板头的帮助。 |
+| `propertiesHelp` | `string` | 属性面板头的帮助。 |
+| `issuesHelp` | `string` | 问题列表面板头的帮助。 |
 | `selectParent` | `string` | 选中上一级命令。 |
 | `moveUp` | `string` | 上移命令。 |
 | `moveDown` | `string` | 下移命令。 |
