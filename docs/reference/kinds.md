@@ -248,6 +248,25 @@
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
 
+### 列表 `listbox` {#listbox}
+
+字段 · 渲染为 `<xh-listbox>` · 值：字符串（打开「多选」时为字符串数组），空值 `null` · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.options` | 选项 | [选项](./schema#options)数组 | `[]` |
+| `data.optionSource` | 选项来源 | 文本 | — |
+| `data.optionDependencies` | 选项依赖 | 字符串数组 | — |
+| `data.multiple` | 多选 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+
 ### 穿梭框 `transfer` {#transfer}
 
 字段 · 渲染为 `<xh-transfer>` · 值：字符串数组，空值 `[]` · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。

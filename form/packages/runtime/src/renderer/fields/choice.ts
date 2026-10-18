@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 选择类字段：下拉、组合框、树选择、级联、单选组、多选组、按钮组、穿梭框、勾选框、开关。
+// 选择类字段：下拉、组合框、树选择、级联、单选组、多选组、按钮组、列表、穿梭框、勾选框、开关。
 // 都只建宿主元素，部件由元素按标准结构生成；有选项的写成元素的 collection。
 // 选项来自上下文的 options：静态选项或加载结果。
 
@@ -234,6 +234,31 @@ export const toggleGroupField: FieldRenderer = (context) => {
     paintCommon(element, next)
     syncCollection(itemsOf(next))
     assign(element, 'value', multiple ? toList(next.value) : (typeof next.value === 'string' ? next.value : null))
+  }
+  update(context)
+  return { element, update }
+}
+
+/** 列表：`xh-listbox`，平铺的单选或多选；选项写成 collection，取数在途时报在途，没有选项时空态文字取表单的 optionsEmpty。 */
+export const listboxField: FieldRenderer = (context) => {
+  const element = host(context.document, 'xh-listbox')
+  const multiple = context.node.data.multiple === true
+  if (multiple)
+    assign(element, 'selectionMode', 'multiple')
+  const syncCollection = collectionSync(element)
+  const ref: ContextRef = { current: context }
+  let empty: string | undefined
+  on<{ value: string[] }>(element, 'value-change', detail => ref.current.setValue(fromList(detail.value, multiple)))
+  const update = (next: FieldRendererContext): void => {
+    ref.current = next
+    paintCommon(element, next)
+    if (next.translations.optionsEmpty !== empty) {
+      empty = next.translations.optionsEmpty
+      assign(element, 'translations', { empty })
+    }
+    assign(element, 'loading', next.options?.status === 'loading' ? true : undefined)
+    syncCollection(itemsOf(next))
+    assign(element, 'value', toList(next.value))
   }
   update(context)
   return { element, update }

@@ -31,6 +31,7 @@ const KINDS: Readonly<Record<string, string>> = {
   'radio-group': '单选组',
   'checkbox-group': '多选组',
   'toggle-group': '按钮组',
+  'listbox': '列表',
   'transfer': '穿梭框',
   'checkbox': '勾选框',
   'switch': '开关',
