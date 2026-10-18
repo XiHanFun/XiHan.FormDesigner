@@ -2,7 +2,7 @@
 
 <!-- 本页由 docs/scripts/gen-reference.mjs 从源码生成，不要手改；源码变了之后在 docs/ 运行 pnpm gen。 -->
 
-`@xihan-form/runtime` 的公开接口：渲染器元素、表单控制器与相关类型。样式在 `@xihan-form/runtime/style.css`，中文语言包在 `@xihan-form/runtime/locale`。
+`@xihan-form/runtime` 的公开接口：渲染器元素、表单控制器与相关类型。样式在 `@xihan-form/runtime/style.css`，语言包在 `@xihan-form/runtime/locale`。
 
 ## `<xh-form-renderer>`
 
@@ -299,7 +299,7 @@ type FieldRenderer = (context: FieldRendererContext) => FieldRendererInstance
 
 渲染器的文案：无参的是字符串，带参的是函数。
 
-文案键是 `xh-form-renderer`，中文在 `@xihan-form/runtime/locale` 的 `formZhCN` 里。
+文案键是 `xh-form-renderer`，各语言的文案在 `@xihan-form/runtime/locale`，如中文的 `formZhCN`。
 
 | 属性 | 类型 | 说明 |
 | --- | --- | --- |
@@ -424,4 +424,13 @@ type FieldRenderer = (context: FieldRendererContext) => FieldRendererInstance
 
 | 名称 | 种类 | 说明 |
 | --- | --- | --- |
-| `formZhCN` | 常量 | 表单渲染器与设计器的中文文案，含 designerShellZhCN。 |
+| `formDeDE` | 常量 | 德语：渲染器、设计器与 designer-shell 零件。 |
+| `formEnUS` | 常量 | 英语：渲染器、设计器与 designer-shell 零件。 |
+| `formEsES` | 常量 | 西班牙语：渲染器、设计器与 designer-shell 零件。 |
+| `formFrFR` | 常量 | 法语：渲染器、设计器与 designer-shell 零件。 |
+| `formJaJP` | 常量 | 日语：渲染器、设计器与 designer-shell 零件。 |
+| `formKoKR` | 常量 | 韩语：渲染器、设计器与 designer-shell 零件。 |
+| `formPtBR` | 常量 | 葡萄牙语（巴西）：渲染器、设计器与 designer-shell 零件。 |
+| `formRuRU` | 常量 | 俄语：渲染器、设计器与 designer-shell 零件。 |
+| `formZhCN` | 常量 | 简体中文：渲染器、设计器与 designer-shell 零件。 |
+| `formZhTW` | 常量 | 繁体中文（台湾）：渲染器、设计器与 designer-shell 零件。 |

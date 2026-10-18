@@ -42,7 +42,7 @@ pnpm add @xihan-form/runtime @xihan-ui/web-components @xihan-ui/styles
 
 ## 界面语言
 
-内置文案缺省是英文。中文语言包 `formZhCN` 在 `@xihan-form/runtime/locale`，与 XiHan.UI 的语言包合并后全局生效：
+渲染器与设计器的界面文字缺省是英文。表单给 XiHan.UI 的每种内建语言各出一份语言包，在 `@xihan-form/runtime/locale`，名字是 `form` 加 UI 语言包的名字：`zhCN` 对 `formZhCN`，`jaJP` 对 `formJaJP`。每份都带上设计器零件同一语言的文案，与 UI 同一语言的语言包合并后全局设置，所有实例都跟着换。下面以中文为例：
 
 ```ts
 import { formZhCN } from '@xihan-form/runtime/locale'

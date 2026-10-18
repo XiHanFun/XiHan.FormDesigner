@@ -88,7 +88,7 @@ document.body.append(renderer)
 
 ## 文案
 
-内置文案缺省是英文，中文语言包 `formZhCN` 与 XiHan.UI 的语言包合并后经 `setXhConfig` 全局生效，见[快速开始](../quickstart#界面语言)。某一个渲染器要用别的说法时，给它的 `translations` 传要覆盖的键，如错误摘要的标题 `errorSummary` 与新增行的 `addRow`；规则写了 `message` 时问题提示用规则的，键见[渲染器参考](../reference/renderer#formrenderertranslations)。
+内置文案缺省是英文，各语言的语言包（如中文的 `formZhCN`）与 XiHan.UI 同一语言的语言包合并后经 `setXhConfig` 全局生效，见[快速开始](../quickstart#界面语言)。某一个渲染器要用别的说法时，给它的 `translations` 传要覆盖的键，如错误摘要的标题 `errorSummary` 与新增行的 `addRow`；规则写了 `message` 时问题提示用规则的，键见[渲染器参考](../reference/renderer#formrenderertranslations)。
 
 ## 不经界面使用
 
