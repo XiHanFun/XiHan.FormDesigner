@@ -47,6 +47,10 @@ export interface FormDesignerTranslations {
   readonly statusFields: (count: number) => string
   /** 状态栏：选中多项时写已选的个数。 */
   readonly statusSelected: (count: number) => string
+  /** 顶栏插入钮那一条工具栏的可访问名。 */
+  readonly insertToolbar: string
+  /** 顶栏插入钮的名字与提示，label 是字段种类的名字。 */
+  readonly insertField: (label: string) => string
   /** 属性区的「属性」页签。 */
   readonly propertiesTab: string
   /** 属性区的「校验」页签。 */
@@ -227,6 +231,8 @@ export const DEFAULT_FORM_DESIGNER_TRANSLATIONS: FormDesignerTranslations = Obje
   widthPhone: 'Phone',
   statusFields: (count: number) => (count === 1 ? '1 field' : `${count} fields`),
   statusSelected: (count: number) => `${count} selected`,
+  insertToolbar: 'Insert fields',
+  insertField: (label: string) => `Add ${label}`,
   propertiesTab: 'Properties',
   validationTab: 'Validation',
   linkageTab: 'Linkage',

@@ -50,6 +50,8 @@ const locale: FormLocale = {
     widthPhone: 'スマートフォン',
     statusFields: count => `${count} 個のフィールド`,
     statusSelected: count => `${count} 個を選択中`,
+    insertToolbar: 'フィールドを挿入',
+    insertField: label => `「${label}」を追加`,
     propertiesTab: 'プロパティ',
     validationTab: '検証ルール',
     linkageTab: '連動ルール',

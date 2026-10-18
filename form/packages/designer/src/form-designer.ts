@@ -123,6 +123,8 @@ interface DesignerParts {
   readonly panels: DesignerPanelHost<FormDesignerContext>
   readonly toolbar: HTMLElement
   readonly commandBar: CommandToolbar<FormDesignerContext>
+  /** 顶栏中段的插入钮：图标在上、种类名在下；没有 header 命令时不在外框里。 */
+  readonly headerBar: CommandToolbar<FormDesignerContext>
   readonly canvas: HTMLElement
   readonly palette: HTMLElement
   readonly catalog: XhDesignerPaletteElement
@@ -178,7 +180,7 @@ export class XhFormDesigner extends XhReactiveElement {
   /** 校验表达式与预览用，缺省为 createExpressionEngine()。 */
   declare expressionEngine: ExpressionEngine | undefined
   /**
-   * 工具栏与右键菜单的排列：位置（toolbar、menu:node、menu:region、menu:cell、menu:blank）→ 若干组命令 id，内置命令与扩展命令混排。
+   * 顶栏、工具栏与右键菜单的排列：位置（header、toolbar、menu:node、menu:region、menu:cell、menu:blank）→ 若干组命令 id，内置命令与扩展命令混排。
    * 写了某个位置就只显示列出的；没写的位置用内置的缺省排列，再把 placement 含它的扩展命令追加成一组。
    */
   declare commandLayout: DesignerCommandLayout | undefined
@@ -609,6 +611,8 @@ export class XhFormDesigner extends XhReactiveElement {
       return this.#parts
     const doc = this.ownerDocument
     const commandBar = createCommandToolbar<FormDesignerContext>(doc, { platform: this.#kbdPlatform() })
+    const headerBar = createCommandToolbar<FormDesignerContext>(doc, { display: 'stacked', platform: this.#kbdPlatform() })
+    headerBar.element.slot = 'header-center'
     const toolbar = createAuthoredElement(doc, 'div', { 'data-part': 'command-bar', 'slot': 'toolbar' }, [commandBar.element])
     const dropIndicator = createAuthoredElement(doc, 'div', { 'data-part': 'drop-indicator', 'aria-hidden': 'true', 'hidden': true })
     const canvas = createAuthoredElement(doc, 'div', { 'data-part': 'canvas', 'slot': 'canvas', 'tabindex': '0' }, [this.#canvas.element, dropIndicator])
@@ -670,7 +674,7 @@ export class XhFormDesigner extends XhReactiveElement {
     settings.addEventListener('settings-change', this.#onSettingsChange)
     this.replaceChildren(frame, settings)
     const panels = createPanelHost<FormDesignerContext>(frame)
-    this.#parts = { frame, panels, toolbar, commandBar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings, selectionStatus, widthStatus }
+    this.#parts = { frame, panels, toolbar, commandBar, headerBar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings, selectionStatus, widthStatus }
     this.#prepareMenu(this.#parts)
     panels.assign(this.#model.extensions, this.#context())
     return this.#parts
@@ -899,13 +903,25 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#parts?.canvas.focus({ preventScroll: true })
   }
 
-  /** 工具栏按 commandLayout 或缺省排列铺命令，显示方式取设置里的 general.toolbarDisplay，文字、可用与选中状态每次刷新。 */
+  /**
+   * 工具栏按 commandLayout 或缺省排列铺命令，显示方式取设置里的 general.toolbarDisplay，文字、可用与选中状态每次刷新；
+   * 顶栏铺 placement 为 header 的命令，一条也没有时从外框里拿掉，顶栏随之收起。
+   */
   #syncToolbar(t: FormDesignerTranslations): void {
     const { commands } = this.#model
     const context = this.#context(t)
-    const { commandBar } = this.#ensureParts()
+    const { commandBar, headerBar, frame } = this.#ensureParts()
     commandBar.setDisplay(toolbarDisplayOf(this.#resolvedSettings))
     commandBar.update(arrangeCommands('toolbar', commands, FORM_TOOLBAR_LAYOUT, this.commandLayout), commands, context, context.commands.toolbar)
+    const header = arrangeCommands('header', commands, [], this.commandLayout)
+    if (header.length > 0) {
+      headerBar.update(header, commands, context, t.insertToolbar)
+      if (!headerBar.element.isConnected)
+        frame.append(headerBar.element)
+    }
+    else {
+      headerBar.element.remove()
+    }
   }
 
   #setMode(mode: FormDesignerMode): void {

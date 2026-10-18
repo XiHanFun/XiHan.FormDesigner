@@ -13,7 +13,7 @@
 | 属性 | attribute | 类型 | 说明 |
 | --- | --- | --- | --- |
 | `expressionEngine` | — | `ExpressionEngine \| undefined` | 校验表达式与预览用，缺省为 createExpressionEngine()。 |
-| `commandLayout` | — | `DesignerCommandLayout \| undefined` | 工具栏与右键菜单的排列：位置（toolbar、menu:node、menu:region、menu:cell、menu:blank）→ 若干组命令 id，内置命令与扩展命令混排。写了某个位置就只显示列出的；没写的位置用内置的缺省排列，再把 placement 含它的扩展命令追加成一组。 |
+| `commandLayout` | — | `DesignerCommandLayout \| undefined` | 顶栏、工具栏与右键菜单的排列：位置（header、toolbar、menu:node、menu:region、menu:cell、menu:blank）→ 若干组命令 id，内置命令与扩展命令混排。写了某个位置就只显示列出的；没写的位置用内置的缺省排列，再把 placement 含它的扩展命令追加成一组。 |
 | `previewValues` | — | `Readonly<Record<string, JsonValue>> \| undefined` | 预览的示例数据。 |
 | `loadOptions` | — | `OptionLoader \| undefined` | 预览的选项加载。 |
 | `translations` | — | `Partial<FormDesignerTranslations> \| undefined` | 元素自己的文案，压在全局配置之上。 |
@@ -183,6 +183,7 @@ type FormDesignerCommand = DesignerCommand<FormDesignerContext>
 | `widthFull` | `string` | 全宽。 |
 | `widthTablet` | `string` | 平板宽度。 |
 | `widthPhone` | `string` | 手机宽度。 |
+| `insertToolbar` | `string` | 顶栏插入钮那一条工具栏的可访问名。 |
 | `propertiesTab` | `string` | 属性区的「属性」页签。 |
 | `validationTab` | `string` | 属性区的「校验」页签。 |
 | `linkageTab` | `string` | 属性区的「联动」页签。 |
@@ -219,6 +220,7 @@ type FormDesignerCommand = DesignerCommand<FormDesignerContext>
 | --- | --- |
 | `statusFields(count: number): string` | 状态栏：什么都没选中时写表单里的字段数。 |
 | `statusSelected(count: number): string` | 状态栏：选中多项时写已选的个数。 |
+| `insertField(label: string): string` | 顶栏插入钮的名字与提示，label 是字段种类的名字。 |
 | `nodeTag(kind: string, key: string \| undefined): string` | 画布上选中节点的标签，如「单行文本 · name」。 |
 | `category(category: string): string` | 物料分类名，按种类的 category。 |
 | `kind(kind: string): string` | 种类名，按 kind。 |
