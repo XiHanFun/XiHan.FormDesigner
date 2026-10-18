@@ -19,6 +19,12 @@ export interface FormDesignerTranslations {
   readonly properties: string
   /** 问题列表的标题。 */
   readonly issues: string
+  /** 物料面板头的帮助。 */
+  readonly paletteHelp: string
+  /** 属性面板头的帮助。 */
+  readonly propertiesHelp: string
+  /** 问题列表面板头的帮助。 */
+  readonly issuesHelp: string
   /** 选中上一级命令。 */
   readonly selectParent: string
   /** 上移命令。 */
@@ -203,6 +209,9 @@ export const DEFAULT_FORM_DESIGNER_TRANSLATIONS: FormDesignerTranslations = Obje
   palette: 'Components',
   properties: 'Properties',
   issues: 'Issues',
+  paletteHelp: 'Drag a component onto the canvas, or click it to add it after the selection.',
+  propertiesHelp: 'Edit the selected component or region, with its validation and linkage rules. With nothing selected, edit the form settings.',
+  issuesHelp: 'Problems found when checking the form template. Click one to select where it is.',
   selectParent: 'Select parent',
   moveUp: 'Move up',
   moveDown: 'Move down',

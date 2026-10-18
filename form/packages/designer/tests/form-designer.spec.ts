@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { ContainerNode, FieldNode, FormDocument } from '@xihan-form/core'
-import type { XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
+import type { DesignerFrameRegion, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
 import type { FormDesignerEventMap, FormDesignerExtension, XhFormDesigner } from '../src'
 import { BUILTIN_FIELDS, createDocument, createFormModel, createNode, findNode, findRegion } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
@@ -268,6 +268,44 @@ describe('<xh-form-designer>：面板与模式', () => {
     expect(preview).not.toBeNull()
     expect(preview.schema).toBe(designer.schema)
     expect(modes).toEqual([{ mode: 'preview' }])
+  })
+})
+
+describe('<xh-form-designer>：面板卡片', () => {
+  const T = DEFAULT_FORM_DESIGNER_TRANSLATIONS
+
+  it('物料、属性与问题画成卡片：面板头写标题与帮助，属性的副标题随选中换，三个零件只画内容', async () => {
+    const { document, name } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    const frame = designer.querySelector('xh-designer-frame')!
+    const region = (named: string): DesignerFrameRegion => frame.regions!.find(item => item.name === named)!
+    expect(['palette', 'properties', 'issues'].map(named => [region(named).title, region(named).help])).toEqual([[T.palette, T.paletteHelp], [T.properties, T.propertiesHelp], [T.issues, T.issuesHelp]])
+    expect([region('toolbar').title, region('toolbar').label, region('canvas').title, region('canvas').label]).toEqual([undefined, 'Designer actions', undefined, T.canvas])
+    expect(region('properties').subtitle).toBe(T.settings)
+    designer.select({ nodes: [name.id] })
+    await settle(designer)
+    expect(region('properties').subtitle).toBe(T.nodeTag('text', 'name'))
+    expect(frame.querySelector('[data-region="properties"] [data-part="panel-subtitle"]')!.textContent).toBe(T.nodeTag('text', 'name'))
+    expect(frame.querySelector('[data-region="properties"] [data-part="panel-body"] > [data-part="inspector-tabs"]')).not.toBeNull()
+    expect(['catalog', 'inspector', 'problems'].map(part => designer.querySelector<HTMLElement & { headless?: boolean }>(`[data-part="${part}"]`)!.headless)).toEqual([true, true, true])
+  })
+
+  it('点面板头的关闭钮：收起这块面板，panels 换成外框剩下的区并派发 panels-change，外框的同名事件不冒出设计器', async () => {
+    const designer = await mount(() => {})
+    const targets: string[] = []
+    window.document.body.addEventListener('panels-change', event => targets.push((event.target as Element).localName))
+    const changes = events(designer, 'panels-change')
+    designer.querySelector<HTMLButtonElement>('[data-region="palette"] [data-part="panel-close"]')!.click()
+    await settle(designer)
+    expect(changes).toEqual([{ panels: 'header toolbar properties issues status' }])
+    expect(designer.panels).toBe('header toolbar properties issues status')
+    expect(targets).toEqual(['xh-form-designer'])
+    expect(designer.querySelector('[data-part="frame"] [slot="palette"]')).toBeNull()
+    designer.querySelector<HTMLButtonElement>('[data-region="issues"] [data-part="panel-close"]')!.click()
+    await settle(designer)
+    expect(designer.panels).toBe('header toolbar properties status')
   })
 })
 

@@ -11,7 +11,7 @@ import type { FormDesignerTranslations, FormRendererTranslations, OptionLoader, 
 import type { IconRecord } from '@xihan-ui/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { ExecuteOptions, ExtensionHost } from '@xihan-ui/designer-kit'
-import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameRegion, DesignerIssuesEventMap, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, PanRequestDetail } from '@xihan-ui/designer-shell'
+import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerIssuesEventMap, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
 import type { CanvasDrop, CanvasTarget } from './canvas'
@@ -77,6 +77,8 @@ export interface FormDesignerEventMap {
   'blank-contextmenu': CustomEvent<{ x: number, y: number }>
   /** 在设计态与预览态之间切换了。 */
   'mode-change': CustomEvent<{ mode: FormDesignerMode }>
+  /** 点了面板头的关闭钮，设计器已收起这块面板：panels 是收起之后要显示的面板（空格分隔），设计器的 panels 已换成它。 */
+  'panels-change': CustomEvent<{ panels: string }>
 }
 
 const CLIPBOARD_EVENTS = ['copy', 'cut', 'paste'] as const
@@ -117,8 +119,7 @@ interface DesignerParts {
   readonly dropIndicator: HTMLElement
   /** 选中一个节点时挂进它的外框，没有时不在文档里。 */
   readonly nodeToolbar: HTMLElement
-  readonly properties: HTMLElement
-  /** 属性区的三个页签：属性、校验规则、联动规则。 */
+  /** 属性区：属性、校验规则、联动规则三个页签，页签那一排紧贴在卡片的面板头下面。 */
   readonly inspectorTabs: HTMLElement & { value?: string, requestUpdate?: () => void }
   readonly tabTriggers: Readonly<Record<InspectorTab, HTMLButtonElement>>
   readonly tabList: HTMLElement
@@ -172,7 +173,7 @@ export class XhFormDesigner extends XhReactiveElement {
   declare mode: FormDesignerMode | undefined
   /** 预览宽度，缺省 full。 */
   declare previewWidth: FormPreviewWidth | undefined
-  /** 空格分隔的 toolbar palette properties issues，缺省全部；画布常驻。 */
+  /** 空格分隔的 toolbar palette properties issues，缺省全部；画布常驻。点了面板头的关闭钮时设计器改写它并派发 panels-change。 */
   declare panels: string | undefined
 
   readonly #config = new XhConfigController(this)
@@ -359,7 +360,6 @@ export class XhFormDesigner extends XhReactiveElement {
     const t = this.#t()
     setAttributes(parts.frame, { 'data-mode': mode, 'data-width': this.previewWidth ?? 'full', 'data-readonly': this.readonly === true, 'aria-label': t.label })
     parts.frame.panels = this.#framePanels(mode)
-    this.#syncRegions(parts.frame, t)
     if (changed.has('mode'))
       this.#syncMode()
     if (this.#rendered !== this.#editor.document || changed.has('extensions') || changed.has('translations') || changed.size === 0)
@@ -367,6 +367,8 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#syncPreview()
     this.#syncToolbar(t)
     this.#syncProperties(changed, t)
+    // 属性卡片的副标题取这一轮算出的编辑对象，所以先更新属性面板再设区
+    this.#syncRegions(parts.frame, t)
     this.#syncPalette(changed, t)
     this.#syncIssues(changed, t)
     this.#syncNodeToolbar(t)
@@ -557,7 +559,7 @@ export class XhFormDesigner extends XhReactiveElement {
     const tabTriggers = Object.fromEntries(INSPECTOR_TABS.map(tab => [tab, createAuthoredElement(doc, 'button', { 'data-xh-part': 'trigger', 'type': 'button', 'value': tab })])) as Record<InspectorTab, HTMLButtonElement>
     const tabList = createAuthoredElement(doc, 'div', { 'data-xh-part': 'list' }, [...INSPECTOR_TABS.map(tab => tabTriggers[tab]), createAuthoredElement(doc, 'div', { 'data-xh-part': 'indicator' })])
     const panel = (tab: InspectorTab, child: HTMLElement): HTMLElement => createAuthoredElement(doc, 'div', { 'data-xh-part': 'content', 'value': tab }, [child])
-    const inspectorTabs: DesignerParts['inspectorTabs'] = createAuthoredElement(doc, 'xh-tabs', { 'data-part': 'inspector-tabs', 'size': 'sm' }, [
+    const inspectorTabs: DesignerParts['inspectorTabs'] = createAuthoredElement(doc, 'xh-tabs', { 'data-part': 'inspector-tabs', 'slot': 'properties', 'size': 'sm' }, [
       createAuthoredElement(doc, 'div', { 'data-xh-part': 'root' }, [
         tabList,
         panel('properties', inspector),
@@ -572,7 +574,6 @@ export class XhFormDesigner extends XhReactiveElement {
       event.stopPropagation()
       inspectorTabs.value = (event as CustomEvent<{ value: string }>).detail.value
     })
-    const properties = createAuthoredElement(doc, 'div', { 'data-part': 'properties', 'slot': 'properties' }, [inspectorTabs])
     const problems = createAuthoredElement(doc, 'xh-designer-issues', { 'data-part': 'problems', 'group-by': 'target' })
     const issues = createAuthoredElement(doc, 'div', { 'data-part': 'issues', 'slot': 'issues' }, [problems])
     const menuTrigger = createAuthoredElement(doc, 'div', { 'data-xh-part': 'trigger', 'inert': true })
@@ -582,7 +583,12 @@ export class XhFormDesigner extends XhReactiveElement {
     ])
     menu.addEventListener('select', this.#onMenuSelect)
     menu.addEventListener('open-change', this.#onMenuOpenChange)
-    const frame = createAuthoredElement(doc, 'xh-designer-frame', { 'data-part': 'frame', 'role': 'application' }, [toolbar, palette, canvas, properties, issues, menu])
+    const frame = createAuthoredElement(doc, 'xh-designer-frame', { 'data-part': 'frame', 'role': 'application' }, [toolbar, palette, canvas, inspectorTabs, issues, menu])
+    // 三个零件只画内容，标题、副标题与帮助由外框画在卡片的面板头上
+    catalog.headless = true
+    inspector.headless = true
+    problems.headless = true
+    frame.addEventListener('panels-change', this.#onPanelsChange)
     canvas.addEventListener('click', this.#onCanvasClick)
     canvas.addEventListener('dblclick', this.#onCanvasDblclick)
     canvas.addEventListener('contextmenu', this.#onCanvasContextMenu)
@@ -595,7 +601,7 @@ export class XhFormDesigner extends XhReactiveElement {
     inspector.addEventListener('property-commit', this.#onPropertyCommit)
     this.replaceChildren(frame)
     const panels = createPanelHost<FormDesignerContext>(frame)
-    this.#parts = { frame, panels, toolbar, commandBar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), properties, inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent }
+    this.#parts = { frame, panels, toolbar, commandBar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent }
     this.#prepareMenu(this.#parts)
     panels.assign(this.#model.extensions, this.#context())
     return this.#parts
@@ -609,11 +615,20 @@ export class XhFormDesigner extends XhReactiveElement {
     return shown === undefined || shown.has('toolbar') ? 'toolbar' : ''
   }
 
-  /** 外框的区：内置区的名字换成文案（供分隔条的无障碍名称使用），后面接扩展面板的区；文案与面板都没变时不重设。 */
+  /**
+   * 外框的区：工具栏与画布带上本地化的区名（分隔条的无障碍名称要用）；物料、属性与问题画成卡片，面板头写标题与帮助，
+   * 属性面板的副标题是当前编辑的对象。后面接扩展面板的区；内容都没变时不重设。
+   */
   #syncRegions(frame: XhDesignerFrameElement, t: FormDesignerTranslations): void {
-    const labels: Readonly<Record<string, string>> = { toolbar: this.#commandTexts().toolbar, palette: t.palette, canvas: t.canvas, properties: t.properties, issues: t.issues }
+    const described: Readonly<Record<string, Partial<DesignerFrameRegion>>> = {
+      toolbar: { label: this.#commandTexts().toolbar },
+      palette: { title: t.palette, help: t.paletteHelp },
+      canvas: { label: t.canvas },
+      properties: { title: t.properties, subtitle: this.#ensureParts().inspector.heading, help: t.propertiesHelp },
+      issues: { title: t.issues, help: t.issuesHelp },
+    }
     const regions: DesignerFrameRegion[] = [
-      ...DESIGNER_FRAME_REGIONS.map(region => ({ ...region, label: labels[region.name] ?? region.name })),
+      ...DESIGNER_FRAME_REGIONS.map(region => ({ ...region, ...described[region.name] })),
       ...this.#model.extensions.flatMap(extension => (extension.panels ?? []).map(panel => panel.region)),
     ]
     const key = JSON.stringify(regions)
@@ -621,6 +636,14 @@ export class XhFormDesigner extends XhReactiveElement {
       return
     this.#frameRegionsKey = key
     frame.regions = regions
+  }
+
+  /** 外框收起了一块面板：换成外框剩下的区，派发设计器自己的 panels-change，外框的事件不冒出设计器。 */
+  readonly #onPanelsChange = (event: Event): void => {
+    event.stopPropagation()
+    const panels = (event as DesignerFrameEventMap['panels-change']).detail.panels
+    this.panels = panels
+    emitEvent(this, 'panels-change', { panels })
   }
 
   #buildNodeToolbar(doc: Document): HTMLElement {
