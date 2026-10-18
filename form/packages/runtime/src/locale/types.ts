@@ -75,6 +75,7 @@ export type FormPropertyKey
     | 'readOnly'
     | 'labelHidden'
     | 'size'
+    | 'columnMinWidth'
     | 'options'
     | 'optionSource'
     | 'optionDependencies'

@@ -156,6 +156,7 @@ const locale: FormLocale = {
       'readOnly': '읽기 전용',
       'labelHidden': '레이블 숨기기',
       'size': '크기',
+      'columnMinWidth': '열 최소 너비',
       'options': '선택 항목',
       'optionSource': '선택 항목 출처',
       'optionDependencies': '선택 항목 의존 필드',

@@ -156,6 +156,7 @@ const locale: FormLocale = {
       'readOnly': 'Schreibgeschützt',
       'labelHidden': 'Beschriftung ausblenden',
       'size': 'Größe',
+      'columnMinWidth': 'Mindestbreite der Spalte',
       'options': 'Optionen',
       'optionSource': 'Optionsquelle',
       'optionDependencies': 'Optionsabhängigkeiten',

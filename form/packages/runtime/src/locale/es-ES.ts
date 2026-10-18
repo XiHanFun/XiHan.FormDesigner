@@ -156,6 +156,7 @@ const locale: FormLocale = {
       'readOnly': 'Solo lectura',
       'labelHidden': 'Ocultar etiqueta',
       'size': 'Tamaño',
+      'columnMinWidth': 'Ancho mínimo de columna',
       'options': 'Opciones',
       'optionSource': 'Origen de las opciones',
       'optionDependencies': 'Dependencias de las opciones',

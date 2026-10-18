@@ -53,9 +53,9 @@ export const schema: FormDocument = {
         id: 'c-items-row',
         props: {},
         children: [
-          { type: 'field', id: 'f-item', kind: 'text', key: 'name', basic: { label: '名目' }, data: {}, appearance: {}, validation: [{ id: 'r-item', kind: 'required' }], linkage: [] },
-          { type: 'field', id: 'f-qty', kind: 'number', key: 'qty', basic: { label: '数量' }, data: { precision: 0 }, appearance: {}, validation: [{ id: 'r-qty', kind: 'range', min: 1 }], linkage: [] },
-          { type: 'field', id: 'f-price', kind: 'number', key: 'price', basic: { label: '单价' }, data: { precision: 2 }, appearance: {}, validation: [], linkage: [] },
+          { type: 'field', id: 'f-item', kind: 'text', key: 'name', basic: { label: '名目' }, data: {}, appearance: { columnMinWidth: 120 }, validation: [{ id: 'r-item', kind: 'required' }], linkage: [] },
+          { type: 'field', id: 'f-qty', kind: 'number', key: 'qty', basic: { label: '数量' }, data: { precision: 0 }, appearance: { columnMinWidth: 104 }, validation: [{ id: 'r-qty', kind: 'range', min: 1 }], linkage: [] },
+          { type: 'field', id: 'f-price', kind: 'number', key: 'price', basic: { label: '单价' }, data: { precision: 2 }, appearance: { columnMinWidth: 144 }, validation: [], linkage: [] },
           {
             type: 'field',
             id: 'f-amount',
@@ -63,7 +63,7 @@ export const schema: FormDocument = {
             key: 'amount',
             basic: { label: '小计', readOnly: true },
             data: { precision: 2 },
-            appearance: {},
+            appearance: { columnMinWidth: 144 },
             validation: [],
             linkage: [{ id: 'l-amount', action: 'assign', value: '$row.qty * $row.price' }],
           },
