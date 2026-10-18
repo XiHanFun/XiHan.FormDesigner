@@ -14,7 +14,7 @@ import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { VisualEnvironmentStorageError } from '@xihan-ui/core/visual-environment'
 import type { ExecuteOptions, ExtensionHost } from '@xihan-ui/designer-kit'
 import type { PropertySwatchOption } from '@xihan-ui/designer-kit/properties'
-import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerIssuesEventMap, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, PanRequestDetail } from '@xihan-ui/designer-shell'
+import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerIssuesEventMap, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
 import type { CanvasDrop, CanvasTarget } from './canvas'
@@ -24,11 +24,11 @@ import type { FormDesignerExtension, FormDesignerModel } from './extensions'
 import type { FormDesignerMode } from './internals'
 import type { FormCanvasDragPayload, FormDragSubject } from './palette'
 import type { PropertyView } from './properties'
-import { createDocument, findNode, findRegion, PROPERTY_GROUPS, validateDocument } from '@xihan-form/core'
+import { createDocument, findNode, findRegion, PROPERTY_GROUPS, validateDocument, walkNodes } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
 import { commandForShortcut, createExtensionHost } from '@xihan-ui/designer-kit'
-import { arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_FRAME_REGIONS, DESIGNER_SETTING_KEYS, parseDesignerPanels, registerDropTarget, renderCommandMenu, resolveSettings, runCommand, startDrag, toolbarDisplayOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement } from '@xihan-ui/designer-shell'
+import { arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_FRAME_REGIONS, DESIGNER_SETTING_KEYS, parseDesignerPanels, registerDropTarget, renderCommandMenu, resolveSettings, runCommand, startDrag, toolbarDisplayOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { ArrowDownIcon, ArrowUpIcon, CopyPlusIcon, CornerLeftUpIcon, TrashIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
@@ -58,7 +58,7 @@ export type FormPreviewWidth = 'full' | 'tablet' | 'phone'
 export type FormSchemaChangeKind = 'execute' | 'undo' | 'redo' | 'load'
 
 /** 可收起的面板；画布常驻，不在其中。 */
-export type FormDesignerPanel = 'toolbar' | 'palette' | 'properties' | 'issues'
+export type FormDesignerPanel = 'toolbar' | 'palette' | 'properties' | 'issues' | 'status'
 
 /** 设计器派发的事件。 */
 export interface FormDesignerEventMap {
@@ -142,6 +142,10 @@ interface DesignerParts {
   readonly menuContent: HTMLElement
   /** 设置对话框：外框的兄弟节点。 */
   readonly settings: XhDesignerSettingsElement
+  /** 状态栏左段：选中的对象，没选中时是字段数。 */
+  readonly selectionStatus: DesignerStatusItem
+  /** 状态栏右段：预览宽度，点了回到全宽。 */
+  readonly widthStatus: DesignerStatusItem
 }
 
 function sameIssues(a: readonly FormSchemaIssue[], b: readonly FormSchemaIssue[]): boolean {
@@ -190,7 +194,10 @@ export class XhFormDesigner extends XhReactiveElement {
   declare mode: FormDesignerMode | undefined
   /** 预览宽度，缺省 full。 */
   declare previewWidth: FormPreviewWidth | undefined
-  /** 空格分隔的 toolbar palette properties issues，缺省全部；画布常驻。点了面板头的关闭钮时设计器改写它并派发 panels-change。 */
+  /**
+   * 空格分隔的 toolbar palette properties issues status，缺省全部；画布常驻。预览态只留工具栏与状态栏；状态栏还受设置里的
+   * general.statusBar 控制。点了面板头的关闭钮时设计器改写它并派发 panels-change。
+   */
   declare panels: string | undefined
   /**
    * 设置的值：扁平的键值，键是「分区 id.条目 id」，如 general.theme；没写的键取条目的缺省值。
@@ -406,6 +413,7 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#syncSettings(parts, changed)
     setAttributes(parts.frame, { 'data-mode': mode, 'data-width': this.previewWidth ?? 'full', 'data-readonly': this.readonly === true, 'aria-label': t.label })
     parts.frame.panels = this.#framePanels(mode)
+    this.#syncStatus(t)
     if (changed.has('mode'))
       this.#syncMode()
     if (this.#rendered !== this.#editor.document || changed.has('extensions') || changed.has('translations') || changed.size === 0)
@@ -634,10 +642,15 @@ export class XhFormDesigner extends XhReactiveElement {
     ])
     menu.addEventListener('select', this.#onMenuSelect)
     menu.addEventListener('open-change', this.#onMenuOpenChange)
+    // 状态栏：左段写选中的对象，右段写预览宽度，点了回到全宽
+    const selectionStatus = createStatusItem(doc, { value: '' })
+    selectionStatus.element.slot = 'status-start'
+    const widthStatus = createStatusItem(doc, { value: '', action: () => void (this.previewWidth = 'full') })
+    widthStatus.element.slot = 'status-end'
     // 问题列表带计数的严重程度开关放进它所在卡片的面板头
     const issueSummary = problems.summary
     issueSummary.slot = 'issues-actions'
-    const frame = createAuthoredElement(doc, 'xh-designer-frame', { 'data-part': 'frame', 'role': 'application' }, [toolbar, palette, canvas, inspectorTabs, issues, issueSummary, menu])
+    const frame = createAuthoredElement(doc, 'xh-designer-frame', { 'data-part': 'frame', 'role': 'application' }, [toolbar, palette, canvas, inspectorTabs, issues, issueSummary, selectionStatus.element, widthStatus.element, menu])
     // 三个零件只画内容，标题、副标题与帮助由外框画在卡片的面板头上
     catalog.headless = true
     inspector.headless = true
@@ -657,7 +670,7 @@ export class XhFormDesigner extends XhReactiveElement {
     settings.addEventListener('settings-change', this.#onSettingsChange)
     this.replaceChildren(frame, settings)
     const panels = createPanelHost<FormDesignerContext>(frame)
-    this.#parts = { frame, panels, toolbar, commandBar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings }
+    this.#parts = { frame, panels, toolbar, commandBar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings, selectionStatus, widthStatus }
     this.#prepareMenu(this.#parts)
     panels.assign(this.#model.extensions, this.#context())
     return this.#parts
@@ -698,8 +711,7 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#resolvedSettings = resolveSettings(this.#settingsSectionList, this.settings)
     const dialog = parts.settings
     const general = { brands: this.brands, customBrand: this.registerBrand !== undefined }
-    // 设计器的外框还没放状态栏，基础分区里状态栏这一项不显示
-    const policy: DesignerSettingsPolicy = { [DESIGNER_SETTING_KEYS.statusBar]: 'hidden', ...this.settingsPolicy }
+    const policy: DesignerSettingsPolicy = { ...this.settingsPolicy }
     const dialogKey = JSON.stringify([general.brands, general.customBrand, policy])
     if (dialogKey !== this.#settingsDialogKey) {
       this.#settingsDialogKey = dialogKey
@@ -721,12 +733,54 @@ export class XhFormDesigner extends XhReactiveElement {
     emitEvent(this, 'settings-change', detail)
   }
 
-  /** 交给外框的 panels：设计态原样转交，预览态只留工具栏。 */
-  #framePanels(mode: FormDesignerMode): string | undefined {
-    if (mode === 'design')
-      return this.panels
+  /** panels 里列出了这个面板，或没有写 panels。 */
+  #shows(panel: FormDesignerPanel): boolean {
     const shown = parseDesignerPanels(this.panels)
-    return shown === undefined || shown.has('toolbar') ? 'toolbar' : ''
+    return shown === undefined || shown.has(panel)
+  }
+
+  /** 设置里的状态栏开关，缺省开。 */
+  #statusBarOn(): boolean {
+    return this.#resolvedSettings[DESIGNER_SETTING_KEYS.statusBar] !== false
+  }
+
+  /** 交给外框的 panels：设计态原样转交，预览态只留工具栏与状态栏；设置里关了状态栏时去掉 status。 */
+  #framePanels(mode: FormDesignerMode): string | undefined {
+    if (mode === 'design' && this.#statusBarOn())
+      return this.panels
+    const names = mode === 'design'
+      ? (parseDesignerPanels(this.panels) ?? [...DESIGNER_FRAME_REGIONS, ...this.#model.extensions.flatMap(extension => (extension.panels ?? []).map(panel => panel.region))].map(region => region.name))
+      : (['toolbar', 'status'] as const).filter(panel => this.#shows(panel))
+    return [...names].filter(name => name !== 'status' || this.#statusBarOn()).join(' ')
+  }
+
+  /** 状态栏：左段写选中的对象（字段写种类与字段名，区域写所在容器，多选写个数，没选中写字段数），右段写预览宽度。 */
+  #syncStatus(t: FormDesignerTranslations): void {
+    const parts = this.#ensureParts()
+    const document = this.#editor.document
+    const { nodes, regions = [] } = this.#editor.selection
+    const count = nodes.length + regions.length
+    if (count > 1) {
+      parts.selectionStatus.update({ value: t.statusSelected(count) })
+    }
+    else if (regions.length === 1) {
+      const found = findRegion(document, regions[0]!)
+      parts.selectionStatus.update({ label: t.group('region'), value: found === undefined ? '' : t.kind(found.container.kind) })
+    }
+    else if (nodes.length === 1) {
+      const node = findNode(document, nodes[0]!)?.node
+      parts.selectionStatus.update(node === undefined ? { value: '' } : { label: t.kind(node.kind), value: node.type === 'static' ? '' : node.key ?? '' })
+    }
+    else {
+      let fields = 0
+      walkNodes(document, (node) => {
+        if (node.type === 'field')
+          fields += 1
+      })
+      parts.selectionStatus.update({ value: t.statusFields(fields) })
+    }
+    const width = this.previewWidth ?? 'full'
+    parts.widthStatus.update({ label: t.previewWidth, value: width === 'tablet' ? t.widthTablet : width === 'phone' ? t.widthPhone : t.widthFull })
   }
 
   /**
@@ -753,10 +807,14 @@ export class XhFormDesigner extends XhReactiveElement {
     frame.regions = regions
   }
 
-  /** 外框收起了一块面板：换成外框剩下的区，派发设计器自己的 panels-change，外框的事件不冒出设计器。 */
+  /** 外框收起了一块面板：换成外框剩下的区（设置关掉的状态栏照原样留着），派发设计器自己的 panels-change，外框的事件不冒出设计器。 */
   readonly #onPanelsChange = (event: Event): void => {
     event.stopPropagation()
-    const panels = (event as DesignerFrameEventMap['panels-change']).detail.panels
+    const shown = (event as DesignerFrameEventMap['panels-change']).detail.panels.split(' ').filter(Boolean)
+    // 状态栏被设置关掉时外框不知道它，照 panels 原样留着
+    if (!this.#statusBarOn() && this.#shows('status'))
+      shown.push('status')
+    const panels = shown.join(' ')
     this.panels = panels
     emitEvent(this, 'panels-change', { panels })
   }

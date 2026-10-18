@@ -20,7 +20,7 @@
 | `readonly` | `readonly` | `boolean \| undefined` | 可选择、浏览与预览，不能修改。attribute 按三态读：没写或写 "false" 为可修改，其余写法为只读。 |
 | `mode` | `mode` | `FormDesignerMode \| undefined` | 设计态或预览态，缺省 design。 |
 | `previewWidth` | `preview-width` | `FormPreviewWidth \| undefined` | 预览宽度，缺省 full。 |
-| `panels` | `panels` | `string \| undefined` | 空格分隔的 toolbar palette properties issues，缺省全部；画布常驻。点了面板头的关闭钮时设计器改写它并派发 panels-change。 |
+| `panels` | `panels` | `string \| undefined` | 空格分隔的 toolbar palette properties issues status，缺省全部；画布常驻。预览态只留工具栏与状态栏；状态栏还受设置里的general.statusBar 控制。点了面板头的关闭钮时设计器改写它并派发 panels-change。 |
 | `settings` | — | `DesignerSettings \| undefined` | 设置的值：扁平的键值，键是「分区 id.条目 id」，如 general.theme；没写的键取条目的缺省值。赋值即生效；用户在设置对话框里改了以后设计器换成新的一份并派发 settings-change。 |
 | `settingsPolicy` | — | `DesignerSettingsPolicy \| undefined` | 宿主对设置条目的管控：键是条目键或分区 id，hidden 不显示，locked 只读、说明换成「由所在系统管理」。 |
 | `settingsStorageKey` | `settings-storage-key` | `string \| undefined` | 设置存在根所在窗口 localStorage 的哪个键下：给了，连上文档时若没赋 settings 就从这里读，用户改了设置就写回去，标了 secret 的条目不存；读写失败派发 settings-storage-error。不给就不读写。同名 attribute settings-storage-key。 |
@@ -90,7 +90,7 @@
 
 ### FormDesignerPanel {#formdesignerpanel}
 
-可收起的面板；画布常驻，不在其中。取值：`toolbar`、`palette`、`properties`、`issues`。
+可收起的面板；画布常驻，不在其中。取值：`toolbar`、`palette`、`properties`、`issues`、`status`。
 
 ### FormSchemaChangeKind {#formschemachangekind}
 
@@ -217,6 +217,8 @@ type FormDesignerCommand = DesignerCommand<FormDesignerContext>
 
 | 方法 | 说明 |
 | --- | --- |
+| `statusFields(count: number): string` | 状态栏：什么都没选中时写表单里的字段数。 |
+| `statusSelected(count: number): string` | 状态栏：选中多项时写已选的个数。 |
 | `nodeTag(kind: string, key: string \| undefined): string` | 画布上选中节点的标签，如「单行文本 · name」。 |
 | `category(category: string): string` | 物料分类名，按种类的 category。 |
 | `kind(kind: string): string` | 种类名，按 kind。 |

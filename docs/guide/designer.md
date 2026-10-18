@@ -29,10 +29,11 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 | 画布 | 按模板排出的表单，所见即所得；选中的节点带一条小工具栏：选中上一级、上移、下移、创建副本、删除 |
 | 属性 | 面板头下面一排三个页签：属性、校验规则、联动规则。没有选中时编辑表单设置，选中区域时编辑区域属性；面板头的副标题写当前编辑的对象 |
 | 问题 | 模板自检出的问题，点一条就选中并滚到出问题的节点 |
+| 状态栏 | 左边写选中的字段种类与字段名，选中区域写它所在的容器，多选写个数，什么都没选写字段数；右边是预览宽度，点一下回到全宽 |
 
 物料、属性与问题列表是三张卡片，面板头写标题，右上角的帮助钮说明这块面板做什么，关闭钮收起它。
 
-`panels` 特性按空格列出要显示的面板（`toolbar`、`palette`、`properties`、`issues`），缺省全部显示；画布总在。点了面板头的关闭钮，设计器把 `panels` 换成收起之后剩下的面板，并派发 `panels-change`，宿主可以存起来下次赋回。收起的面板从工具栏的「面板」菜单勾回来，同样派发 `panels-change`。
+`panels` 特性按空格列出要显示的面板（`toolbar`、`palette`、`properties`、`issues`、`status`），缺省全部显示；画布总在。状态栏还受设置里的「状态栏」开关控制，关掉时不显示，`panels` 照样留着 `status`。点了面板头的关闭钮，设计器把 `panels` 换成收起之后剩下的面板，并派发 `panels-change`，宿主可以存起来下次赋回。收起的面板从工具栏的「面板」菜单勾回来，同样派发 `panels-change`。
 
 工具栏的「设置」打开设置对话框，见[设置](#设置)；「帮助」在新窗口打开本站的这一页，地址是包入口导出的 `FORM_DESIGNER_HELP_URL`。
 
@@ -82,7 +83,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 ## 预览
 
-工具栏的「预览」或 `mode = 'preview'` 切到预览态：画布换成真实的渲染器，可以填写、校验、看联动。`previewValues` 是预览用的示例数据，`loadOptions` 是预览时的选项加载函数，与渲染器的同名属性一样。
+工具栏的「预览」或 `mode = 'preview'` 切到预览态：画布换成真实的渲染器，可以填写、校验、看联动，外框只留工具栏与状态栏。`previewValues` 是预览用的示例数据，`loadOptions` 是预览时的选项加载函数，与渲染器的同名属性一样。
 
 预览宽度有全宽、平板与手机三档（`previewWidth`），设计态的画布也按这个宽度排。
 
@@ -90,7 +91,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 设置是用户偏好，每人每机一份，不随模板保存。`openSettings(section?)` 打开设置对话框，左边一个分区一页：
 
-- 「基础」（`general`）：主题（跟随页面、跟随系统、亮色、暗色）、主题色与工具栏显示方式。
+- 「基础」（`general`）：主题（跟随页面、跟随系统、亮色、暗色）、主题色、工具栏显示方式与状态栏。
 - 扩展登记的分区，排在后面。分区 id 与 `general` 或别的扩展重名时，给 `extensions` 赋值就抛 `DesignerExtensionError`。
 
 表单没有自己的设置分区：预览宽度是正在看的视图，不是偏好，仍是 `previewWidth` 与工具栏上的三档。

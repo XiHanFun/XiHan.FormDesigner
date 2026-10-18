@@ -228,7 +228,7 @@ describe('<xh-form-designer>：编辑', () => {
 })
 
 describe('<xh-form-designer>：面板与模式', () => {
-  it('panels 经外框收起面板，画布常驻；预览态只留工具栏', async () => {
+  it('panels 经外框收起面板，画布常驻；预览态只留工具栏与状态栏', async () => {
     const designer = await mount((element) => {
       element.panels = 'toolbar properties'
     })
@@ -290,6 +290,32 @@ describe('<xh-form-designer>：面板卡片', () => {
     expect(frame.querySelector('[data-region="properties"] [data-part="panel-subtitle"]')!.textContent).toBe(T.nodeTag('text', 'name'))
     expect(frame.querySelector('[data-region="properties"] [data-part="panel-body"] > [data-part="inspector-tabs"]')).not.toBeNull()
     expect(['catalog', 'inspector', 'problems'].map(part => designer.querySelector<HTMLElement & { headless?: boolean }>(`[data-part="${part}"]`)!.headless)).toEqual([true, true, true])
+  })
+
+  it('状态栏：左段写选中的字段种类与字段名，区域写所在容器，多选写个数，没选中写字段数；右段写预览宽度，点了回到全宽', async () => {
+    const { document, name, card, inner } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+      element.previewWidth = 'tablet'
+    })
+    const frame = designer.querySelector('xh-designer-frame')!
+    const zone = (named: string): string[] => Array.from(frame.querySelectorAll(`[data-region="status"] [data-zone="${named}"] [data-part="status-item"]`), item => Array.from(item.querySelectorAll('[data-part="status-label"]:not([hidden]), [data-part="status-value"]'), part => part.textContent).join('|'))
+    expect([zone('start'), zone('end')]).toEqual([['2 fields'], ['Preview width|Tablet']])
+    designer.select({ nodes: [name.id] })
+    await settle(designer)
+    expect(zone('start')).toEqual([`${T.kind('text')}|name`])
+    designer.select({ nodes: [], regions: [card.regions[0]!.id] })
+    await settle(designer)
+    expect(zone('start')).toEqual([`${T.group('region')}|${T.kind('card')}`])
+    designer.select({ nodes: [name.id, inner.id] })
+    await settle(designer)
+    expect(zone('start')).toEqual(['2 selected'])
+    frame.querySelector<HTMLButtonElement>('[data-region="status"] [data-zone="end"] button')!.click()
+    await settle(designer)
+    expect([designer.previewWidth, zone('end')]).toEqual(['full', ['Preview width|Full']])
+    designer.mode = 'preview'
+    await settle(designer)
+    expect(frame.panels).toBe('toolbar status')
   })
 
   it('工具栏末组是 designer-shell 内置的面板、设置与帮助：设置打开设置对话框，帮助在新窗口打开文档站的设计器一页', async () => {
