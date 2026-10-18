@@ -114,6 +114,16 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     emptyValue: '',
   }),
   field({
+    kind: 'mention',
+    category: 'input',
+    element: 'xh-mention',
+    placeholder: true,
+    data: [OPTIONS, OPTION_SOURCE, OPTION_DEPENDENCIES, { path: ['triggerPrefix'], control: { kind: 'text' }, default: '@' }],
+    validations: TEXT_RULES,
+    valueKind: 'string',
+    emptyValue: '',
+  }),
+  field({
     kind: 'password',
     category: 'input',
     element: 'xh-password-input',
