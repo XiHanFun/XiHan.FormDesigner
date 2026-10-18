@@ -347,6 +347,43 @@ describe('子表单与子表的行', () => {
     expect(controller.getIssues()).toEqual([])
   })
 
+  /** 子表 people：每行一个必填的 name。 */
+  function peopleForm(rows: { name: string }[]): ReturnType<typeof createFormController> {
+    const { registry, ids } = setup()
+    const name = field(registry, ids, 'text', 'name', { validation: [{ id: 'v-name', kind: 'required' }] })
+    const people = container(registry, ids, 'subtable', [name], { key: 'people' })
+    return createFormController({ document: documentOf([people]), values: { people: rows } })
+  }
+
+  it('校验过整个列表后删一行再加一行：新行在校验过它或整表校验之前不报错', () => {
+    const controller = peopleForm([{ name: '' }, { name: '' }])
+    const paths = (): unknown[] => controller.getIssues().map(issue => issue.path)
+    controller.validateField(['people'])
+    expect(paths()).toEqual([['people', 0, 'name'], ['people', 1, 'name']])
+    controller.removeRow(['people'], 0)
+    expect(paths()).toEqual([['people', 0, 'name']])
+    controller.addRow(['people'])
+    expect(paths()).toEqual([['people', 0, 'name']])
+    controller.validateField(['people', 1, 'name'])
+    expect(paths()).toEqual([['people', 0, 'name'], ['people', 1, 'name']])
+    controller.addRow(['people'])
+    expect(paths()).toEqual([['people', 0, 'name'], ['people', 1, 'name']])
+    controller.validate()
+    expect(paths()).toEqual([['people', 0, 'name'], ['people', 1, 'name'], ['people', 2, 'name']])
+  })
+
+  it('删掉中间一行：后面各行的报错跟着各自的行走，没校验过的行不因换了行号而报错', () => {
+    const controller = peopleForm([{ name: '' }, { name: '' }, { name: '' }, { name: '' }])
+    const paths = (): unknown[] => controller.getIssues().map(issue => issue.path)
+    controller.validateField(['people', 0, 'name'])
+    controller.validateField(['people', 2, 'name'])
+    expect(paths()).toEqual([['people', 0, 'name'], ['people', 2, 'name']])
+    controller.removeRow(['people'], 1)
+    expect(paths()).toEqual([['people', 0, 'name'], ['people', 1, 'name']])
+    controller.addRow(['people'], { index: 1 })
+    expect(paths()).toEqual([['people', 0, 'name'], ['people', 2, 'name']])
+  })
+
   it('跨多行前移、后移时其余行的强制设定依次让位', () => {
     const { document, expressionEngine: engine } = orderForm()
     const rows = [{ price: 1, qty: 1 }, { price: 2, qty: 1 }, { price: 3, qty: 1 }]

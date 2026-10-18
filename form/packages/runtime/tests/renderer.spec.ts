@@ -466,6 +466,26 @@ describe('<xh-form-renderer>：列表容器', () => {
     expect(paragraphs.map(paragraph => paragraph.hidden)).toEqual([false, true])
   })
 
+  it('焦点离开整个列表后再新增一行：已有的行显示错误，新行在离开它或提交之前不显示', async () => {
+    const { registry, ids } = setup()
+    const name = field(registry, ids, 'text', 'name', { validation: [{ id: 'v-name', kind: 'required', message: '请填写名称' }] })
+    const list = container(registry, ids, 'subform', [name], { key: 'rows', basic: { title: '明细' } })
+    const renderer = await mount((element) => {
+      element.values = { rows: [{ name: '' }] }
+      element.schema = documentOf([list])
+    })
+    const errorOf = (index: number): unknown => (group(renderer, ['rows', index, 'name']).querySelector('xh-field') as HTMLElement & { errorText?: string }).errorText
+    const listGroup = group(renderer, ['rows'])
+    listGroup.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }))
+    expect(errorOf(0)).toBe('请填写名称')
+    const array = listGroup.querySelector('xh-field-array') as FieldArray
+    array.querySelector<HTMLButtonElement>('[data-xh-part="add-trigger"]')!.click()
+    await array.updateComplete
+    expect([errorOf(0), errorOf(1)]).toEqual(['请填写名称', ''])
+    renderer.validate()
+    expect(errorOf(1)).toBe('请填写名称')
+  })
+
   it('列表自己的校验问题落在列表的字段上，也进错误摘要', async () => {
     const { renderer } = await mountLines({ lines: [] })
     renderer.validate()
