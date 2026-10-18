@@ -55,7 +55,7 @@ document.body.append(renderer)
 
   <<< @/examples/templates/purchase.ts#cascade
 
-- **搜索**：可输入下拉在用户输入时带上 `query`，宿主按它返回匹配的选项；没有选项来源时按文字包含在静态选项里筛。
+- **搜索**：可输入下拉在用户输入时带上 `query`，宿主按它返回匹配的选项；没有选项来源时按文字包含在静态选项里筛。可提及文本的候选也是这样取：用户敲提及符号（缺省 `@`）后面的字就是 `query`，选中的候选文字插回正文，字段值是整段正文。
 
   <<< @/examples/templates/purchase.ts#search
 

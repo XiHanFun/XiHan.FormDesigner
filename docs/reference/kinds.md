@@ -56,6 +56,26 @@
 | `appearance.minRows` | 最少行数 | 整数，≥ 1，≤ 50 | `3` |
 | `appearance.maxRows` | 最多行数 | 整数，≥ 1，≤ 50 | — |
 
+### 可提及文本 `mention` {#mention}
+
+字段 · 渲染为 `<xh-mention>` · 值：字符串，空值 `""` · 适用的校验：必填、长度、正则、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.placeholder` | 占位符 | 文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.options` | 候选 | [选项](./schema#options)数组 | `[]` |
+| `data.optionSource` | 候选来源 | 文本 | — |
+| `data.optionDependencies` | 候选依赖 | 字符串数组 | — |
+| `data.triggerPrefix` | 提及符号 | 文本 | `"@"` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+
 ### 密码 `password` {#password}
 
 字段 · 渲染为 `<xh-password-input>` · 值：字符串，空值 `""` · 适用的校验：必填、长度、正则、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。

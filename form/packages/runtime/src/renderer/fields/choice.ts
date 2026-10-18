@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 选择类字段：下拉、组合框、树选择、级联、单选组、多选组、按钮组、列表、可选标签、穿梭框、勾选框、开关。
+// 选择类字段与带候选的输入：下拉、组合框、可提及文本、树选择、级联、单选组、多选组、按钮组、列表、可选标签、穿梭框、勾选框、开关。
 // 都只建宿主元素，部件由元素按标准结构生成；有选项的写成元素的 collection。
 // 选项来自上下文的 options：静态选项或加载结果。
 
@@ -122,6 +122,51 @@ export const comboboxField: FieldRenderer = (context) => {
       show(items)
     }
     assign(element, 'value', toList(next.value))
+  }
+  update(context)
+  return { element, update }
+}
+
+/**
+ * 可提及文本：`xh-mention`，多行输入，敲提及符号（缺省 `@`）后按后面的查询串列出候选，选中的候选文字插回正文；值是整段正文。
+ * 有候选来源时查询串交给 searchOptions 由宿主筛，静态候选按文字包含筛；取数在途时候选浮层报在途。
+ */
+export const mentionField: FieldRenderer = (context) => {
+  const element = host(context.document, 'xh-mention')
+  assign(element, 'multiline', true)
+  const prefix = stringOf(context.node.data.triggerPrefix)
+  if (prefix !== undefined && prefix !== '')
+    assign(element, 'triggerPrefix', prefix)
+  const ref: ContextRef = { current: context }
+  let query = ''
+  let last: readonly OptionItem[] | undefined
+  const show = (items: readonly OptionItem[]): void => {
+    const keyword = query.trim().toLocaleLowerCase()
+    const matched = ref.current.searchOptions !== undefined || keyword === ''
+      ? items
+      : items.filter(item => item.label.toLocaleLowerCase().includes(keyword))
+    assign(element, 'collection', collectionOf(matched))
+  }
+  on<{ value: string }>(element, 'value-change', detail => ref.current.setValue(detail.value))
+  on<{ query: string | null }>(element, 'query-change', (detail) => {
+    if (detail.query === null)
+      return
+    query = detail.query
+    if (ref.current.searchOptions !== undefined)
+      ref.current.searchOptions(query)
+    else
+      show(itemsOf(ref.current))
+  })
+  const update = (next: FieldRendererContext): void => {
+    ref.current = next
+    paintCommon(element, next, { placeholder: true })
+    assign(element, 'loading', next.options?.status === 'loading' ? true : undefined)
+    const items = itemsOf(next)
+    if (items !== last) {
+      last = items
+      show(items)
+    }
+    assign(element, 'value', typeof next.value === 'string' ? next.value : '')
   }
   update(context)
   return { element, update }

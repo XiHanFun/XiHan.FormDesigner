@@ -115,6 +115,7 @@ export function expenseForm(): FormDocument {
     linkage: [linkage('require', 'amount > 5000')],
     validation: [rule({ kind: 'length', max: 200 })],
   })
+  const remark = field('mention', 'remark', '备注', { basic: { placeholder: '输入 @ 提及同事', hint: '提及的同事会收到审批进度' }, data: { optionSource: 'colleagues' } })
   const attachments = field('file', 'attachments', '发票附件', { basic: { hint: '支持 PDF 与图片，最多 5 个' }, data: { accept: '.pdf,image/*', maxFiles: 5, uploadTarget: 'invoices' } })
   const urgent = field('switch', 'urgent', '加急处理')
   const urgentNote = field('text', 'urgentNote', '加急原因', { linkage: [linkage('hide', 'urgent != true'), linkage('require', 'urgent == true')] })
@@ -125,7 +126,7 @@ export function expenseForm(): FormDocument {
   const basics = container('grid', cells, {
     regionProps: cells.map(() => ({ span: 6 })),
   })
-  const basicCard = container('card', [[basics, travel, reason, attachments]], { basic: { title: '基本信息' } })
+  const basicCard = container('card', [[basics, travel, reason, remark, attachments]], { basic: { title: '基本信息' } })
 
   const details = container('subform', [[
     container('grid', [[field('text', 'item', '名目', { validation: [rule({ kind: 'required' })] })], [field('number', 'cost', '金额', { data: { precision: 2 }, appearance: { suffix: '元' } })]], { regionProps: [{ span: 6 }, { span: 6 }] }),
@@ -229,7 +230,7 @@ const CITIES: Readonly<Record<string, readonly OptionItem[]>> = {
 let bankAttempts = 0
 let regionAttempts = 0
 
-/** 模拟的异步选项加载：部门与同事延迟返回，开票单位按搜索串筛，银行首次失败、重试后返回，费用科目按父节点逐级返回，开票地先给省份、展开时按省份给城市（广东首次失败），城市按省份返回。 */
+/** 模拟的异步选项加载：部门延迟返回，同事按搜索串筛，开票单位按搜索串筛，银行首次失败、重试后返回，费用科目按父节点逐级返回，开票地先给省份、展开时按省份给城市（广东首次失败），城市按省份返回。 */
 export const loadOptions: OptionLoader = request => new Promise((resolve, reject) => {
   setTimeout(() => {
     if (request.source === 'departments')
@@ -247,7 +248,7 @@ export const loadOptions: OptionLoader = request => new Promise((resolve, reject
     else if (request.source === 'regions')
       resolve(CITIES[request.parent ?? ''] ?? [])
     else if (request.source === 'colleagues')
-      resolve(COLLEAGUES)
+      resolve(COLLEAGUES.filter(colleague => colleague.label.includes(request.query?.trim() ?? '')))
     else if (request.source === 'vendors')
       resolve(VENDORS.filter(vendor => vendor.label.includes(request.query?.trim() ?? '')))
     else

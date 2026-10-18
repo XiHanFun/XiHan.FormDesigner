@@ -29,6 +29,7 @@ import {
   XhInputGroupElement,
   XhListboxElement,
   XhMatrixCodeElement,
+  XhMentionElement,
   XhNumberFieldElement,
   XhPasswordInputElement,
   XhPinInputElement,
@@ -62,6 +63,7 @@ export function defineRendererElements(): void {
   defineXhElement('xh-number-field', XhNumberFieldElement)
   defineXhElement('xh-pin-input', XhPinInputElement)
   defineXhElement('xh-tags-input', XhTagsInputElement)
+  defineXhElement('xh-mention', XhMentionElement)
   defineXhElement('xh-select', XhSelectElement)
   defineXhElement('xh-combobox', XhComboboxElement)
   defineXhElement('xh-tree-select', XhTreeSelectElement)

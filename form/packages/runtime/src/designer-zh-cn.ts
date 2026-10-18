@@ -21,6 +21,7 @@ const CATEGORIES: Readonly<Record<string, string>> = {
 const KINDS: Readonly<Record<string, string>> = {
   'text': '单行文本',
   'textarea': '多行文本',
+  'mention': '可提及文本',
   'password': '密码',
   'number': '数字',
   'pin': '验证码',
@@ -102,6 +103,10 @@ const PROPERTIES: Readonly<Record<string, string>> = {
   'suffix': '后缀',
   'minRows': '最少行数',
   'maxRows': '最多行数',
+  'triggerPrefix': '提及符号',
+  'mention:data.options': '候选',
+  'mention:data.optionSource': '候选来源',
+  'mention:data.optionDependencies': '候选依赖',
   'step': '步长',
   'precision': '小数位数',
   'length': '位数',

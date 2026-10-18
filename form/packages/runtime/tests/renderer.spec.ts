@@ -826,6 +826,7 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['file', 'xh-file-upload', 'dropzone'],
     ['listbox', 'xh-listbox', 'item'],
     ['tag-group', 'xh-tag-group', 'list'],
+    ['mention', 'xh-mention', 'input'],
     ['cascader', 'xh-cascader', 'trigger'],
   ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
     const { registry, ids } = setup()
@@ -1173,6 +1174,64 @@ describe('<xh-form-renderer>：列表字段', () => {
     const list = shell.querySelector('[data-scope="listbox"][data-part="content"]')!
     expect(list.getAttribute('aria-labelledby')!.split(' ')).toContain(shell.querySelector('[data-scope="field"][data-part="label"]')!.id)
     expect(list.getAttribute('aria-describedby')!.split(' ')).toContain(shell.querySelector('[data-scope="field"][data-part="description"]')!.id)
+  })
+})
+
+describe('<xh-form-renderer>：可提及文本字段', () => {
+  type Mention = HTMLElement & { collection?: { value: string, label: string }[], value?: string, multiline?: boolean, triggerPrefix?: string, placeholder?: string, loading?: boolean, updateComplete: Promise<boolean> }
+
+  function mention(renderer: XhFormRenderer): Mention {
+    return group(renderer, ['remark']).querySelector('xh-mention') as Mention
+  }
+
+  function query(element: HTMLElement, value: string | null): void {
+    element.dispatchEvent(new CustomEvent('query-change', { detail: { query: value, prefix: value === null ? null : '@' }, bubbles: true }))
+  }
+
+  it('多行输入，值是整段正文；静态候选按查询串的文字筛，收起时不动候选；提及符号与占位符照写', async () => {
+    const { registry, ids } = setup()
+    const options = [{ value: 'u1', label: '王晓明' }, { value: 'u2', label: '李佳' }, { value: 'u3', label: '王芳' }]
+    const renderer = await mount((element) => {
+      element.values = { remark: '已核' }
+      element.schema = documentOf([field(registry, ids, 'mention', 'remark', { basic: { placeholder: '输入 # 提及' }, data: { options, triggerPrefix: '#' } })])
+    })
+    const element = mention(renderer)
+    await element.updateComplete
+    expect([element.multiline, element.triggerPrefix, element.placeholder, element.value]).toEqual([true, '#', '输入 # 提及', '已核'])
+    expect(element.querySelector('[data-scope="mention"][data-part="input"]')!.localName).toBe('textarea')
+    expect(element.collection!.map(item => item.value)).toEqual(['u1', 'u2', 'u3'])
+    query(element, '王')
+    expect(element.collection!.map(item => item.value)).toEqual(['u1', 'u3'])
+    query(element, null)
+    expect(element.collection!.map(item => item.value)).toEqual(['u1', 'u3'])
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value: '已核 #王晓明 ' }, bubbles: true }))
+    expect(renderer.getFormData().remark).toBe('已核 #王晓明 ')
+  })
+
+  it('有候选来源时查询串交给 loadOptions 的 query，候选换成返回的结果；加载中报 loading', async () => {
+    const { registry, ids } = setup()
+    const queries: (string | undefined)[] = []
+    let release!: () => void
+    const renderer = await mount((element) => {
+      element.loadOptions = (request) => {
+        queries.push(request.query)
+        if (request.query === undefined)
+          return []
+        return new Promise((resolve) => {
+          release = () => resolve([{ value: 'u1', label: `${request.query}晓明` }])
+        })
+      }
+      element.schema = documentOf([field(registry, ids, 'mention', 'remark', { data: { optionSource: 'colleagues' } })])
+    })
+    const element = mention(renderer)
+    await vi.waitFor(() => expect(element.collection).toEqual([]))
+    expect(element.triggerPrefix).toBe('@')
+    query(element, '王')
+    await vi.waitFor(() => expect(element.loading).toBe(true))
+    expect(queries).toEqual([undefined, '王'])
+    release()
+    await vi.waitFor(() => expect(element.collection).toEqual([{ value: 'u1', label: '王晓明' }]))
+    expect(element.loading).toBeUndefined()
   })
 })
 
