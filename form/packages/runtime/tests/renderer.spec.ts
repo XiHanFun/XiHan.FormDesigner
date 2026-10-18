@@ -855,6 +855,8 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['tag-group', 'xh-tag-group', 'list'],
     ['mention', 'xh-mention', 'input'],
     ['cascader', 'xh-cascader', 'trigger'],
+    ['slider', 'xh-slider', 'thumb'],
+    ['rating', 'xh-rating', 'item'],
   ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
     const { registry, ids } = setup()
     const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]
@@ -867,6 +869,27 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     expect(element.querySelector('[data-xh-part]:not([data-xh-gen])')).toBeNull()
     const scope = tag.slice('xh-'.length)
     expect(element.querySelectorAll(`[data-scope="${scope}"][data-part="${part}"]`).length).toBeGreaterThan(0)
+  })
+
+  it('滑块按值铺滑柄：单值一颗、区间两颗，拖动交回的值写进表单；评分按 count 铺星', async () => {
+    const { registry, ids } = setup()
+    const renderer = await mount((element) => {
+      element.schema = documentOf([
+        field(registry, ids, 'slider', 'one', { data: { min: 0, max: 10 } }),
+        field(registry, ids, 'slider', 'span', { data: { min: 0, max: 10, range: true } }),
+        field(registry, ids, 'rating', 'stars', { data: { count: 3 } }),
+      ])
+    })
+    type Settled = HTMLElement & { updateComplete: Promise<boolean> }
+    const part = async (key: string, tag: string, name: string): Promise<number> => {
+      const element = group(renderer, [key]).querySelector(tag) as Settled
+      await element.updateComplete
+      return element.querySelectorAll(`[data-part="${name}"]`).length
+    }
+    expect([await part('one', 'xh-slider', 'thumb'), await part('span', 'xh-slider', 'thumb'), await part('stars', 'xh-rating', 'item')]).toEqual([1, 2, 3])
+    group(renderer, ['span']).querySelector('xh-slider')!.dispatchEvent(new CustomEvent('value-change', { detail: { value: [2, 7] }, bubbles: true, composed: true }))
+    group(renderer, ['one']).querySelector('xh-slider')!.dispatchEvent(new CustomEvent('value-change', { detail: { value: [4] }, bubbles: true, composed: true }))
+    expect([renderer.getFormData().one, renderer.getFormData().span]).toEqual([4, [2, 7]])
   })
 
   it('字段外壳只建宿主：xh-field 铺出标题、提示与常挂的错误文案，控件原样放在标题之后，标题与提示接到控件可聚焦的部件', async () => {
