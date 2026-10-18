@@ -50,6 +50,8 @@ const locale: FormLocale = {
     widthPhone: '手機',
     statusFields: count => `${count} 個欄位`,
     statusSelected: count => `已選取 ${count} 個`,
+    insertToolbar: '插入欄位',
+    insertField: label => `新增「${label}」`,
     propertiesTab: '屬性',
     validationTab: '驗證規則',
     linkageTab: '連動規則',

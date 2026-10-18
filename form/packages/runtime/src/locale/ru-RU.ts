@@ -61,6 +61,8 @@ const locale: FormLocale = {
     widthPhone: 'Телефон',
     statusFields: count => `${count} ${plural(count, 'поле', 'поля', 'полей')}`,
     statusSelected: count => `Выбрано: ${count}`,
+    insertToolbar: 'Вставка полей',
+    insertField: label => `Добавить «${label}»`,
     propertiesTab: 'Свойства',
     validationTab: 'Проверка',
     linkageTab: 'Условная логика',

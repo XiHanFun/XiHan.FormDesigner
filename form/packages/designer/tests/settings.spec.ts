@@ -139,7 +139,7 @@ describe('<xh-form-designer>：设置', () => {
 
   it('工具栏显示方式取设置里的 general.toolbarDisplay，缺省只显示图标', async () => {
     const designer = await mount()
-    const shell = (): Element => designer.querySelector('xh-tooltip[data-scope="designer-commands"]')!
+    const shell = (): Element => designer.querySelector('[data-part="command-bar"] xh-tooltip[data-scope="designer-commands"]')!
     expect(shell().getAttribute('data-display')).toBe('icon')
     designer.settings = { 'general.toolbarDisplay': 'both' }
     await designer.updateComplete

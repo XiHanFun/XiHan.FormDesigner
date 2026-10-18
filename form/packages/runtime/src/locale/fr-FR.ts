@@ -54,6 +54,8 @@ const locale: FormLocale = {
     widthPhone: 'Téléphone',
     statusFields: count => (count < 2 ? `${count} champ` : `${count} champs`),
     statusSelected: count => (count < 2 ? `${count} sélectionné` : `${count} sélectionnés`),
+    insertToolbar: 'Insérer des champs',
+    insertField: label => `Ajouter ${label}`,
     propertiesTab: 'Propriétés',
     validationTab: 'Validation',
     linkageTab: 'Logique conditionnelle',

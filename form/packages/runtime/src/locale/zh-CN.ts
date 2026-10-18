@@ -50,6 +50,8 @@ const locale: FormLocale = {
     widthPhone: '手机',
     statusFields: count => `${count} 个字段`,
     statusSelected: count => `已选 ${count} 个`,
+    insertToolbar: '插入字段',
+    insertField: label => `添加「${label}」`,
     propertiesTab: '属性',
     validationTab: '校验规则',
     linkageTab: '联动规则',

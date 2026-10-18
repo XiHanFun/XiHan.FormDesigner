@@ -50,6 +50,8 @@ const locale: FormLocale = {
     widthPhone: '휴대폰',
     statusFields: count => `필드 ${count}개`,
     statusSelected: count => `${count}개 선택됨`,
+    insertToolbar: '필드 삽입',
+    insertField: label => `${label} 추가`,
     propertiesTab: '속성',
     validationTab: '유효성 검사 규칙',
     linkageTab: '연동 규칙',

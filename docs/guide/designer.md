@@ -24,6 +24,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 | 区域 | 内容 |
 | --- | --- |
+| 顶栏 | 常用字段的插入钮：单行文本、多行文本、数字、日期、下拉选择、单选组，点一下插到选中节点之后，没有选中时放到末尾 |
 | 工具栏 | 撤销、重做、删除、创建副本，设计与预览，预览宽度；末组是面板、设置与帮助 |
 | 物料 | 按分类列出可以放进表单的种类，可搜索 |
 | 画布 | 按模板排出的表单，所见即所得；选中的节点带一条小工具栏：选中上一级、上移、下移、创建副本、删除 |
@@ -124,13 +125,13 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 ## 工具栏与菜单的排列
 
-`commandLayout` 按位置写命令 id 的分组：`toolbar` 是工具栏，`menu:node`、`menu:region`、`menu:cell`、`menu:blank` 是选中节点、区域、表格单元格与空白处的右键菜单。写了某个位置就只显示列出的命令；没写的位置用内置的排列 `FORM_TOOLBAR_LAYOUT` 与 `FORM_MENU_LAYOUTS`。示例在内置的工具栏末尾加了保存：
+`commandLayout` 按位置写命令 id 的分组：`header` 是顶栏的插入钮，`toolbar` 是工具栏，`menu:node`、`menu:region`、`menu:cell`、`menu:blank` 是选中节点、区域、表格单元格与空白处的右键菜单。写了某个位置就只显示列出的命令；没写的位置用内置的排列 `FORM_TOOLBAR_LAYOUT` 与 `FORM_MENU_LAYOUTS`，顶栏没写时列出登记在 `header` 的命令。写成 `{ header: [] }` 就没有顶栏。示例在内置的工具栏末尾加了保存：
 
 ```ts
 designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
 ```
 
-内置命令的 id：`undo`、`redo`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`，以及 designer-shell 内置的 `panels`、`settings`、`help`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
+内置命令的 id：`undo`、`redo`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`，以及 designer-shell 内置的 `panels`、`settings`、`help`；顶栏的插入钮是 `insert:text`、`insert:textarea`、`insert:number`、`insert:date`、`insert:select`、`insert:radio-group`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
 
 ## 示例
 

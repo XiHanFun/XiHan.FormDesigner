@@ -8,6 +8,7 @@
 
 import type { FormDocument, KindRegistry } from '@xihan-form/core'
 import type { FormDesignerTranslations } from '@xihan-form/runtime'
+import type { IconRecord } from '@xihan-ui/core'
 import type { DesignerCommand } from '@xihan-ui/designer-kit'
 import type { DesignerCommandsTranslations, DesignerSettings, XhDesignerFrameElement } from '@xihan-ui/designer-shell'
 import type { FormSelection } from './editor'
@@ -15,7 +16,7 @@ import type { XhFormDesigner } from './form-designer'
 import type { FormDesignerInternals } from './internals'
 import { findNode, findRegion, mergeTableCells, removeTableLine } from '@xihan-form/core'
 import { designerShellCommands } from '@xihan-ui/designer-shell'
-import { ArrowDownIcon, ArrowUpIcon, CircleHelpIcon, ClipboardIcon, CopyIcon, CopyPlusIcon, CornerLeftUpIcon, EyeIcon, MonitorIcon, PanelLeftIcon, PencilIcon, RedoIcon, SaveIcon, ScissorsIcon, SettingsIcon, SmartphoneIcon, SquareDashedIcon, TableCellsMergeIcon, TableCellsSplitIcon, TableColumnInsertLeftIcon, TableColumnInsertRightIcon, TableColumnRemoveIcon, TableRowInsertAboveIcon, TableRowInsertBelowIcon, TableRowRemoveIcon, TabletIcon, TrashIcon, UndoIcon } from '@xihan-ui/icons'
+import { AlignLeftIcon, ArrowDownIcon, ArrowUpIcon, CalendarIcon, CircleDotIcon, CircleHelpIcon, ClipboardIcon, CopyIcon, CopyPlusIcon, CornerLeftUpIcon, EyeIcon, HashIcon, MonitorIcon, PanelLeftIcon, PencilIcon, RedoIcon, SaveIcon, ScissorsIcon, SettingsIcon, SmartphoneIcon, SquareChevronDownIcon, SquareDashedIcon, TableCellsMergeIcon, TableCellsSplitIcon, TableColumnInsertLeftIcon, TableColumnInsertRightIcon, TableColumnRemoveIcon, TableRowInsertAboveIcon, TableRowInsertBelowIcon, TableRowRemoveIcon, TabletIcon, TrashIcon, TypeIcon, UndoIcon } from '@xihan-ui/icons'
 import { internalsOf } from './internals'
 
 /** 命令、面板与扩展装上时拿到的上下文。 */
@@ -51,6 +52,16 @@ export const FORM_TOOLBAR_LAYOUT: readonly (readonly string[])[] = [
   ['design', 'preview'],
   ['width-full', 'width-tablet', 'width-phone'],
   ['panels', 'settings', 'help'],
+]
+
+/** 顶栏的插入钮：常用的六种字段与它们的图标，按这个顺序。 */
+const QUICK_INSERT: readonly { readonly kind: string, readonly icon: IconRecord }[] = [
+  { kind: 'text', icon: TypeIcon },
+  { kind: 'textarea', icon: AlignLeftIcon },
+  { kind: 'number', icon: HashIcon },
+  { kind: 'date', icon: CalendarIcon },
+  { kind: 'select', icon: SquareChevronDownIcon },
+  { kind: 'radio-group', icon: CircleDotIcon },
 ]
 
 /** 右键菜单各主体的缺省排列；commandLayout 没写 menu:<主体> 时用它。 */
@@ -253,6 +264,20 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
   { id: 'width-tablet', label: text('widthTablet'), icon: TabletIcon, checked: ({ designer }) => designer.previewWidth === 'tablet', run: ({ designer }) => void (designer.previewWidth = 'tablet') },
   { id: 'width-phone', label: text('widthPhone'), icon: SmartphoneIcon, checked: ({ designer }) => designer.previewWidth === 'phone', run: ({ designer }) => void (designer.previewWidth = 'phone') },
   { id: 'save', label: text('save'), icon: SaveIcon, shortcut: ['Mod', 'S'], run: context => stateOf(context).internals.save() },
+  // 顶栏的插入钮：钮上写种类名，名字与提示写「添加…」；插到选中节点之后，没有选中时放到末尾
+  ...QUICK_INSERT.map(({ kind, icon }): FormDesignerCommand => ({
+    id: `insert:${kind}`,
+    label: ({ translations }) => translations.insertField(translations.kind(kind)),
+    shortLabel: ({ translations }) => translations.kind(kind),
+    icon,
+    placement: ['header'],
+    enabled: editing(state => state.design),
+    run: ({ designer }) => {
+      const node = designer.addNode(kind)
+      if (node !== undefined)
+        designer.revealNode(node.id)
+    },
+  })),
   // designer-shell 内置的面板、设置与帮助，文案取共用的那一桶
   ...designerShellCommands<FormDesignerContext>({
     translations: context => context.commands,
