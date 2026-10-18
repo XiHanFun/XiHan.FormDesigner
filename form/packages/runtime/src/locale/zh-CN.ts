@@ -156,6 +156,7 @@ const locale: FormLocale = {
       'readOnly': '只读',
       'labelHidden': '隐藏标签',
       'size': '尺寸',
+      'columnMinWidth': '列最小宽度',
       'options': '选项',
       'optionSource': '选项来源',
       'optionDependencies': '选项依赖',

@@ -160,6 +160,7 @@ const locale: FormLocale = {
       'readOnly': 'Lecture seule',
       'labelHidden': 'Masquer le libellé',
       'size': 'Taille',
+      'columnMinWidth': 'Largeur minimale de colonne',
       'options': 'Options',
       'optionSource': 'Source des options',
       'optionDependencies': 'Dépendances des options',

@@ -478,6 +478,25 @@ describe('<xh-form-designer>：属性面板', () => {
     await inspector(designer).updateComplete
   }
 
+  it('列最小宽度只在子表里的字段上列出', async () => {
+    const ids = createIdAllocator('w')
+    const loose = createNode(registry, 'number', ids, { key: 'loose' }) as FieldNode
+    const cell = createNode(registry, 'number', ids, { key: 'cell' }) as FieldNode
+    const table = createNode(registry, 'subtable', ids, { key: 'rows' }) as ContainerNode
+    const filled: ContainerNode = { ...table, regions: [{ ...table.regions[0]!, children: [cell] }] }
+    const designer = await mount((element) => {
+      element.schema = { ...createDocument(), children: [loose, filled] }
+    })
+    const paths = async (id: string): Promise<string[]> => {
+      designer.select({ nodes: [id] })
+      await settle(designer)
+      const inspector = designer.querySelector('xh-designer-properties[data-part="inspector"]') as XhDesignerPropertiesElement
+      return inspector.targets![0]!.descriptors.map(descriptor => descriptor.path.join('.'))
+    }
+    expect(await paths(loose.id)).not.toContain('appearance.columnMinWidth')
+    expect(await paths(cell.id)).toContain('appearance.columnMinWidth')
+  })
+
   it('编辑对象随选择换：表单设置、节点、区域', async () => {
     const { document, name, card } = sample()
     const designer = await mount((element) => {

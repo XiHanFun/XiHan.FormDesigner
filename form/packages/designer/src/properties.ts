@@ -48,6 +48,12 @@ export interface PropertyView {
 
 const KEY_DESCRIPTOR: DesignerPropertyDescriptor = { path: ['key'], group: 'basic', control: { kind: 'text' }, required: true }
 
+/** 只对子表里的字段有意义的外观属性：字段作子表的一列时才列出。 */
+const SUBTABLE_COLUMN_PROPERTIES: ReadonlySet<string> = new Set(['columnMinWidth'])
+
+/** 子表的种类名。 */
+const SUBTABLE_KIND = 'subtable'
+
 function isGroup(value: unknown): value is PropertyGroup {
   return (PROPERTY_GROUPS as readonly unknown[]).includes(value)
 }
@@ -83,9 +89,12 @@ export function propertyView(document: FormDocument, registry: KindRegistry, sel
         names.set(own, { kind: node.kind, group: 'basic', name: 'key' })
         descriptors.push(own)
       }
+      const inSubtable = findNode(document, node.id)?.ancestors.at(-1)?.kind === SUBTABLE_KIND
       for (const group of PROPERTY_GROUPS) {
         const own: readonly FormPropertyDescriptor[] = definition?.properties[group] ?? []
         for (const descriptor of nestProperties([group], own)) {
+          if (group === 'appearance' && !inSubtable && SUBTABLE_COLUMN_PROPERTIES.has(String(descriptor.path[1])))
+            continue
           const nested = { ...descriptor, group }
           names.set(nested, { kind: node.kind, group, name: String(descriptor.path[1]) })
           descriptors.push(nested)

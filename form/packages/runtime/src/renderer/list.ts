@@ -11,7 +11,7 @@
 
 import type { ContainerNode, NodeState } from '@xihan-form/core'
 import type { FieldSize } from './types'
-import { assign, host, make, stringOf } from './dom'
+import { assign, host, make, numberOf, stringOf } from './dom'
 
 /** 列表容器的外壳。 */
 export interface ListShell {
@@ -57,7 +57,8 @@ function tallestSize(children: ContainerNode['regions'][number]['children'], siz
 }
 
 /**
- * 建列表容器的外壳：标题取 `basic.title`，`data.movable` 不为 `false` 时可以换序；子表的列取行内节点的标签。
+ * 建列表容器的外壳：标题取 `basic.title`，`data.movable` 不为 `false` 时可以换序；子表的列取行内节点的标签，
+ * 字段写了 `appearance.columnMinWidth` 时那一列不窄于它（px），放不下时表格区横向滚动。
  * `size` 是字段没写尺寸时的缺省档；子表各列最高一档不是 md 时，行号与把手按这一档的控件高居中。
  */
 export function createListShell(doc: Document, node: ContainerNode, size: FieldSize): ListShell {
@@ -73,7 +74,10 @@ export function createListShell(doc: Document, node: ContainerNode, size: FieldS
     const children = node.regions[0]?.children ?? []
     columns = children.map(child => child.id)
     assign(array, 'layout', 'table')
-    assign(array, 'columns', children.map(child => ({ id: child.id, label: child.type === 'field' ? stringOf(child.basic.label) ?? '' : '' })))
+    assign(array, 'columns', children.map((child) => {
+      const minWidth = child.type === 'field' ? numberOf(child.appearance.columnMinWidth) : undefined
+      return { id: child.id, label: child.type === 'field' ? stringOf(child.basic.label) ?? '' : '', ...(minWidth === undefined ? {} : { minWidth }) }
+    }))
     const cellSize = tallestSize(children, size)
     if (cellSize !== undefined && cellSize !== 'md')
       array.style.setProperty('--xh-field-array-cell-control-h', `var(--xh-control-h-${cellSize})`)
@@ -105,7 +109,7 @@ const PENDING_SLOT = 'form-row-pending'
 /** 建一行的内容节点（表格排布时每列一个），挂到 `array` 下，给出行 key 前藏着。 */
 export function createListRow(doc: Document, array: HTMLElement, columns: readonly string[] | undefined): ListRow {
   const content = columns === undefined ? make(doc, 'div', undefined, { 'data-form-region': '' }) : undefined
-  const cells = new Map((columns ?? []).map(id => [id, make(doc, 'div')]))
+  const cells = new Map((columns ?? []).map(id => [id, make(doc, 'div', undefined, { 'data-form-cell': '' })]))
   const nodes = content === undefined ? [...cells.values()] : [content]
   for (const node of nodes) {
     node.hidden = true

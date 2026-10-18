@@ -156,6 +156,7 @@ const locale: FormLocale = {
       'readOnly': '読み取り専用',
       'labelHidden': 'ラベルを非表示',
       'size': 'サイズ',
+      'columnMinWidth': '列の最小幅',
       'options': '選択肢',
       'optionSource': '選択肢の取得元',
       'optionDependencies': '選択肢の依存先',

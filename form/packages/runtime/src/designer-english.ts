@@ -134,6 +134,7 @@ export const ENGLISH_DESIGNER_LOCALE: FormDesignerLocale = {
     'readOnly': 'Read-only',
     'labelHidden': 'Hide label',
     'size': 'Size',
+    'columnMinWidth': 'Column minimum width',
     'options': 'Options',
     'optionSource': 'Option source',
     'optionDependencies': 'Option dependencies',

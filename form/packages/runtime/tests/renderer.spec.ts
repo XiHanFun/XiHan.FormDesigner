@@ -561,6 +561,17 @@ describe('<xh-form-renderer>：子表的表格排布', () => {
     expect([...table.querySelectorAll('[data-xh-part="column-header"]')].map(cell => [cell.getAttribute('value'), cell.textContent])).toEqual([[name.id, '姓名'], [qty.id, '数量']])
   })
 
+  it('字段写了 columnMinWidth 时子表那一列带上 minWidth，没写的列不带', async () => {
+    const { registry, ids } = setup()
+    const name = field(registry, ids, 'text', 'name', { basic: { label: '姓名' } })
+    const qty = field(registry, ids, 'number', 'qty', { basic: { label: '数量' }, appearance: { columnMinWidth: 120 } })
+    const renderer = await mount((element) => {
+      element.schema = documentOf([container(registry, ids, 'subtable', [name, qty], { key: 'people', basic: { title: '人员' } })])
+    })
+    const array = group(renderer, ['people']).querySelector('xh-field-array') as HTMLElement & { columns: { id: string, minWidth?: number }[] }
+    expect(array.columns.map(column => [column.id, column.minWidth])).toEqual([[name.id, undefined], [qty.id, 120]])
+  })
+
   it('只建宿主：表头、行号与把手由 xh-field-array 铺出，渲染器给每行每列一个 slot="item-cell:<行 key>:<列 id>" 的内容节点', async () => {
     const { array, name, qty } = await mountTable({ people: [{ name: '甲', qty: 1 }] })
     const keyed = array as FieldArray & { items: { key: string }[] }

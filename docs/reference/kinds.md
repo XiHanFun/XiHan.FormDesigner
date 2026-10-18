@@ -35,6 +35,7 @@
 | `data.inputType` | 输入类型 | `text` 文本、`email` 邮箱、`tel` 电话、`url` 网址 | `"text"` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 | `appearance.prefix` | 前缀 | 文本 | — |
 | `appearance.suffix` | 后缀 | 文本 | — |
 
@@ -53,6 +54,7 @@
 | `basic.readOnly` | 只读 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 | `appearance.minRows` | 最少行数 | 整数，≥ 1，≤ 50 | `3` |
 | `appearance.maxRows` | 最多行数 | 整数，≥ 1，≤ 50 | — |
 
@@ -75,6 +77,7 @@
 | `data.triggerPrefix` | 提及符号 | 文本 | `"@"` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 密码 `password` {#password}
 
@@ -91,6 +94,7 @@
 | `basic.readOnly` | 只读 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 数字 `number` {#number}
 
@@ -109,6 +113,7 @@
 | `data.precision` | 小数位数 | 整数，≥ 0，≤ 20 | — |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 | `appearance.prefix` | 前缀 | 文本 | — |
 | `appearance.suffix` | 后缀 | 文本 | — |
 
@@ -129,6 +134,7 @@
 | `data.mask` | 遮挡输入 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ## 选择 {#category-choice}
 
@@ -151,6 +157,7 @@
 | `data.multiple` | 多选 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 可输入下拉 `combobox` {#combobox}
 
@@ -171,6 +178,7 @@
 | `data.multiple` | 多选 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 级联选择 `cascader` {#cascader}
 
@@ -191,6 +199,7 @@
 | `data.multiple` | 多选 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 树选择 `tree-select` {#tree-select}
 
@@ -211,6 +220,7 @@
 | `data.multiple` | 多选 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 单选组 `radio-group` {#radio-group}
 
@@ -229,6 +239,7 @@
 | `data.optionDependencies` | 选项依赖 | 字符串数组 | — |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 | `appearance.orientation` | 排列方向 | `horizontal` 横排、`vertical` 竖排 | `"horizontal"` |
 
 ### 多选组 `checkbox-group` {#checkbox-group}
@@ -248,6 +259,7 @@
 | `data.optionDependencies` | 选项依赖 | 字符串数组 | — |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 | `appearance.orientation` | 排列方向 | `horizontal` 横排、`vertical` 竖排 | `"horizontal"` |
 
 ### 按钮组 `toggle-group` {#toggle-group}
@@ -267,6 +279,7 @@
 | `data.multiple` | 多选 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 列表 `listbox` {#listbox}
 
@@ -286,6 +299,7 @@
 | `data.multiple` | 多选 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 可选标签 `tag-group` {#tag-group}
 
@@ -305,6 +319,7 @@
 | `data.multiple` | 多选 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 穿梭框 `transfer` {#transfer}
 
@@ -323,6 +338,7 @@
 | `data.optionDependencies` | 选项依赖 | 字符串数组 | — |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 勾选框 `checkbox` {#checkbox}
 
@@ -338,6 +354,7 @@
 | `basic.readOnly` | 只读 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 开关 `switch` {#switch}
 
@@ -353,6 +370,7 @@
 | `basic.readOnly` | 只读 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ## 日期时间 {#category-datetime}
 
@@ -372,6 +390,7 @@
 | `data.withTime` | 带时间 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 日期范围 `date-range` {#date-range}
 
@@ -389,6 +408,7 @@
 | `data.withTime` | 带时间 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 时间 `time` {#time}
 
@@ -405,6 +425,7 @@
 | `data.withSeconds` | 带秒 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 时间范围 `time-range` {#time-range}
 
@@ -421,6 +442,7 @@
 | `data.withSeconds` | 带秒 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ## 高级 {#category-advanced}
 
@@ -442,6 +464,7 @@
 | `data.range` | 区间 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 评分 `rating` {#rating}
 
@@ -459,6 +482,7 @@
 | `data.allowHalf` | 允许半星 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 颜色 `color` {#color}
 
@@ -476,6 +500,7 @@
 | `data.swatches` | 色板颜色 | 字符串数组 | `[]` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 | `appearance.display` | 展示方式 | `picker` 取色器、`swatches` 色板 | `"picker"` |
 
 ### 标签 `tags` {#tags}
@@ -494,6 +519,7 @@
 | `data.max` | 最大值 | 整数，≥ 1，≤ 1000 | — |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 文件 `file` {#file}
 
@@ -511,6 +537,7 @@
 | `data.uploadTarget` | 上传位置 | 文本 | — |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ### 签名 `signature` {#signature}
 
@@ -526,6 +553,7 @@
 | `basic.readOnly` | 只读 | 布尔 | `false` |
 | `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
 | `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
 
 ## 布局 {#category-layout}
 

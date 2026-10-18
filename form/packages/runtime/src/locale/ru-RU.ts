@@ -167,6 +167,7 @@ const locale: FormLocale = {
       'readOnly': 'Только чтение',
       'labelHidden': 'Скрыть подпись',
       'size': 'Размер',
+      'columnMinWidth': 'Минимальная ширина столбца',
       'options': 'Варианты',
       'optionSource': 'Источник вариантов',
       'optionDependencies': 'Зависимости вариантов',

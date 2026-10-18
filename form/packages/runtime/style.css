@@ -22,8 +22,8 @@ xh-form-renderer [data-scope='field-array'][data-part='item-content'] > [data-fo
   flex: 1 1 auto;
 }
 
-/* 子表一格里的字段铺满这一格。 */
-xh-form-renderer [data-scope='field-array'][data-part='item-cell'] > [data-xh-part='field-group'] {
+/* 子表一格里装字段的那一层铺满这一格，格里的字段族控件随之铺满（列宽由列的 minWidth 与容器定）。 */
+xh-form-renderer [data-scope='field-array'][data-part='item-cell'] > [data-form-cell] {
   flex: 1 1 auto;
   min-inline-size: 0;
 }

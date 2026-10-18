@@ -19,6 +19,8 @@ const DISABLED: FormPropertyDescriptor = { path: ['disabled'], control: { kind: 
 const READ_ONLY: FormPropertyDescriptor = { path: ['readOnly'], control: { kind: 'boolean' }, default: false }
 const LABEL_HIDDEN: FormPropertyDescriptor = { path: ['labelHidden'], control: { kind: 'boolean' }, default: false }
 const SIZE: FormPropertyDescriptor = { path: ['size'], control: { kind: 'select', options: [{ value: 'sm' }, { value: 'md' }, { value: 'lg' }] }, default: 'md' }
+/** 放在子表里作一列时这一列的最小宽度（px）：各列下限加起来超过子表宽时，子表的表格区横向滚动。 */
+const COLUMN_MIN_WIDTH: FormPropertyDescriptor = { path: ['columnMinWidth'], control: { kind: 'number', integer: true, min: 48, max: 1024, unit: 'px' } }
 const OPTIONS: FormPropertyDescriptor = { path: ['options'], control: { kind: 'options' }, default: [] }
 const TREE_OPTIONS: FormPropertyDescriptor = { path: ['options'], control: { kind: 'tree-options' }, default: [] }
 const OPTION_SOURCE: FormPropertyDescriptor = { path: ['optionSource'], control: { kind: 'text' } }
@@ -67,7 +69,7 @@ function field(spec: FieldSpec): FieldKindDefinition {
     properties: {
       basic,
       data: spec.data ?? [],
-      appearance: [LABEL_HIDDEN, SIZE, ...(spec.appearance ?? [])],
+      appearance: [LABEL_HIDDEN, SIZE, COLUMN_MIN_WIDTH, ...(spec.appearance ?? [])],
     },
     validations: spec.validations,
     valueKind: typeof valueKind === 'function' ? valueKind : () => valueKind,
