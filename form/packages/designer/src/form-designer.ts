@@ -5,13 +5,16 @@
 
 // <xh-form-designer>：表单设计器。编辑模型在 editor.ts，画布在 canvas.ts；版式交给 <xh-designer-frame>：
 // 工具栏、物料、属性与问题列表按 panels 显示，画布常驻。预览态换成 <xh-form-renderer>，只留工具栏。
+// 设置对话框（openSettings()）里是基础分区与各扩展的分区，值经 settings 与 settings-change 交给宿主。
 
 import type { FormDocument, FormNode, FormOperation, FormSchemaIssue, RuleList } from '@xihan-form/core'
 import type { FormDesignerTranslations, FormRendererTranslations, OptionLoader, XhFormRenderer } from '@xihan-form/runtime'
 import type { IconRecord } from '@xihan-ui/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
+import type { VisualEnvironmentStorageError } from '@xihan-ui/core/visual-environment'
 import type { ExecuteOptions, ExtensionHost } from '@xihan-ui/designer-kit'
-import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerIssuesEventMap, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, PanRequestDetail } from '@xihan-ui/designer-shell'
+import type { PropertySwatchOption } from '@xihan-ui/designer-kit/properties'
+import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerIssuesEventMap, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
 import type { CanvasDrop, CanvasTarget } from './canvas'
@@ -25,7 +28,7 @@ import { createDocument, findNode, findRegion, PROPERTY_GROUPS, validateDocument
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
 import { commandForShortcut, createExtensionHost } from '@xihan-ui/designer-kit'
-import { arrangeCommands, createCommandToolbar, createPanelHost, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_FRAME_REGIONS, parseDesignerPanels, registerDropTarget, renderCommandMenu, runCommand, startDrag, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement } from '@xihan-ui/designer-shell'
+import { arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_FRAME_REGIONS, DESIGNER_SETTING_KEYS, parseDesignerPanels, registerDropTarget, renderCommandMenu, resolveSettings, runCommand, startDrag, toolbarDisplayOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { ArrowDownIcon, ArrowUpIcon, CopyPlusIcon, CornerLeftUpIcon, TrashIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
@@ -79,6 +82,13 @@ export interface FormDesignerEventMap {
   'mode-change': CustomEvent<{ mode: FormDesignerMode }>
   /** 点了面板头的关闭钮，设计器已收起这块面板：panels 是收起之后要显示的面板（空格分隔），设计器的 panels 已换成它。 */
   'panels-change': CustomEvent<{ panels: string }>
+  /**
+   * 在设置对话框里改了一条设置：设计器已换成新的 settings 并生效（主题与主题色）；value 为 undefined 表示删掉这个键、
+   * 回到缺省值。宿主存起来，下次赋回 settings。
+   */
+  'settings-change': CustomEvent<{ key: string, value: JsonValue | undefined, settings: DesignerSettings }>
+  /** 读写 settingsStorageKey 指的本机存储失败（内容不是对象、无痕窗口、配额满）；设置留在内存里。 */
+  'settings-storage-error': CustomEvent<VisualEnvironmentStorageError>
 }
 
 const CLIPBOARD_EVENTS = ['copy', 'cut', 'paste'] as const
@@ -130,6 +140,8 @@ interface DesignerParts {
   readonly menu: HTMLElement & { updateComplete?: Promise<unknown> }
   readonly menuTrigger: HTMLElement
   readonly menuContent: HTMLElement
+  /** 设置对话框：外框的兄弟节点。 */
+  readonly settings: XhDesignerSettingsElement
 }
 
 function sameIssues(a: readonly FormSchemaIssue[], b: readonly FormSchemaIssue[]): boolean {
@@ -152,6 +164,11 @@ export class XhFormDesigner extends XhReactiveElement {
     mode: { converter: { fromAttribute: (value: string | null) => (value === 'preview' ? 'preview' : 'design') } },
     previewWidth: { attribute: 'preview-width', converter: { fromAttribute: (value: string | null) => (value === 'tablet' || value === 'phone' ? value : 'full') } },
     panels: { converter: { fromAttribute: (value: string | null) => value ?? undefined } },
+    settings: { attribute: false },
+    settingsPolicy: { attribute: false },
+    settingsStorageKey: { attribute: 'settings-storage-key', converter: { fromAttribute: (value: string | null) => value ?? undefined } },
+    brands: { attribute: false },
+    registerBrand: { attribute: false },
   }
 
   /** 校验表达式与预览用，缺省为 createExpressionEngine()。 */
@@ -175,6 +192,22 @@ export class XhFormDesigner extends XhReactiveElement {
   declare previewWidth: FormPreviewWidth | undefined
   /** 空格分隔的 toolbar palette properties issues，缺省全部；画布常驻。点了面板头的关闭钮时设计器改写它并派发 panels-change。 */
   declare panels: string | undefined
+  /**
+   * 设置的值：扁平的键值，键是「分区 id.条目 id」，如 general.theme；没写的键取条目的缺省值。
+   * 赋值即生效；用户在设置对话框里改了以后设计器换成新的一份并派发 settings-change。
+   */
+  declare settings: DesignerSettings | undefined
+  /** 宿主对设置条目的管控：键是条目键或分区 id，hidden 不显示，locked 只读、说明换成「由所在系统管理」。 */
+  declare settingsPolicy: DesignerSettingsPolicy | undefined
+  /**
+   * 设置存在根所在窗口 localStorage 的哪个键下：给了，连上文档时若没赋 settings 就从这里读，用户改了设置就写回去，
+   * 标了 secret 的条目不存；读写失败派发 settings-storage-error。不给就不读写。同名 attribute settings-storage-key。
+   */
+  declare settingsStorageKey: string | undefined
+  /** 设置里主题色的预设：value 是品牌 id（写成设计器根上的 data-brand），color 是色板格子的颜色。不给且没给 registerBrand 时没有主题色这一项。 */
+  declare brands: readonly PropertySwatchOption[] | undefined
+  /** 注册自定义主题色，形状与 @xihan-ui/tokens 的 registerBrand 相同；给了才许在设置里自定义主题色。 */
+  declare registerBrand: ((id: string, color: string) => () => void) | undefined
 
   readonly #config = new XhConfigController(this)
   readonly #editor: FormEditor
@@ -205,6 +238,13 @@ export class XhFormDesigner extends XhReactiveElement {
   #suppressClick = false
   #issuesShown: readonly FormSchemaIssue[] | undefined
   /** 拖来的片段按哪一组扩展检查过、结果如何：拖动中反复悬停不重复校验。 */
+  #settingsHost: DesignerSettingsHost | undefined
+  #settingsHostOptions: readonly unknown[] = []
+  #settingsSectionsKey = ''
+  #settingsSectionList: readonly DesignerSettingsSection[] = []
+  #settingsDialogKey = ''
+  /** 此刻生效的设置：各分区没写的条目取了缺省值。 */
+  #resolvedSettings: DesignerSettings = {}
   #fragments = new WeakMap<object, { readonly extensions: readonly FormDesignerExtension[] | undefined, readonly clipboard: FormClipboard | undefined }>()
 
   constructor() {
@@ -344,6 +384,7 @@ export class XhFormDesigner extends XhReactiveElement {
       leave: () => this.#showDrop(undefined),
     })
     this.#host.assign(this.#extensions ?? NO_EXTENSIONS)
+    this.requestUpdate()
   }
 
   override disconnectedCallback(): void {
@@ -353,6 +394,8 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#releaseDropTarget?.()
     this.#releaseDropTarget = undefined
     this.#host.dispose()
+    this.#settingsHost?.dispose()
+    this.#settingsHost = undefined
   }
 
   protected override update(changed: PropertyValues): void {
@@ -360,6 +403,7 @@ export class XhFormDesigner extends XhReactiveElement {
     const parts = this.#ensureParts()
     const mode = this.mode ?? 'design'
     const t = this.#t()
+    this.#syncSettings(parts, changed)
     setAttributes(parts.frame, { 'data-mode': mode, 'data-width': this.previewWidth ?? 'full', 'data-readonly': this.readonly === true, 'aria-label': t.label })
     parts.frame.panels = this.#framePanels(mode)
     if (changed.has('mode'))
@@ -447,6 +491,11 @@ export class XhFormDesigner extends XhReactiveElement {
     return this.#editor.selection
   }
 
+  /** 打开设置对话框，给了分区 id 就显示那一页：基础是 general，扩展的分区用它们自己的 id。 */
+  openSettings(section?: string): void {
+    this.#ensureParts().settings.show(section)
+  }
+
   /** 删除选中的节点或区域；只读或什么都没删时返回 false。 */
   deleteSelection(): boolean {
     return this.readonly !== true && this.#editor.deleteSelection()
@@ -512,7 +561,7 @@ export class XhFormDesigner extends XhReactiveElement {
 
   /** 交给命令、面板与扩展 setup 的上下文。 */
   #context(t: FormDesignerTranslations = this.#t()): FormDesignerContext {
-    return { designer: this, translations: t, commands: this.#commandTexts() }
+    return { designer: this, translations: t, commands: this.#commandTexts(), settings: this.#resolvedSettings }
   }
 
   #kbdPlatform(): 'mac' | 'other' {
@@ -604,12 +653,72 @@ export class XhFormDesigner extends XhReactiveElement {
     problems.addEventListener('issue-activate', this.#onIssueActivate)
     inspector.addEventListener('property-change', this.#onPropertyChange)
     inspector.addEventListener('property-commit', this.#onPropertyCommit)
-    this.replaceChildren(frame)
+    const settings = createAuthoredElement(doc, 'xh-designer-settings', { 'data-part': 'settings' })
+    settings.addEventListener('settings-change', this.#onSettingsChange)
+    this.replaceChildren(frame, settings)
     const panels = createPanelHost<FormDesignerContext>(frame)
-    this.#parts = { frame, panels, toolbar, commandBar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent }
+    this.#parts = { frame, panels, toolbar, commandBar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings }
     this.#prepareMenu(this.#parts)
     panels.assign(this.#model.extensions, this.#context())
     return this.#parts
+  }
+
+  /**
+   * 设置：建好设置宿主（主题色预设、注册函数或存储键变了就重建），给了存储键又没赋 settings 时从存储读；settings 变了
+   * 把主题与主题色落到设计器上；算出此刻生效的设置，交给设置对话框。
+   */
+  #syncSettings(parts: DesignerParts, changed: PropertyValues): void {
+    const options = [this.brands, this.registerBrand, this.settingsStorageKey]
+    let fresh = false
+    if (!this.#settingsHost || options.some((value, index) => value !== this.#settingsHostOptions[index])) {
+      this.#settingsHost?.dispose()
+      this.#settingsHostOptions = options
+      const storageKey = this.settingsStorageKey
+      this.#settingsHost = storageKey === undefined
+        ? createDesignerSettingsHost({ root: this, brands: this.brands, registerBrand: this.registerBrand })
+        : createDesignerSettingsHost({
+            root: this,
+            brands: this.brands,
+            registerBrand: this.registerBrand,
+            storageKey,
+            onStorageError: detail => emitEvent(this, 'settings-storage-error', detail),
+          })
+      if (storageKey !== undefined && this.settings === undefined)
+        this.settings = this.#settingsHost.load()
+      fresh = true
+    }
+    if (fresh || changed.has('settings'))
+      this.#settingsHost.apply(this.settings ?? {})
+    const sections = this.#model.settings
+    const sectionsKey = JSON.stringify(sections)
+    if (sectionsKey !== this.#settingsSectionsKey) {
+      this.#settingsSectionsKey = sectionsKey
+      this.#settingsSectionList = sections
+    }
+    this.#resolvedSettings = resolveSettings(this.#settingsSectionList, this.settings)
+    const dialog = parts.settings
+    const general = { brands: this.brands, customBrand: this.registerBrand !== undefined }
+    // 设计器的外框还没放状态栏，基础分区里状态栏这一项不显示
+    const policy: DesignerSettingsPolicy = { [DESIGNER_SETTING_KEYS.statusBar]: 'hidden', ...this.settingsPolicy }
+    const dialogKey = JSON.stringify([general.brands, general.customBrand, policy])
+    if (dialogKey !== this.#settingsDialogKey) {
+      this.#settingsDialogKey = dialogKey
+      dialog.general = general
+      dialog.policy = policy
+    }
+    if (dialog.sections !== this.#settingsSectionList)
+      dialog.sections = this.#settingsSectionList
+    if (dialog.settings !== this.settings)
+      dialog.settings = this.settings
+  }
+
+  /** 设置对话框里改了一条：换成新的 settings，给了存储键就存起来，再派发 settings-change。 */
+  readonly #onSettingsChange = (event: Event): void => {
+    event.stopPropagation()
+    const detail = (event as DesignerSettingsEventMap['settings-change']).detail
+    this.settings = detail.settings
+    this.#settingsHost?.save(detail.settings, this.#settingsSectionList)
+    emitEvent(this, 'settings-change', detail)
   }
 
   /** 交给外框的 panels：设计态原样转交，预览态只留工具栏。 */
@@ -732,11 +841,13 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#parts?.canvas.focus({ preventScroll: true })
   }
 
-  /** 工具栏按 commandLayout 或缺省排列铺命令，文字、可用与选中状态每次刷新。 */
+  /** 工具栏按 commandLayout 或缺省排列铺命令，显示方式取设置里的 general.toolbarDisplay，文字、可用与选中状态每次刷新。 */
   #syncToolbar(t: FormDesignerTranslations): void {
     const { commands } = this.#model
     const context = this.#context(t)
-    this.#ensureParts().commandBar.update(arrangeCommands('toolbar', commands, FORM_TOOLBAR_LAYOUT, this.commandLayout), commands, context, context.commands.toolbar)
+    const { commandBar } = this.#ensureParts()
+    commandBar.setDisplay(toolbarDisplayOf(this.#resolvedSettings))
+    commandBar.update(arrangeCommands('toolbar', commands, FORM_TOOLBAR_LAYOUT, this.commandLayout), commands, context, context.commands.toolbar)
   }
 
   #setMode(mode: FormDesignerMode): void {
@@ -1324,6 +1435,7 @@ export function defineFormDesigner(): void {
   defineDesignerShellElement('xh-designer-properties', XhDesignerPropertiesElement)
   defineDesignerShellElement('xh-designer-palette', XhDesignerPaletteElement)
   defineDesignerShellElement('xh-designer-issues', XhDesignerIssuesElement)
+  defineDesignerShellElement('xh-designer-settings', XhDesignerSettingsElement)
   registerElement(FORM_DESIGNER_TAG, XhFormDesigner)
 }
 
