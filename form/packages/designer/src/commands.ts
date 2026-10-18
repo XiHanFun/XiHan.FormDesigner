@@ -9,12 +9,13 @@
 import type { FormDocument, KindRegistry } from '@xihan-form/core'
 import type { FormDesignerTranslations } from '@xihan-form/runtime'
 import type { DesignerCommand } from '@xihan-ui/designer-kit'
-import type { DesignerCommandsTranslations, DesignerSettings } from '@xihan-ui/designer-shell'
+import type { DesignerCommandsTranslations, DesignerSettings, XhDesignerFrameElement } from '@xihan-ui/designer-shell'
 import type { FormSelection } from './editor'
 import type { XhFormDesigner } from './form-designer'
 import type { FormDesignerInternals } from './internals'
 import { findNode, findRegion, mergeTableCells, removeTableLine } from '@xihan-form/core'
-import { ArrowDownIcon, ArrowUpIcon, ClipboardIcon, CopyIcon, CopyPlusIcon, CornerLeftUpIcon, EyeIcon, MonitorIcon, PencilIcon, RedoIcon, SaveIcon, ScissorsIcon, SmartphoneIcon, SquareDashedIcon, TableCellsMergeIcon, TableCellsSplitIcon, TableColumnInsertLeftIcon, TableColumnInsertRightIcon, TableColumnRemoveIcon, TableRowInsertAboveIcon, TableRowInsertBelowIcon, TableRowRemoveIcon, TabletIcon, TrashIcon, UndoIcon } from '@xihan-ui/icons'
+import { designerShellCommands } from '@xihan-ui/designer-shell'
+import { ArrowDownIcon, ArrowUpIcon, CircleHelpIcon, ClipboardIcon, CopyIcon, CopyPlusIcon, CornerLeftUpIcon, EyeIcon, MonitorIcon, PanelLeftIcon, PencilIcon, RedoIcon, SaveIcon, ScissorsIcon, SettingsIcon, SmartphoneIcon, SquareDashedIcon, TableCellsMergeIcon, TableCellsSplitIcon, TableColumnInsertLeftIcon, TableColumnInsertRightIcon, TableColumnRemoveIcon, TableRowInsertAboveIcon, TableRowInsertBelowIcon, TableRowRemoveIcon, TabletIcon, TrashIcon, UndoIcon } from '@xihan-ui/icons'
 import { internalsOf } from './internals'
 
 /** 命令、面板与扩展装上时拿到的上下文。 */
@@ -27,6 +28,8 @@ export interface FormDesignerContext {
   readonly commands: DesignerCommandsTranslations
   /** 此刻生效的设置：键是「分区 id.条目 id」，各分区没写的条目取了缺省值。 */
   readonly settings: DesignerSettings
+  /** 设计器的外框：面板的开关经它；外框还没建出来时为 undefined。 */
+  readonly frame: XhDesignerFrameElement | undefined
 }
 
 /** 设计器的命令。 */
@@ -34,6 +37,9 @@ export type FormDesignerCommand = DesignerCommand<FormDesignerContext>
 
 /** 右键菜单落在哪类对象上：节点、区域、表格布局的单元格，或空白处。 */
 export type FormMenuSubject = 'node' | 'region' | 'cell' | 'blank'
+
+/** 表单文档站上设计器的一页，工具栏的「帮助」在新窗口打开它。 */
+export const FORM_DESIGNER_HELP_URL = 'https://form.docs.xihanfun.com/guide/designer'
 
 /** 表格布局容器的种类，表格命令只认它。 */
 const TABLE_KIND = 'table'
@@ -44,6 +50,7 @@ export const FORM_TOOLBAR_LAYOUT: readonly (readonly string[])[] = [
   ['delete', 'duplicate'],
   ['design', 'preview'],
   ['width-full', 'width-tablet', 'width-phone'],
+  ['panels', 'settings', 'help'],
 ]
 
 /** 右键菜单各主体的缺省排列；commandLayout 没写 menu:<主体> 时用它。 */
@@ -246,4 +253,12 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
   { id: 'width-tablet', label: text('widthTablet'), icon: TabletIcon, checked: ({ designer }) => designer.previewWidth === 'tablet', run: ({ designer }) => void (designer.previewWidth = 'tablet') },
   { id: 'width-phone', label: text('widthPhone'), icon: SmartphoneIcon, checked: ({ designer }) => designer.previewWidth === 'phone', run: ({ designer }) => void (designer.previewWidth = 'phone') },
   { id: 'save', label: text('save'), icon: SaveIcon, shortcut: ['Mod', 'S'], run: context => stateOf(context).internals.save() },
+  // designer-shell 内置的面板、设置与帮助，文案取共用的那一桶
+  ...designerShellCommands<FormDesignerContext>({
+    translations: context => context.commands,
+    frame: context => context.frame,
+    openSettings: ({ designer }) => designer.openSettings(),
+    helpUrl: () => FORM_DESIGNER_HELP_URL,
+    icons: { panels: PanelLeftIcon, settings: SettingsIcon, help: CircleHelpIcon },
+  }),
 ] satisfies FormDesignerCommand[])

@@ -33,7 +33,7 @@ function context(schema: FormDocument, selection: FormSelection, state: FakeStat
   const designer = { schema, getSelection: () => selection, canUndo: false, canRedo: false, canPaste: false, ...state }
   const noop = (): void => {}
   provideInternals(designer, { registry: () => registry, setMode: noop, save: noop, selectParent: noop, moveSelected: noop, mergeCells: noop, splitCell: noop, insertTableLine: noop, removeTableLine: noop })
-  return { designer: designer as unknown as XhFormDesigner, translations: DEFAULT_FORM_DESIGNER_TRANSLATIONS, commands: DESIGNER_COMMANDS_EN_US, settings: {} }
+  return { designer: designer as unknown as XhFormDesigner, translations: DEFAULT_FORM_DESIGNER_TRANSLATIONS, commands: DESIGNER_COMMANDS_EN_US, settings: {}, frame: undefined }
 }
 
 /** 某个菜单主体的缺省排列里，各命令此刻可不可用。 */

@@ -24,7 +24,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 | 区域 | 内容 |
 | --- | --- |
-| 工具栏 | 撤销、重做、删除、创建副本，设计与预览，预览宽度 |
+| 工具栏 | 撤销、重做、删除、创建副本，设计与预览，预览宽度；末组是面板、设置与帮助 |
 | 物料 | 按分类列出可以放进表单的种类，可搜索 |
 | 画布 | 按模板排出的表单，所见即所得；选中的节点带一条小工具栏：选中上一级、上移、下移、创建副本、删除 |
 | 属性 | 面板头下面一排三个页签：属性、校验规则、联动规则。没有选中时编辑表单设置，选中区域时编辑区域属性；面板头的副标题写当前编辑的对象 |
@@ -32,7 +32,9 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 物料、属性与问题列表是三张卡片，面板头写标题，右上角的帮助钮说明这块面板做什么，关闭钮收起它。
 
-`panels` 特性按空格列出要显示的面板（`toolbar`、`palette`、`properties`、`issues`），缺省全部显示；画布总在。点了面板头的关闭钮，设计器把 `panels` 换成收起之后剩下的面板，并派发 `panels-change`，宿主可以存起来下次赋回。
+`panels` 特性按空格列出要显示的面板（`toolbar`、`palette`、`properties`、`issues`），缺省全部显示；画布总在。点了面板头的关闭钮，设计器把 `panels` 换成收起之后剩下的面板，并派发 `panels-change`，宿主可以存起来下次赋回。收起的面板从工具栏的「面板」菜单勾回来，同样派发 `panels-change`。
+
+工具栏的「设置」打开设置对话框，见[设置](#设置)；「帮助」在新窗口打开本站的这一页，地址是包入口导出的 `FORM_DESIGNER_HELP_URL`。
 
 工具栏缺省只显示图标，设置里的「工具栏显示方式」可以换成只显示文字或图标加文字（见[设置](#设置)）。按钮的名字与快捷键报给读屏，悬停或键盘聚焦到按钮时提示命令的文字与快捷键；会删掉内容的命令按危险色显示。
 
@@ -127,7 +129,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
 ```
 
-内置命令的 id：`undo`、`redo`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
+内置命令的 id：`undo`、`redo`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`，以及 designer-shell 内置的 `panels`、`settings`、`help`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
 
 ## 示例
 
