@@ -17,7 +17,7 @@
 | `previewValues` | — | `Readonly<Record<string, JsonValue>> \| undefined` | 预览的示例数据。 |
 | `loadOptions` | — | `OptionLoader \| undefined` | 预览的选项加载。 |
 | `translations` | — | `Partial<FormDesignerTranslations> \| undefined` | 元素自己的文案，压在全局配置之上。 |
-| `readonly` | `readonly` | `boolean \| undefined` | 可选择、浏览与预览，不能修改。 |
+| `readonly` | `readonly` | `boolean \| undefined` | 可选择、浏览与预览，不能修改。attribute 按三态读：没写或写 "false" 为可修改，其余写法为只读。 |
 | `mode` | `mode` | `FormDesignerMode \| undefined` | 设计态或预览态，缺省 design。 |
 | `previewWidth` | `preview-width` | `FormPreviewWidth \| undefined` | 预览宽度，缺省 full。 |
 | `panels` | `panels` | `string \| undefined` | 空格分隔的 toolbar palette properties issues，缺省全部；画布常驻。 |

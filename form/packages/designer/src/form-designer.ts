@@ -29,7 +29,7 @@ import { arrangeCommands, createCommandToolbar, createPanelHost, defineDesignerS
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { ArrowDownIcon, ArrowUpIcon, ArrowUpLeftIcon, CopyIcon, TrashIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
-import { createAuthoredElement, emitEvent, registerElement, setAttributes, setText, SVG_NS, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
+import { BOOLEAN_CONVERTER, createAuthoredElement, emitEvent, registerElement, setAttributes, setText, SVG_NS, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { defineXhElement, XhButtonElement, XhContextMenuElement, XhExpressionInputElement, XhIconElement, XhMenuElement, XhToolbarElement } from '@xihan-ui/web-components/define'
 import { DesignCanvas, spanColumns } from './canvas'
 import { checkFormClipboard, readFormClipboard, writeFormClipboard } from './clipboard'
@@ -146,7 +146,8 @@ export class XhFormDesigner extends XhReactiveElement {
     previewValues: { attribute: false },
     loadOptions: { attribute: false },
     translations: { attribute: false },
-    readonly: { type: Boolean },
+    // 三态：没写为 undefined，写 "false" 为 false，其余写法为 true
+    readonly: { converter: BOOLEAN_CONVERTER },
     mode: { converter: { fromAttribute: (value: string | null) => (value === 'preview' ? 'preview' : 'design') } },
     previewWidth: { attribute: 'preview-width', converter: { fromAttribute: (value: string | null) => (value === 'tablet' || value === 'phone' ? value : 'full') } },
     panels: { converter: { fromAttribute: (value: string | null) => value ?? undefined } },
@@ -165,7 +166,7 @@ export class XhFormDesigner extends XhReactiveElement {
   declare loadOptions: OptionLoader | undefined
   /** 元素自己的文案，压在全局配置之上。 */
   declare translations: Partial<FormDesignerTranslations> | undefined
-  /** 可选择、浏览与预览，不能修改。 */
+  /** 可选择、浏览与预览，不能修改。attribute 按三态读：没写或写 "false" 为可修改，其余写法为只读。 */
   declare readonly: boolean | undefined
   /** 设计态或预览态，缺省 design。 */
   declare mode: FormDesignerMode | undefined

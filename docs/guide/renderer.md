@@ -18,6 +18,8 @@ document.body.append(renderer)
 
 复杂数据都走属性（property）：`schema`、`values`、`variables`、`loadOptions`、`uploadFile`、`submitAction`、`translations` 与 `extensions`。可以写成 HTML 特性（attribute）的只有 `readonly`、`disabled` 与 `validate-on`。
 
+`readonly` 与 `disabled` 按三态读：没写取缺省（不生效），写 `"false"` 是关，空串、`"true"` 与别的写法都是开，移除后回到缺省。这与 HTML 原生的布尔特性不同：原生的只要写了就算开。这是一处行为变化，渲染器此前也照原生读，`readonly="false"` 会让整表只读，现在不会；经属性（property）赋值不受影响。
+
 模板没通过自检时表单不渲染，渲染器派发 `schema-error`，载荷里是错误码与全部模板问题；建好表单时派发 `ready`。换了 `schema`、`extensions`、`expressionEngine` 或 `loadOptions`，渲染器重建表单，再派发一次 `ready`。
 
 ## 取值与赋值

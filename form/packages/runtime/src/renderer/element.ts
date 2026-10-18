@@ -24,7 +24,7 @@ import { instanceKey } from '@xihan-form/core'
 import { isJsonPathPrefix, jsonEquals } from '@xihan-ui/core/json'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { createFormPathRecord, focusFormField } from '@xihan-ui/headless'
-import { emitEvent, registerElement, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
+import { BOOLEAN_CONVERTER, emitEvent, registerElement, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { createFormRuntimeModel } from '../extensions'
 import { createFormController } from '../state/controller'
 import { FormRuntimeError } from '../state/errors'
@@ -191,8 +191,9 @@ export class XhFormRenderer extends XhReactiveElement {
     variables: { attribute: false },
     loadOptions: { attribute: false },
     uploadFile: { attribute: false },
-    readonly: { type: Boolean },
-    disabled: { type: Boolean },
+    // 三态：没写为 undefined，写 "false" 为 false，其余写法为 true
+    readonly: { converter: BOOLEAN_CONVERTER },
+    disabled: { converter: BOOLEAN_CONVERTER },
     validateOn: { attribute: 'validate-on' },
     submitAction: { attribute: false },
     translations: { attribute: false },
@@ -210,9 +211,9 @@ export class XhFormRenderer extends XhReactiveElement {
   declare loadOptions: OptionLoader | undefined
   /** 文件字段的上传函数，交给 xh-file-upload 的 upload；组件自己不发请求。 */
   declare uploadFile: FileUploader | undefined
-  /** 整表只读：仍可提交。 */
+  /** 整表只读：仍可提交。attribute 按三态读：没写或写 "false" 不生效，其余写法生效。 */
   declare readonly: boolean | undefined
-  /** 整表禁用：不能提交。 */
+  /** 整表禁用：不能提交。attribute 按三态读：没写或写 "false" 不生效，其余写法生效。 */
   declare disabled: boolean | undefined
   /** 单字段首次校验的时机，缺省 `blur`；校验过的字段此后随改值重算。 */
   declare validateOn: FormValidateOn | undefined
