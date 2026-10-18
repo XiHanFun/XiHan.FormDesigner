@@ -140,6 +140,10 @@ export function expenseForm(): FormDocument {
   const share = field('slider', 'share', '计入项目预算的比例（%）', { basic: { initialValue: 100 } })
   const channels = field('checkbox-group', 'channels', '审批结果通知', { data: { options: [{ value: 'mail', label: '邮件' }, { value: 'sms', label: '短信' }, { value: 'im', label: '即时消息' }] } })
   const tags = field('toggle-group', 'tags', '标签', { data: { multiple: true, options: [{ value: 'project', label: '项目' }, { value: 'client', label: '客户' }, { value: 'internal', label: '内部' }] } })
+  const scenes = field('tag-group', 'scenes', '涉及的场景', {
+    basic: { hint: '点选标签，可多选' },
+    data: { multiple: true, options: [{ value: 'trip', label: '出差' }, { value: 'meeting', label: '会议' }, { value: 'training', label: '培训' }, { value: 'reception', label: '接待', disabled: true }] },
+  })
   const keywords = field('tags', 'keywords', '关键词', { basic: { placeholder: '输入后回车' }, data: { max: 5 } })
   const cc = field('transfer', 'cc', '抄送人', { basic: { hint: '审批结果同时抄送给右侧的同事' }, data: { optionSource: 'colleagues' } })
   const tagColor = field('color', 'tagColor', '标签颜色', {
@@ -147,7 +151,7 @@ export function expenseForm(): FormDocument {
     data: { swatches: ['#d4380d', '#d48806', '#389e0d', '#08979c', '#1d39c4', '#531dab'] },
     appearance: { display: 'swatches' },
   })
-  const extra = container('collapse', [[satisfaction, focusAreas, share], [channels, cc, tags, keywords, tagColor]], {
+  const extra = container('collapse', [[satisfaction, focusAreas, share], [channels, cc, tags, scenes, keywords, tagColor]], {
     regionProps: [{ title: '反馈', expanded: true }, { title: '通知与标签', expanded: false }],
   })
 

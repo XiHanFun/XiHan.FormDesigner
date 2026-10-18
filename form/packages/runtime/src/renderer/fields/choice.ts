@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 选择类字段：下拉、组合框、树选择、级联、单选组、多选组、按钮组、列表、穿梭框、勾选框、开关。
+// 选择类字段：下拉、组合框、树选择、级联、单选组、多选组、按钮组、列表、可选标签、穿梭框、勾选框、开关。
 // 都只建宿主元素，部件由元素按标准结构生成；有选项的写成元素的 collection。
 // 选项来自上下文的 options：静态选项或加载结果。
 
@@ -257,6 +257,24 @@ export const listboxField: FieldRenderer = (context) => {
       assign(element, 'translations', { empty })
     }
     assign(element, 'loading', next.options?.status === 'loading' ? true : undefined)
+    syncCollection(itemsOf(next))
+    assign(element, 'value', toList(next.value))
+  }
+  update(context)
+  return { element, update }
+}
+
+/** 可选标签：`xh-tag-group`，一枚标签一个选项，点选单选或多选；选项写成 collection，标签不可移除。 */
+export const tagGroupField: FieldRenderer = (context) => {
+  const element = host(context.document, 'xh-tag-group')
+  const multiple = context.node.data.multiple === true
+  assign(element, 'selectionMode', multiple ? 'multiple' : 'single')
+  const syncCollection = collectionSync(element)
+  const ref: ContextRef = { current: context }
+  on<{ value: string[] }>(element, 'value-change', detail => ref.current.setValue(fromList(detail.value, multiple)))
+  const update = (next: FieldRendererContext): void => {
+    ref.current = next
+    paintCommon(element, next)
     syncCollection(itemsOf(next))
     assign(element, 'value', toList(next.value))
   }

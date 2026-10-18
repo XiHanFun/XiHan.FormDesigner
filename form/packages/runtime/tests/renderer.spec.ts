@@ -825,11 +825,12 @@ describe('<xh-form-renderer>：有标准结构的控件只建宿主', () => {
     ['transfer', 'xh-transfer', 'item'],
     ['file', 'xh-file-upload', 'dropzone'],
     ['listbox', 'xh-listbox', 'item'],
+    ['tag-group', 'xh-tag-group', 'list'],
     ['cascader', 'xh-cascader', 'trigger'],
   ])('%s：渲染器不写部件，%s 自己铺出整套结构', async (kind, tag, part) => {
     const { registry, ids } = setup()
     const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }]
-    const node = field(registry, ids, kind, 'x', ['toggle-group', 'combobox', 'select', 'radio-group', 'checkbox-group', 'transfer', 'listbox'].includes(kind) ? { data: { options } } : {})
+    const node = field(registry, ids, kind, 'x', ['toggle-group', 'combobox', 'select', 'radio-group', 'checkbox-group', 'transfer', 'listbox', 'tag-group'].includes(kind) ? { data: { options } } : {})
     const renderer = await mount((element) => {
       element.schema = documentOf([node])
     })
@@ -1170,6 +1171,53 @@ describe('<xh-form-renderer>：列表字段', () => {
     const shell = group(renderer, ['pick']).querySelector('xh-field') as HTMLElement & { updateComplete: Promise<boolean> }
     await shell.updateComplete
     const list = shell.querySelector('[data-scope="listbox"][data-part="content"]')!
+    expect(list.getAttribute('aria-labelledby')!.split(' ')).toContain(shell.querySelector('[data-scope="field"][data-part="label"]')!.id)
+    expect(list.getAttribute('aria-describedby')!.split(' ')).toContain(shell.querySelector('[data-scope="field"][data-part="description"]')!.id)
+  })
+})
+
+describe('<xh-form-renderer>：可选标签字段', () => {
+  type TagGroup = HTMLElement & { collection?: unknown[], value?: unknown, selectionMode?: string, updateComplete: Promise<boolean> }
+  const options: JsonValue[] = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙', disabled: true }, { value: 'c', label: '丙' }]
+
+  async function mountTags(data: Record<string, JsonValue>, values: Record<string, JsonValue> = {}): Promise<{ renderer: XhFormRenderer, element: TagGroup }> {
+    const { registry, ids } = setup()
+    const renderer = await mount((element) => {
+      element.values = values
+      element.schema = documentOf([field(registry, ids, 'tag-group', 'scene', { basic: { label: '场景', hint: '可多选' }, data })])
+    })
+    const element = group(renderer, ['scene']).querySelector('xh-tag-group') as TagGroup
+    await element.updateComplete
+    return { renderer, element }
+  }
+
+  function pick(element: HTMLElement, value: string[]): void {
+    element.dispatchEvent(new CustomEvent('value-change', { detail: { value }, bubbles: true }))
+  }
+
+  it('单选：selectionMode 是 single，选项写成 collection、一枚标签一个选项；值是一个选项值，取消写回 null', async () => {
+    const { renderer, element } = await mountTags({ options }, { scene: 'c' })
+    expect([element.collection, element.value, element.selectionMode]).toEqual([options, ['c'], 'single'])
+    expect([...element.querySelectorAll('[data-scope="tag"][data-part="root"]')].map(tag => tag.textContent!.trim())).toEqual(['甲', '乙', '丙'])
+    pick(element, ['a'])
+    expect(renderer.getFormData().scene).toBe('a')
+    pick(element, [])
+    expect(renderer.getFormData().scene).toBeNull()
+  })
+
+  it('多选：selectionMode 是 multiple，值是选项值数组', async () => {
+    const { renderer, element } = await mountTags({ options, multiple: true }, { scene: ['a'] })
+    expect([element.selectionMode, element.value]).toEqual(['multiple', ['a']])
+    pick(element, ['a', 'c'])
+    expect(renderer.getFormData().scene).toEqual(['a', 'c'])
+  })
+
+  // UI 缺口 25：xh-tag-group 没有声明字段接线目标，放进 xh-field 时标签列表不带字段的标题与提示；UI 补上后这条会变红，去掉 fails
+  it.fails('放进字段时标签列表的名字是字段标题、描述是字段提示', async () => {
+    const { renderer } = await mountTags({ options })
+    const shell = group(renderer, ['scene']).querySelector('xh-field') as HTMLElement & { updateComplete: Promise<boolean> }
+    await shell.updateComplete
+    const list = shell.querySelector('[data-scope="tag-group"][data-part="list"]')!
     expect(list.getAttribute('aria-labelledby')!.split(' ')).toContain(shell.querySelector('[data-scope="field"][data-part="label"]')!.id)
     expect(list.getAttribute('aria-describedby')!.split(' ')).toContain(shell.querySelector('[data-scope="field"][data-part="description"]')!.id)
   })
