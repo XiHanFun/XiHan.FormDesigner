@@ -1,3 +1,4 @@
+import type { JsonValue } from '@xihan-ui/core/json'
 import type { ContainerNode, FieldNode, FormDocument, FormNode, LinkageRule, ValidationRule } from '../src'
 import { describe, expect, it } from 'vitest'
 import { createNode, validateDocument } from '../src'
@@ -126,6 +127,18 @@ describe('schema 自校验：属性与数据键', () => {
       issue('unknown-key', ['children', 0, 'basic', 'colour'], node(name.id)),
       issue('invalid-option', ['children', 0, 'appearance', 'size'], node(name.id)),
     ])
+  })
+
+  it('选项列表的问题落在那一项的那个键上：第 3 项的值为空、第 2 项缺文字、值重复', () => {
+    const { registry, ids } = setup()
+    const select = fieldOf(registry, ids, 'select', 'city')
+    const at = (options: JsonValue): FormDocument => documentOf([{ ...select, data: { ...select.data, options } }])
+    const path = ['children', 0, 'data', 'options']
+    expect(validateDocument(at([{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }, { value: '', label: '丙' }]))).toEqual([
+      issue('required', [...path, 2, 'value'], node(select.id)),
+    ])
+    expect(validateDocument(at([{ value: 'a', label: '甲' }, { value: 'b' }]))).toEqual([issue('required', [...path, 1, 'label'], node(select.id))])
+    expect(validateDocument(at([{ value: 'a', label: '甲' }, { value: 'a', label: '乙' }]))).toEqual([issue('duplicate-value', [...path, 1, 'value'], node(select.id))])
   })
 
   it('初始值要符合字段的值形状，形状随多选开关变化', () => {

@@ -277,10 +277,12 @@ declare function createFormModel(extensions?: readonly FormCoreExtension[]): For
 | --- | --- | --- |
 | `checkFormPropertyValue` | 函数 | 检查属性值是否符合编辑方式；符合时为 `undefined`，否则给出问题码。 |
 | `EMPTY_PROPERTY_SCHEMA` | 常量 | 空的属性描述表。 |
-| `FORM_CONTROLS` | 常量 | 表单内置扩展登记的两种编辑方式： |
+| `findFormPropertyValueIssue` | 函数 | 找出属性值第一处不符合编辑方式的地方；符合时为 `undefined`。 |
+| `FORM_CONTROLS` | 常量 | 表单内置扩展登记的编辑方式 `tree-options`：选项树，元素是 `{ value: string, label: string, disabled?: boolean, tone?: Tone, description?: string }`，另可带 `children` 与 `hasChildren`。 |
 | `FORM_PROPERTY_EDITORS` | 常量 | 表单内置的属性编辑器查找表，交给 designer-kit 的 `resolvePropertyEditor` 使用：按编辑方式取缺省编辑器，字段初始值按路径另用 `value` 编辑器（形状随字段种类）。 |
 | `FormPropertyControl` | 类型 | 表单的编辑方式：designer-kit 的内建编辑方式，或扩展登记的编辑方式（`kind` 是登记的键）。 |
 | `FormPropertyDescriptor` | 类型 | 表单的属性描述：`path` 是属性在所在属性包（basic / data / appearance、区域或表单设置）里的路径，表单只用一段 `[名字]`。 |
+| `FormPropertyValueIssue` | 接口 | 属性值的一处问题：`path` 相对这个值，落在值本身时是 `[]`。 |
 | `isValidPropertyValue` | 函数 | 属性值是否符合描述；`controls` 同 `checkFormPropertyValue`。 |
 | `numberControl` | 函数 | 内建的数字编辑方式：control 是 number 时原样返回，否则为 undefined。 |
 | `propertyName` | 函数 | 属性名，即属性路径唯一的一段。 |

@@ -279,6 +279,7 @@ const locale: FormLocale = {
       'unknown-key': () => '정의되지 않은 속성입니다',
       'duplicate-key': t => `데이터 키 ${t.param('key')}이(가) 중복됩니다`,
       'duplicate-id': t => `ID ${t.param('id')}이(가) 중복됩니다`,
+      'duplicate-value': () => '옵션 값이 중복되었습니다',
       'unknown-control': () => '등록되지 않은 편집 방식입니다',
       'document.unsupportedVersion': t => `지원하지 않는 템플릿 버전 ${t.param('version')}입니다`,
       'document.tooDeep': t => `중첩이 ${t.param('max')}단계를 넘습니다`,

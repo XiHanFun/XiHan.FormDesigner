@@ -42,7 +42,7 @@ describe('表单模型：扩展的合并与查重', () => {
     expect(model.extensions).toEqual([FORM_CORE_EXTENSION, cron])
     expect(model.registry.list().map(definition => definition.kind)).toEqual([...BUILTIN_KINDS.map(definition => definition.kind), 'banner'])
     expect(model.documentProperties.at(-1)?.path).toEqual(['theme'])
-    expect(Object.keys(model.controls)).toEqual(['options', 'tree-options', 'cron'])
+    expect(Object.keys(model.controls)).toEqual(['tree-options', 'cron'])
     expect(createFormModel(list)).toBe(model)
     expect(createFormModel().registry.get('banner')).toBeUndefined()
   })

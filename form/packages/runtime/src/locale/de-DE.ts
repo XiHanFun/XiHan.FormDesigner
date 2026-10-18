@@ -279,6 +279,7 @@ const locale: FormLocale = {
       'unknown-key': () => 'Unbekannte Eigenschaft',
       'duplicate-key': t => `Der Datenschlüssel ${t.param('key')} wird mehrfach verwendet`,
       'duplicate-id': t => `Die ID ${t.param('id')} wird mehrfach verwendet`,
+      'duplicate-value': () => 'Doppelter Optionswert',
       'unknown-control': () => 'Diese Bearbeitungsart ist nicht registriert',
       'document.unsupportedVersion': t => `Die Vorlagenversion ${t.param('version')} wird nicht unterstützt`,
       'document.tooDeep': t => `Elemente sind tiefer als ${t.param('max')} Ebenen verschachtelt`,

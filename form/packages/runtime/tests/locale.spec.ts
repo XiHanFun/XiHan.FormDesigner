@@ -36,6 +36,7 @@ const CODES = [
   'unknown-key',
   'duplicate-key',
   'duplicate-id',
+  'duplicate-value',
   'unknown-control',
   'document.unsupportedVersion',
   'document.tooDeep',

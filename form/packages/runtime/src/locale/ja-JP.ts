@@ -279,6 +279,7 @@ const locale: FormLocale = {
       'unknown-key': () => '定義されていないプロパティです',
       'duplicate-key': t => `データキー ${t.param('key')} が重複しています`,
       'duplicate-id': t => `ID ${t.param('id')} が重複しています`,
+      'duplicate-value': () => '選択肢の値が重複しています',
       'unknown-control': () => '登録されていない編集方法です',
       'document.unsupportedVersion': t => `テンプレートのバージョン ${t.param('version')} はサポートされていません`,
       'document.tooDeep': t => `入れ子が ${t.param('max')} 階層を超えています`,
