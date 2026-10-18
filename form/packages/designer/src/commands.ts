@@ -9,7 +9,7 @@
 import type { FormDocument, KindRegistry } from '@xihan-form/core'
 import type { FormDesignerTranslations } from '@xihan-form/runtime'
 import type { DesignerCommand } from '@xihan-ui/designer-kit'
-import type { DesignerCommandsTranslations } from '@xihan-ui/designer-shell'
+import type { DesignerCommandsTranslations, DesignerSettings } from '@xihan-ui/designer-shell'
 import type { FormSelection } from './editor'
 import type { XhFormDesigner } from './form-designer'
 import type { FormDesignerInternals } from './internals'
@@ -25,6 +25,8 @@ export interface FormDesignerContext {
   readonly translations: FormDesignerTranslations
   /** 此刻生效的共用命令文案（designer-shell 语言包的 xh-designer-commands）：撤销、剪切、删除、设计与预览这些四款都有的命令。 */
   readonly commands: DesignerCommandsTranslations
+  /** 此刻生效的设置：键是「分区 id.条目 id」，各分区没写的条目取了缺省值。 */
+  readonly settings: DesignerSettings
 }
 
 /** 设计器的命令。 */

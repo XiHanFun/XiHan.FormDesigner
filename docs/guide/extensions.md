@@ -12,7 +12,7 @@ aside: false
 | --- | --- | --- | --- |
 | core | `FormCoreExtension` | `id`、`kinds`、`documentProperties`、`controls`、`rules`、`issueText` | `validateDocument`、`createFormModel` |
 | 运行时 | `FormRuntimeExtension` | `fieldRenderers`、`containerRenderers`、`staticRenderers` | `<xh-form-renderer>`、`createFormController` |
-| 设计器 | `FormDesignerExtension` | `editors`、`commands`、`panels`、`setup` | `<xh-form-designer>` |
+| 设计器 | `FormDesignerExtension` | `editors`、`commands`、`panels`、`settings`、`setup` | `<xh-form-designer>` |
 
 各层是超集：设计器层的扩展可以原样交给渲染器与 `validateDocument`，它们只读自己那一层的字段。业务页面只用渲染器时，扩展只写到运行时层，不会带进设计器的代码。
 
@@ -77,6 +77,10 @@ aside: false
 ## 面板
 
 `panels` 在设计器外框里加自己的区域：`region` 给出区名、位置与标题，`create({ designer })` 建出面板元素，可选的 `update` 在设计器状态变化后调用、`destroy` 在撤掉时调用。面板里的条目可以拖到画布上：拖动载荷写成 `{ kind }` 是新建一个节点，写成 `{ clipboard: { nodes } }` 是按粘贴的规则插入一段节点。面板与外框的约定见视图组件文档的 [designer-shell](https://ui.docs.xihanfun.com/runtime/designer-shell)。
+
+## 设置分区
+
+`settings` 给设置对话框加自己的分区：`id`、`label`、可选的 `order` 与条目 `items`，条目用属性描述的写法，写了 `default` 的是缺省值。用户的取值以「分区 id.条目 id」为键，命令、面板与扩展从上下文的 `settings` 读，没写的已经取了缺省值。分区 id 不能是 `general`，也不能与别的扩展重名，见[设置](./designer#设置)。
 
 ## 属性编辑器与编辑方式
 

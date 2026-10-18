@@ -34,7 +34,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 `panels` 特性按空格列出要显示的面板（`toolbar`、`palette`、`properties`、`issues`），缺省全部显示；画布总在。点了面板头的关闭钮，设计器把 `panels` 换成收起之后剩下的面板，并派发 `panels-change`，宿主可以存起来下次赋回。
 
-工具栏缺省只显示图标。按钮的名字与快捷键报给读屏，悬停或键盘聚焦到按钮时提示命令的文字与快捷键；会删掉内容的命令按危险色显示。
+工具栏缺省只显示图标，设置里的「工具栏显示方式」可以换成只显示文字或图标加文字（见[设置](#设置)）。按钮的名字与快捷键报给读屏，悬停或键盘聚焦到按钮时提示命令的文字与快捷键；会删掉内容的命令按危险色显示。
 
 撤销、重做、剪切、复制、粘贴、创建副本、删除、全选、设计与预览这些四款设计器共用的命令，文字取 designer-shell 语言包的 `xh-designer-commands`，工具栏的可访问名也在这里；各语言的 `form…` 语言包已经带上。要换这些说法就改这一桶，设计器的 `translations` 属性只覆盖表单自己的文案。
 
@@ -83,6 +83,29 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 工具栏的「预览」或 `mode = 'preview'` 切到预览态：画布换成真实的渲染器，可以填写、校验、看联动。`previewValues` 是预览用的示例数据，`loadOptions` 是预览时的选项加载函数，与渲染器的同名属性一样。
 
 预览宽度有全宽、平板与手机三档（`previewWidth`），设计态的画布也按这个宽度排。
+
+## 设置
+
+设置是用户偏好，每人每机一份，不随模板保存。`openSettings(section?)` 打开设置对话框，左边一个分区一页：
+
+- 「基础」（`general`）：主题（跟随页面、跟随系统、亮色、暗色）、主题色与工具栏显示方式。
+- 扩展登记的分区，排在后面。分区 id 与 `general` 或别的扩展重名时，给 `extensions` 赋值就抛 `DesignerExtensionError`。
+
+表单没有自己的设置分区：预览宽度是正在看的视图，不是偏好，仍是 `previewWidth` 与工具栏上的三档。
+
+<<< @/examples/snippets/settings.ts#open
+
+值是扁平的键值，键是「分区 id.条目 id」，如 `general.theme`，没写的键取缺省值；基础分区的键用 designer-shell 导出的 `DESIGNER_SETTING_KEYS`，不手写字符串。`settings` 赋值即生效；用户在对话框里改了一条，设计器换成新的一份并派发 `settings-change`，宿主存起来、下次赋回。`settingsPolicy` 隐藏或锁定条目，键是条目键或分区 id：`hidden` 不显示，一个分区的条目全藏了就没有这一页；`locked` 只读，说明换成「由所在系统管理」。
+
+<<< @/examples/snippets/settings.ts#host
+
+- **主题只作用于设计器**：主题与主题色写在 `<xh-form-designer>` 自己的 `data-theme`、`data-brand` 上，页面其余部分不变；设置对话框、菜单这些浮层跟着设计器变。主题色的预设由宿主给 `brands`（品牌 id 与色板格子的颜色，品牌 id 可以用 `@xihan-ui/tokens` 的 `BRAND_PRESETS`）；给了 `registerBrand`（形状同 `@xihan-ui/tokens` 的 `registerBrand`）才许自定义颜色。两样都不给时没有主题色这一项。
+- **工具栏显示方式**：只显示图标（缺省）、只显示文字、图标加文字。只显示图标时按钮的名字照样报给读屏，悬停或聚焦时提示文字。
+- **扩展读设置**：命令、面板与扩展从上下文的 `settings` 读值，各分区没写的条目已经取了缺省值，如 `context.settings['acme.dense']`。
+
+独立使用、没有宿主替你存时，给 `settingsStorageKey`：连上文档时若没赋 `settings` 就从根所在窗口的 localStorage 读，用户改了设置就写回去；标了 `secret` 的文本条目（如密钥）不存。读写失败派发 `settings-storage-error`，设置留在内存里。不给就不读写存储。
+
+<<< @/examples/snippets/settings.ts#storage
 
 ## 保存
 
