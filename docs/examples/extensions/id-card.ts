@@ -14,10 +14,22 @@ import { FORM_FIELD_RENDERERS } from '@xihan-form/runtime'
 const text = BUILTIN_FIELDS.find(definition => definition.kind === 'text')!
 
 // #region kind
-/** 身份证号：值是字符串，放在物料的「输入」分类里，属性沿用单行文本的基础与外观。 */
+/** 身份证号：值是字符串，放在物料的「输入」分类里，属性沿用单行文本的基础与外观；显示名按语言自带。 */
 const idCardKind: FieldKindDefinition = {
   type: 'field',
   kind: 'id-card',
+  label: {
+    'en-US': 'ID card number',
+    'zh-CN': '身份证号',
+    'zh-TW': '身分證號',
+    'ja-JP': '身分証番号',
+    'ko-KR': '신분증 번호',
+    'de-DE': 'Ausweisnummer',
+    'es-ES': 'Número de identidad',
+    'fr-FR': 'Numéro d’identité',
+    'pt-BR': 'Número de identidade',
+    'ru-RU': 'Номер удостоверения личности',
+  },
   category: 'input',
   element: 'xh-text-field',
   properties: { basic: text.properties.basic, data: [], appearance: text.properties.appearance },

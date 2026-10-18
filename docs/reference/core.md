@@ -263,6 +263,8 @@ declare function createFormModel(extensions?: readonly FormCoreExtension[]): For
 | `createKindRegistry` | 函数 | 创建种类登记表；种类名必须是小写短横线形式且不重复，否则抛 `TypeError`。 |
 | `FieldKindDefinition` | 接口 | 字段种类。 |
 | `KindDefinition` | 类型 | 节点种类。 |
+| `kindLabel` | 函数 | 种类在某种语言下的显示名：先取语言标记完全相同的，再取同一语种的（zh-TW 没写时用 zh-CN），再取 en-US；种类没写 label、或这几样都没有时为 undefined。 |
+| `KindLabel` | 类型 | 种类自带的显示名：键是 BCP 47 语言标记（如 en-US、zh-CN），值是这种语言下的名字。 |
 | `KindRegistry` | 接口 | 节点种类登记表。 |
 | `LINKAGE_ACTIONS` | 常量 | 各类节点可用的联动动作。 |
 | `StaticKindDefinition` | 接口 | 静态元素种类。 |

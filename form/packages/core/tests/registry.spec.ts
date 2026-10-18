@@ -11,11 +11,19 @@ import {
   EMPTY_PROPERTY_SCHEMA,
   FORM_PROPERTY_EDITORS,
   isValidPropertyValue,
+  kindLabel,
   LINKAGE_ACTIONS,
   propertyName,
 } from '../src'
 
 describe('种类登记表', () => {
+  it('kindLabel 按语言取种类自带的名字：同一标记、同一语种、en-US，都没有或没写 label 时为 undefined', () => {
+    const definition = { label: { 'en-US': 'ID card', 'zh-CN': '身份证号', 'pt-BR': 'Documento' } }
+    expect([kindLabel(definition, 'zh-CN'), kindLabel(definition, 'zh-TW'), kindLabel(definition, 'pt-PT'), kindLabel(definition, 'ja-JP'), kindLabel(definition, undefined)])
+      .toEqual(['身份证号', '身份证号', 'Documento', 'ID card', 'ID card'])
+    expect([kindLabel({ label: { 'zh-CN': '身份证号' } }, 'ja-JP'), kindLabel({}, 'zh-CN'), kindLabel(undefined, 'zh-CN')]).toEqual([undefined, undefined, undefined])
+  })
+
   it('内置种类按登记顺序列出，名字唯一', () => {
     const registry = createFormModel().registry
     const names = registry.list().map(definition => definition.kind)

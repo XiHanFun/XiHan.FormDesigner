@@ -20,6 +20,12 @@ import type { FormPropertyDescriptor, PropertySchema } from './properties'
  */
 export type ValueKind = 'string' | 'number' | 'boolean' | 'string-list' | 'number-list' | 'list' | 'object'
 
+/**
+ * 种类自带的显示名：键是 BCP 47 语言标记（如 en-US、zh-CN），值是这种语言下的名字。扩展登记的种类用它，
+ * 宿主不必再往文案里补；取名见 kindLabel。
+ */
+export type KindLabel = Readonly<Record<string, string>>
+
 /** 容器的结构问题，由容器种类自行检查，问题码不带文案：给出 regionId 时落在该区域上，否则落在容器本身。 */
 export interface StructureProblem {
   readonly code: FormSchemaIssueCode
@@ -31,6 +37,8 @@ export interface StructureProblem {
 export interface FieldKindDefinition {
   readonly type: 'field'
   readonly kind: string
+  /** 种类自带的显示名，按语言给；内置种类的名字在语言包里，不写它。 */
+  readonly label?: KindLabel
   /** 物料面板里的分组名。 */
   readonly category: string
   /** 运行时缺省使用的 XiHan.UI 元素标签。 */
@@ -48,6 +56,8 @@ export interface FieldKindDefinition {
 export interface ContainerKindDefinition {
   readonly type: 'container'
   readonly kind: string
+  /** 种类自带的显示名，按语言给；内置种类的名字在语言包里，不写它。 */
+  readonly label?: KindLabel
   readonly category: string
   readonly element: string
   /** `list`：容器带 `key`，值是行对象的列表；`none`：只管布局，对数据透明。 */
@@ -71,6 +81,8 @@ export interface ContainerKindDefinition {
 export interface StaticKindDefinition {
   readonly type: 'static'
   readonly kind: string
+  /** 种类自带的显示名，按语言给；内置种类的名字在语言包里，不写它。 */
+  readonly label?: KindLabel
   readonly category: string
   readonly element: string
   readonly properties: PropertySchema
@@ -85,6 +97,24 @@ export const LINKAGE_ACTIONS: Readonly<Record<KindDefinition['type'], readonly L
   container: ['show', 'hide', 'enable', 'disable'],
   static: ['show', 'hide'],
 })
+
+/**
+ * 种类在某种语言下的显示名：先取语言标记完全相同的，再取同一语种的（zh-TW 没写时用 zh-CN），再取 en-US；
+ * 种类没写 label、或这几样都没有时为 undefined。locale 不给时按 en-US 取。
+ */
+export function kindLabel(definition: Pick<KindDefinition, 'label'> | undefined, locale: string | undefined): string | undefined {
+  const labels = definition?.label
+  if (labels === undefined)
+    return undefined
+  const tag = locale ?? 'en-US'
+  if (Object.hasOwn(labels, tag))
+    return labels[tag]
+  const language = tag.split('-')[0]!.toLowerCase()
+  const sibling = Object.keys(labels).find(key => key.split('-')[0]!.toLowerCase() === language)
+  if (sibling !== undefined)
+    return labels[sibling]
+  return Object.hasOwn(labels, 'en-US') ? labels['en-US'] : undefined
+}
 
 const KIND_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/
 
