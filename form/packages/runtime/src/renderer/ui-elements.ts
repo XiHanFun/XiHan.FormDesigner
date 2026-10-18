@@ -40,6 +40,7 @@ import {
   XhSliderElement,
   XhSwitchElement,
   XhTabsElement,
+  XhTagGroupElement,
   XhTagsInputElement,
   XhTextFieldElement,
   XhTimePickerElement,
@@ -69,6 +70,7 @@ export function defineRendererElements(): void {
   defineXhElement('xh-checkbox-group', XhCheckboxGroupElement)
   defineXhElement('xh-toggle-group', XhToggleGroupElement)
   defineXhElement('xh-listbox', XhListboxElement)
+  defineXhElement('xh-tag-group', XhTagGroupElement)
   defineXhElement('xh-transfer', XhTransferElement)
   defineXhElement('xh-checkbox', XhCheckboxElement)
   defineXhElement('xh-switch', XhSwitchElement)

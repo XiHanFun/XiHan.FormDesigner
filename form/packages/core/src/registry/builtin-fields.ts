@@ -229,6 +229,15 @@ export const BUILTIN_FIELDS: readonly FieldKindDefinition[] = [
     emptyValue: nullOrEmptyList,
   }),
   field({
+    kind: 'tag-group',
+    category: 'choice',
+    element: 'xh-tag-group',
+    data: [OPTIONS, OPTION_SOURCE, OPTION_DEPENDENCIES, MULTIPLE],
+    validations: CHOICE_RULES,
+    valueKind: singleOrList,
+    emptyValue: nullOrEmptyList,
+  }),
+  field({
     kind: 'transfer',
     category: 'choice',
     element: 'xh-transfer',
