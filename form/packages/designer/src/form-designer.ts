@@ -660,7 +660,7 @@ export class XhFormDesigner extends XhReactiveElement {
     const toolbar = createAuthoredElement(doc, 'div', { 'data-part': 'command-bar', 'slot': 'toolbar' }, [commandBar.element])
     const dropIndicator = createAuthoredElement(doc, 'div', { 'data-part': 'drop-indicator', 'aria-hidden': 'true', 'hidden': true })
     const canvas = createAuthoredElement(doc, 'div', { 'data-part': 'canvas', 'slot': 'canvas', 'tabindex': '0' }, [this.#canvas.element, dropIndicator])
-    const catalog = createAuthoredElement(doc, 'xh-designer-palette', { 'data-part': 'catalog', 'searchable': true, 'collapsible': true })
+    const catalog = createAuthoredElement(doc, 'xh-designer-palette', { 'data-part': 'catalog', 'searchable': true })
     const palette = createAuthoredElement(doc, 'div', { 'data-part': 'palette', 'slot': 'palette' }, [catalog])
     const inspector = createAuthoredElement(doc, 'xh-designer-properties', { 'data-part': 'inspector', 'collapsible': true, 'toggle-limit': '3' })
     const tabTriggers = Object.fromEntries(INSPECTOR_TABS.map(tab => [tab, createAuthoredElement(doc, 'button', { 'data-xh-part': 'trigger', 'type': 'button', 'value': tab })])) as Record<InspectorTab, HTMLButtonElement>
