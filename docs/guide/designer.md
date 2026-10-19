@@ -127,6 +127,8 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 清空历史（`clear-history`）丢掉全部撤销与重做的步骤，模板不变；它在历史记录面板的面板头上，不上工具栏，执行时先弹确认框，也可以经 `commandLayout` 排进工具栏或右键菜单。只读时撤销、重做与清空历史都不可用，`undo()`、`redo()` 返回 `false`。
 
+宿主也能读写撤销历史：`historyState` 是此刻的快照（各步的说明、位置号、当前位置与起点），`goToHistory(position)` 一次跳到某一步或起点（只读、预览或拖动中返回 `false`），`clearHistory()` 清空撤销与重做；历史有任何变化（执行、撤销、重做、跳转、装载、清空、保存）都派发 `history-change`，载荷就是 `historyState`。撤销步数上限是 `historyLimit`（同名特性 `history-limit`），缺省 100，下一次给 `schema` 赋值时生效。
+
 ## 问题列表
 
 设计器随改随做模板自检，问题列在问题面板里，也随 `issues-change` 派发给宿主；问题码见[问题码](../reference/issues#schema)。需要时宿主也可以调用 `validate()` 取一次。

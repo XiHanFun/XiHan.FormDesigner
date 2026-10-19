@@ -99,20 +99,29 @@ export interface FormEditorOptions {
   readonly describe?: (operations: readonly FormOperation[], before: FormDocument) => HistoryLabel | undefined
 }
 
+/** 装载新文档时的选项。 */
+export interface FormEditorLoadOptions {
+  /** 撤销步数上限；与此刻的不同时按它重建撤销历史。 */
+  readonly historyLimit?: number
+}
+
 /** 表单编辑模型：当前文档、撤销历史与选择，以及各种编辑操作；不碰 DOM。 */
 export interface FormEditor {
   /** 当前文档。 */
   readonly document: FormDocument
   /** 按扩展合出的种类登记表。 */
   readonly registry: KindRegistry
-  /** 撤销历史：能否撤销、重做，是否有未保存的修改。 */
+  /** 撤销历史：能否撤销、重做，是否有未保存的修改。装载时按新的步数上限重建过的话，这里换成新的一份。 */
   readonly history: History<FormDocument, FormOperation>
   /** 当前的选择。 */
   readonly selection: FormSelection
   /** 换一组扩展：之后新建、放置与校验都按它；冲突时抛 DesignerExtensionError、什么都不变。 */
   readonly setExtensions: (extensions: readonly FormCoreExtension[]) => void
-  /** 装载新文档：清空历史与选择，剪贴板保留；文档变化的 cause 为 reset。 */
-  readonly load: (document: FormDocument) => void
+  /**
+   * 装载新文档：清空历史与选择，剪贴板保留；文档变化的 cause 为 reset。给了与此刻不同的 historyLimit 时按它重建撤销历史，
+   * 之后的 history 是新的一份。
+   */
+  readonly load: (document: FormDocument, options?: FormEditorLoadOptions) => void
   /** 执行一组操作并记为一步撤销；返回新文档。 */
   readonly execute: (operations: readonly FormOperation[], options?: ExecuteOptions) => FormDocument
   /** 撤销一步；没有可撤销的时返回 false。 */
@@ -213,14 +222,17 @@ function topmost(document: FormDocument, ids: readonly string[]): string[] {
 export function createFormEditor(options: FormEditorOptions): FormEditor {
   let extensions = options.extensions ?? []
   let registry = createFormModel(extensions).registry
-  const history = createHistory<FormDocument, FormOperation>({
-    document: options.document,
+  /** 按步数上限建一份撤销历史。 */
+  const createFormHistory = (document: FormDocument, limit: number): History<FormDocument, FormOperation> => createHistory<FormDocument, FormOperation>({
+    document,
     apply: applyOperation,
-    limit: options.historyLimit ?? 100,
+    limit,
     mergeWithin: options.mergeWithin ?? 1000,
     ...(options.now === undefined ? {} : { now: options.now }),
     ...(options.describe === undefined ? {} : { describe: options.describe }),
   })
+  let historyLimit = options.historyLimit ?? 100
+  let history = createFormHistory(options.document, historyLimit)
   const listeners = new Set<(change: FormEditorChange) => void>()
   let selection: FormSelection = EMPTY_SELECTION
   let clipboard: FormClipboard | undefined
@@ -248,10 +260,11 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
     emit({ kind: 'selection', selection })
   }
 
-  history.subscribe((change) => {
+  const watch = (target: History<FormDocument, FormOperation>): (() => void) => target.subscribe((change) => {
     emit({ kind: 'document', cause: change.kind, document: change.document, operations: change.operations })
     setSelection(selection)
   })
+  let unwatch = watch(history)
 
   const execute = (operations: readonly FormOperation[], executeOptions?: ExecuteOptions): FormDocument =>
     history.execute(operations, executeOptions)
@@ -457,7 +470,9 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
     get registry() {
       return registry
     },
-    history,
+    get history() {
+      return history
+    },
     get selection() {
       return selection
     },
@@ -465,8 +480,18 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
       registry = createFormModel(next).registry
       extensions = next
     },
-    load: (document) => {
-      history.reset(document)
+    load: (document, loadOptions) => {
+      const limit = loadOptions?.historyLimit ?? historyLimit
+      if (limit === historyLimit) {
+        history.reset(document)
+      }
+      else {
+        unwatch()
+        historyLimit = limit
+        history = createFormHistory(document, limit)
+        unwatch = watch(history)
+        emit({ kind: 'document', cause: 'reset', document, operations: [] })
+      }
       setSelection(EMPTY_SELECTION)
     },
     execute,

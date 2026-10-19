@@ -27,6 +27,7 @@
 | `settingsStorageKey` | `settings-storage-key` | `string \| undefined` | 设置存在根所在窗口 localStorage 的哪个键下：给了，连上文档时若没赋 settings 就从这里读，用户改了设置就写回去，标了 secret 的条目不存；读写失败派发 settings-storage-error。不给就不读写。同名 attribute settings-storage-key。 |
 | `brands` | — | `readonly PropertySwatchOption[] \| undefined` | 设置里主题色的预设：value 是品牌 id（写成设计器根上的 data-brand），color 是色板格子的颜色。不给且没给 registerBrand 时没有主题色这一项。 |
 | `registerBrand` | — | `((id: string, color: string) => () => void) \| undefined` | 注册自定义主题色，形状与 @xihan-ui/tokens 的 registerBrand 相同；给了才许在设置里自定义主题色。 |
+| `historyLimit` | `history-limit` | `number \| undefined` | 撤销步数上限，缺省 100；在下一次装载（赋 schema）时生效。同名 attribute history-limit。 |
 
 ### 存取器
 
@@ -38,11 +39,14 @@
 | `canRedo` | 只读 | `boolean` | 有可重做的修改。 |
 | `canPaste` | 只读 | `boolean` | 内部剪贴板里有内容可粘贴。 |
 | `dirty` | 只读 | `boolean` | 有没保存的修改：上次 `markSaved` 之后改过。 |
+| `historyState` | 只读 | `HistorySnapshot` | 撤销历史的快照：各步的说明按此刻的语言取好，位置号用于 goToHistory。 |
 
 ### 方法
 
 | 方法 | 说明 |
 | --- | --- |
+| `goToHistory(position: number): boolean` | 跳到撤销历史里的一步或起点（historyState 里的位置号），一次跳到；只读、预览、拖动中或位置号不认识时返回 false。 |
+| `clearHistory(): void` | 清空撤销与重做；模板与是否已保存不变。只读或拖动中什么都不做。 |
 | `execute(operations: readonly FormOperation[], options?: ExecuteOptions): FormDocument` | 执行一组操作并记为一步撤销；返回新模板。 |
 | `undo(): boolean` | 撤销一步；只读、正在拖动跨度或没有可撤销的时返回 false。 |
 | `redo(): boolean` | 重做一步；只读、正在拖动跨度或没有可重做的时返回 false。 |
@@ -77,6 +81,7 @@
 | `mode-change` | `{ mode: FormDesignerMode }` | 在设计态与预览态之间切换了。 |
 | `settings-change` | `{ key: string, value: JsonValue \| undefined, settings: DesignerSettings }` | 在设置对话框里改了一条设置，或在外框上挪了面板（键是 layout.panels，值是整份布局）：设计器已换成新的 settings 并生效（主题、主题色、状态栏与面板布局）；value 为 undefined 表示删掉这个键、回到缺省值。宿主存起来，下次赋回 settings。 |
 | `settings-storage-error` | `VisualEnvironmentStorageError` | 读写 settingsStorageKey 指的本机存储失败（内容不是对象、无痕窗口、配额满）；设置留在内存里。 |
+| `history-change` | `HistorySnapshot` | 撤销历史变了：执行（含并入上一步）、撤销、重做、跳转、装载、清空与保存之后都派发，拖动跨度这样的事务进行中不派发。detail 是此刻的 historyState。 |
 
 ## 类型
 
@@ -278,13 +283,13 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 | --- | --- | --- |
 | `document` | `FormDocument` | 当前文档。 |
 | `registry` | `KindRegistry` | 按扩展合出的种类登记表。 |
-| `history` | `History<FormDocument, FormOperation>` | 撤销历史：能否撤销、重做，是否有未保存的修改。 |
+| `history` | `History<FormDocument, FormOperation>` | 撤销历史：能否撤销、重做，是否有未保存的修改。装载时按新的步数上限重建过的话，这里换成新的一份。 |
 | `selection` | `FormSelection` | 当前的选择。 |
 
 | 方法 | 说明 |
 | --- | --- |
 | `setExtensions(extensions: readonly FormCoreExtension[]): void` | 换一组扩展：之后新建、放置与校验都按它；冲突时抛 DesignerExtensionError、什么都不变。 |
-| `load(document: FormDocument): void` | 装载新文档：清空历史与选择，剪贴板保留；文档变化的 cause 为 reset。 |
+| `load(document: FormDocument, options?: FormEditorLoadOptions): void` | 装载新文档：清空历史与选择，剪贴板保留；文档变化的 cause 为 reset。给了与此刻不同的 historyLimit 时按它重建撤销历史，之后的 history 是新的一份。 |
 | `execute(operations: readonly FormOperation[], options?: ExecuteOptions): FormDocument` | 执行一组操作并记为一步撤销；返回新文档。 |
 | `undo(): boolean` | 撤销一步；没有可撤销的时返回 false。 |
 | `redo(): boolean` | 重做一步；没有可重做的时返回 false。 |
@@ -358,6 +363,7 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 | `FormDropTarget` | 接口 | 放置位置：区域 id（`null` 为文档顶层）与放在该区域现有子节点里的第几个之前，缺省放到末尾。 |
 | `FormEditor` | 接口 | 表单编辑模型：当前文档、撤销历史与选择，以及各种编辑操作；不碰 DOM。 |
 | `FormEditorChange` | 类型 | 编辑模型的变化：文档变化带上历史变化的种类与实际应用的操作；选择变化带上新的选择。 |
+| `FormEditorLoadOptions` | 接口 | 装载新文档时的选项。 |
 | `FormEditorOptions` | 接口 | 创建编辑模型的选项。 |
 | `FormRuleInit` | 类型 | 校验规则或联动规则，不带 id；id 由编辑模型分配。 |
 | `FormSelection` | 接口 | 选择：选中的节点，或同一个容器里的区域（栅格的列、标签页、折叠项、表格单元格），二者互斥，按选中的先后。 |
