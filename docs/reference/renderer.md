@@ -332,7 +332,9 @@ type FieldRenderer = (context: FieldRendererContext) => FieldRendererInstance
 | --- | --- | --- |
 | `DEFAULT_FORM_DESIGNER_TRANSLATIONS` | 常量 | 表单设计器的缺省文案：英文，与其余语言同一张表组出，种类、属性与选项写可读的名字。 |
 | `FormDesignerTranslations` | 接口 | 表单设计器的文案：无参的是字符串，带参的是函数。 |
+| `FormHelpTranslations` | 接口 | 设置对话框「帮助」「关于」两页里表单自己的文字。 |
 | `FormHistoryTranslations` | 接口 | 撤销历史里一步的说明。 |
+| `FormKeyTranslations` | 接口 | 快捷键表里不是命令的按键（归「本设计器」那一组）。 |
 | `FormTourTranslations` | 接口 | 新手引导里表单自己的几步：标题与说明。 |
 
 ### extensions

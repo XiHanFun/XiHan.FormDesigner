@@ -865,6 +865,24 @@ describe('<xh-form-designer>：选中工具条', () => {
     expect(toolbarOf(designer)).toBeNull()
   })
 
+  it('焦点在画布里按 Alt+F10：焦点移到选中工具条；没有选中工具条时什么都不做', async () => {
+    const { document, name } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    const canvas = designer.querySelector<HTMLElement>('[data-part="canvas"]')!
+    const press = (): boolean => canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'F10', altKey: true, bubbles: true, cancelable: true }))
+    canvas.focus()
+    expect(press()).toBe(true)
+    expect(window.document.activeElement).toBe(canvas)
+    designer.select({ nodes: [name.id] })
+    await settle(designer)
+    canvas.focus()
+    expect(press()).toBe(false)
+    expect(toolbarOf(designer)!.contains(window.document.activeElement)).toBe(true)
+    expect(window.document.activeElement?.localName).toBe('button')
+  })
+
   it('宿主经 commandLayout 改 selection:node 的排列，写空就没有工具条；扩展命令写上这个落点就追加成一组', async () => {
     const { document, name } = sample()
     const pinged: string[] = []

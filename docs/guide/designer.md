@@ -146,7 +146,10 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 - 「基础」（`general`）：主题（跟随页面、跟随系统、亮色、暗色）、主题色与状态栏。
 - 「布局」（`layout`）：一张面板表，逐块面板一行，显示开关、停在哪一栏（或浮动）、上移下移与收成标题条，表下「恢复默认布局」；和面板头的「更多」菜单一样，不靠拖动也能改布局，改的就是 `layout.panels`（见[卡片与面板](#卡片与面板)）。
 - 「工具栏」（`toolbar`）：按钮显示方式（`toolbar.display`）、显示工具栏（`toolbar.visible`），以及一张按钮表（`toolbar.layout`）：一组一块，组头三态勾选框，每个按钮一行，可以勾掉、拖动换先后或挪到别的组，表下「恢复默认」。只管顶部工具栏：顶栏的插入钮、右键菜单与选中工具条不在这里改，由宿主的 `commandLayout` 排。
-- 扩展登记的分区，排在后面。分区 id 与 `general` 或别的扩展重名时，给 `extensions` 赋值就抛 `DesignerExtensionError`。
+- 「帮助」（`help`）：表单的几段说明，以及「开始引导」「打开文档」两颗钮；点了先关上对话框，再跑对应的命令（`start-tour`、`help`）。
+- 「快捷键」（`shortcuts`）：按命令表列出，分通用、编辑、本设计器与扩展几组，同一条命令的第二个快捷键写在同一行。「本设计器」那组末尾是表单不是命令的按键：↑ ↓ 选上一个、下一个，Alt + ↑ ↓ 上移、下移，Enter 选中里面第一个，Esc 选中上一级，Shift + F10 打开右键菜单。「通用」组末尾只列表单有的两个按键：Alt + F10（焦点在画布里时，焦点移到选中工具条）与 Esc；表单的画布不能微移，也不能按住空格拖动。
+- 「关于」（`about`）：产品名、版本（包入口导出的 `FORM_DESIGNER_VERSION`）、界面库版本与许可证，后面接各扩展给的几行（见[扩展](./extensions#关于)）。
+- 扩展登记的分区按各自的 `order` 排：基础、布局、工具栏是 0–2，帮助、快捷键、关于是 900–920，没写 `order` 的是 0。分区 id 与内置的或别的扩展重名时，给 `extensions` 赋值就抛 `DesignerExtensionError`。
 
 表单没有自己的设置分区：预览宽度是正在看的视图，不是偏好，仍是 `previewWidth` 与工具栏上的三档。
 
@@ -169,7 +172,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 第一次打开设计器时，画布铺好后自动开始一遍新手引导，一步高亮一处：先是工具栏、物料、画布、属性、问题列表、状态栏与设置，再是表单自己的四步——顶栏的插入钮、页面结构、属性面板的「校验规则」「联动规则」两页，以及工具栏的预览。目标面板隐藏、工具栏上没有那条命令时那一步跳过；只读时不讲插入与校验联动两步。进入一步前，设计器把那块面板亮出来：展开收起的栏或标题条，窄屏时打开抽屉。
 
 - 走完、跳过（含按 Esc）或关掉时，设计器派发 `tour-end`：`reason` 是 `complete`、`skip` 或 `close`，`step` 是收起时那一步的 id。同时在设置里记下 `help.tourDone`，照常派发 `settings-change`；宿主把设置存好，下次就不再自动开始。
-- `autoTour` 写 `false`（特性写 `auto-tour="false"`）就不自动开始。`startTour()` 随时从头开始，没有能走的步骤时返回 `false`。命令 `start-tour` 做同一件事，缺省不在工具栏上，要放就写进 `commandLayout`。
+- `autoTour` 写 `false`（特性写 `auto-tour="false"`）就不自动开始。`startTour()` 随时从头开始，没有能走的步骤时返回 `false`。设置对话框「帮助」页的「开始引导」与命令 `start-tour` 做同一件事；命令缺省不在工具栏上，要放就写进 `commandLayout`。
 - 扩展用 `tourSteps` 加自己的步骤，见[扩展](./extensions#引导步骤)。
 
 本站的示例都关掉了自动开始。

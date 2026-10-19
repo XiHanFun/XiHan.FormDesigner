@@ -112,6 +112,22 @@ const locale: FormLocale = {
       previewTitle: '预览',
       previewDescription: '像填表的人那样填一遍表单，预览宽度可以换成平板或手机。',
     },
+    help: {
+      product: '曦寒表单设计器',
+      docs: '打开文档',
+      notes: [
+        '从物料面板或顶栏把字段加进画布，点选画布里的字段，在属性面板里改标签、数据键与外观。',
+        '属性面板的「校验规则」「联动规则」两页给选中的字段加规则：必填、格式与范围，或按别的字段的值显示、隐藏、禁用它。',
+        '预览时像填表的人那样填一遍表单。每一步修改都能撤销，历史记录面板列出全部步骤。',
+      ],
+    },
+    keys: {
+      selectSibling: '选上一个 / 下一个字段',
+      moveSibling: '字段上移 / 下移',
+      selectChild: '选中里面第一个字段',
+      selectParent: '选中上一级',
+      contextMenu: '右键菜单',
+    },
     sourceStructure: '结构',
     sourceBinding: '绑定',
     unboundKey: key => `数据键 ${key} 不在数据模型里`,

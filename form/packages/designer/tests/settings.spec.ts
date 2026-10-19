@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 
 import type { FormDesignerContext, FormDesignerExtension, XhFormDesigner } from '../src'
+import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { DesignerExtensionError } from '@xihan-ui/designer-kit'
 import { defineXhElements } from '@xihan-ui/web-components/define'
 import { afterEach, describe, expect, it } from 'vitest'
-import { defineFormDesigner, FORM_DESIGNER_TAG, FORM_TOOLBAR_LAYOUT } from '../src'
+import { version } from '../package.json'
+import { defineFormDesigner, FORM_DESIGNER_TAG, FORM_DESIGNER_VERSION, FORM_TOOLBAR_LAYOUT } from '../src'
 
 defineXhElements()
 defineFormDesigner()
@@ -50,11 +52,11 @@ function pages(): string[] {
 }
 
 describe('<xh-form-designer>：设置', () => {
-  it('openSettings 打开设置对话框：基础、布局、工具栏三页；基础列出主题与状态栏，工具栏页列出按钮显示方式、显示工具栏与按钮表', async () => {
+  it('openSettings 打开设置对话框：基础、布局、工具栏、帮助、快捷键与关于六页；基础列出主题与状态栏，工具栏页列出按钮显示方式、显示工具栏与按钮表', async () => {
     const designer = await mount()
     designer.openSettings()
     await settle(designer)
-    expect(pages()).toEqual(['general', 'layout', 'toolbar'])
+    expect(pages()).toEqual(['general', 'layout', 'toolbar', 'help', 'shortcuts', 'about'])
     expect(['general.theme', 'general.statusBar', 'general.toolbarDisplay'].map(key => row(key) !== null)).toEqual([true, true, false])
     designer.openSettings('toolbar')
     await settle(designer)
@@ -129,7 +131,7 @@ describe('<xh-form-designer>：设置', () => {
     })
     designer.openSettings('acme')
     await settle(designer)
-    expect(pages()).toEqual(['general', 'layout', 'toolbar', 'acme'])
+    expect(pages()).toEqual(['general', 'layout', 'toolbar', 'acme', 'help', 'shortcuts', 'about'])
     expect(row('acme.token')!.querySelector('xh-password-input')).not.toBeNull()
     designer.querySelector<HTMLButtonElement>('[data-part="command-bar"] button[value="acme.read"]')!.click()
     expect(seen).toEqual([{ 'acme.token': 'k', 'acme.dense': false }])
@@ -190,5 +192,45 @@ describe('<xh-form-designer>：设置', () => {
     await frame.updateComplete
     expect(frame.showsPanel('status')).toBe(true)
     expect(frame.showsPanel('palette')).toBe(false)
+  })
+
+  it('帮助页是表单的几段说明与开始引导、打开文档两颗钮；点开始引导先关上对话框，再开始引导', async () => {
+    const designer = await mount(element => element.autoTour = false)
+    designer.openSettings('help')
+    await settle(designer)
+    expect(row('help.guide')!.textContent).toContain(DEFAULT_FORM_DESIGNER_TRANSLATIONS.help.notes[0])
+    expect([row('help.startTour'), row('help.help')].map(item => item?.querySelector('[data-part="action"]')?.getAttribute('data-command'))).toEqual(['start-tour', 'help'])
+    expect(row('help.help')!.textContent).toContain(DEFAULT_FORM_DESIGNER_TRANSLATIONS.help.docs)
+    row('help.startTour')!.querySelector<HTMLElement>('[data-part="action"]')!.click()
+    await settle(designer)
+    const dialog = designer.querySelector<HTMLElement & { open?: boolean }>('xh-designer-settings')!
+    const tour = designer.querySelector<HTMLElement & { running: boolean, stop: () => void }>('xh-designer-tour')!
+    expect([dialog.open, tour.running]).toEqual([false, true])
+    tour.stop()
+  })
+
+  it('快捷键页按命令表分组：扩展的命令归「扩展」，「本设计器」那组末尾是表单不是命令的按键；「通用」组末尾只留 Alt+F10 与 Esc', async () => {
+    const extension: FormDesignerExtension = { id: '@acme/keys', commands: [{ id: '@acme/keys.ping', label: 'Ping', shortcut: ['Mod', 'Shift', 'P'], run: () => {} }] }
+    const designer = await mount(element => element.extensions = [extension])
+    const shortcuts = designer.querySelector<HTMLElement & { shortcuts?: { groups: readonly { id: string, rows: readonly { label: string, keys: readonly (readonly string[])[] }[] }[], commonKeys?: readonly { id: string }[] } }>('xh-designer-settings')!.shortcuts!
+    expect(shortcuts.commonKeys?.map(key => key.id)).toEqual(['selectionToolbar', 'cancel'])
+    const group = (id: string): readonly { label: string, keys: readonly (readonly string[])[] }[] => shortcuts.groups.find(item => item.id === id)?.rows ?? []
+    expect(group('extensions')).toEqual([{ label: 'Ping', keys: [['Mod', 'Shift', 'P']] }])
+    expect(group('edit').map(item => item.label)).toContain('Delete')
+    const keys = DEFAULT_FORM_DESIGNER_TRANSLATIONS.keys
+    expect(group('designer').slice(-5)).toEqual([
+      { label: keys.selectSibling, keys: [['ArrowUp'], ['ArrowDown']] },
+      { label: keys.moveSibling, keys: [['Alt', 'ArrowUp'], ['Alt', 'ArrowDown']] },
+      { label: keys.selectChild, keys: [['Enter']] },
+      { label: keys.selectParent, keys: [['Escape']] },
+      { label: keys.contextMenu, keys: [['Shift', 'F10'], ['ContextMenu']] },
+    ])
+  })
+
+  it('关于页：产品名、表单设计器的版本（取 package.json）与许可证，后面接各扩展的 about', async () => {
+    expect(FORM_DESIGNER_VERSION).toBe(version)
+    const designer = await mount(element => element.extensions = [{ id: '@acme/pro', about: [{ label: 'Acme Pro', value: '1.2.0' }] }])
+    const about = designer.querySelector<HTMLElement & { about?: unknown }>('xh-designer-settings')!.about
+    expect(about).toEqual({ product: DEFAULT_FORM_DESIGNER_TRANSLATIONS.help.product, version, license: 'MIT', rows: [{ label: 'Acme Pro', value: '1.2.0' }] })
   })
 })

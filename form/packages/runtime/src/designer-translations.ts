@@ -61,6 +61,30 @@ export interface FormTourTranslations {
   readonly previewDescription: string
 }
 
+/** 设置对话框「帮助」「关于」两页里表单自己的文字。 */
+export interface FormHelpTranslations {
+  /** 「关于」页的产品名。 */
+  readonly product: string
+  /** 「帮助」页的说明，一项一段。 */
+  readonly notes: readonly string[]
+  /** 「帮助」页打开文档的钮。 */
+  readonly docs: string
+}
+
+/** 快捷键表里不是命令的按键（归「本设计器」那一组）。 */
+export interface FormKeyTranslations {
+  /** ↑ ↓：选上一个、下一个同级。 */
+  readonly selectSibling: string
+  /** Alt + ↑ ↓：在同级里上移、下移。 */
+  readonly moveSibling: string
+  /** Enter：选中容器里第一个节点。 */
+  readonly selectChild: string
+  /** Esc：选中上一级。 */
+  readonly selectParent: string
+  /** Shift + F10 或菜单键：打开右键菜单。 */
+  readonly contextMenu: string
+}
+
 /** 表单设计器的文案：无参的是字符串，带参的是函数。 */
 export interface FormDesignerTranslations {
   /** 设计器的可访问名。 */
@@ -189,6 +213,10 @@ export interface FormDesignerTranslations {
   readonly history: FormHistoryTranslations
   /** 新手引导里表单自己的几步。 */
   readonly tour: FormTourTranslations
+  /** 设置对话框「帮助」「关于」两页里表单自己的文字。 */
+  readonly help: FormHelpTranslations
+  /** 快捷键表里不是命令的按键。 */
+  readonly keys: FormKeyTranslations
   /** 问题列表里结构问题的来源小标签。 */
   readonly sourceStructure: string
   /** 问题列表里数据绑定问题的来源小标签。 */

@@ -112,6 +112,22 @@ const locale: FormLocale = {
       previewTitle: '미리 보기',
       previewDescription: '양식을 작성하는 사람처럼 직접 입력해 봅니다. 미리 보기 너비를 태블릿이나 휴대폰으로 바꿀 수 있습니다.',
     },
+    help: {
+      product: 'XiHan Form Designer',
+      docs: '문서 열기',
+      notes: [
+        '팔레트나 위쪽의 빠른 삽입에서 필드를 캔버스에 추가하고, 캔버스에서 필드를 선택해 속성 패널에서 레이블, 데이터 키, 모양을 바꿉니다.',
+        '속성 패널의 유효성 검사 규칙, 연동 규칙 탭에서 선택한 필드에 규칙을 추가합니다. 필수, 형식, 범위 검사나 다른 필드 값에 따라 표시, 숨기기, 사용 안 함을 정할 수 있습니다.',
+        '미리 보기에서는 양식을 작성하는 사람처럼 직접 입력해 봅니다. 모든 변경은 실행 취소할 수 있고, 기록 패널에 모든 단계가 나열됩니다.',
+      ],
+    },
+    keys: {
+      selectSibling: '이전 / 다음 필드 선택',
+      moveSibling: '필드를 위 / 아래로 이동',
+      selectChild: '안쪽 첫 필드 선택',
+      selectParent: '상위 항목 선택',
+      contextMenu: '상황에 맞는 메뉴',
+    },
     sourceStructure: '구조',
     sourceBinding: '바인딩',
     unboundKey: key => `${key} 키가 데이터 모델에 없습니다`,
