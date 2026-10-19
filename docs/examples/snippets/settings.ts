@@ -3,9 +3,10 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 设计器的设置：宿主管着主题，用户偏好存在宿主自己那里；独立使用时交给本机存储；从工具栏外的按钮打开设置。
+// 设计器的设置：宿主管着主题，用户偏好存在宿主自己那里；独立使用时交给本机存储；宿主给缺省布局并管着面板；从工具栏外的按钮打开设置。
 
 import type { XhFormDesigner } from '@xihan-form/designer'
+import { FORM_DESIGNER_PANELS } from '@xihan-form/designer'
 import { DESIGNER_SETTING_KEYS } from '@xihan-ui/designer-shell'
 
 type FormSettings = NonNullable<XhFormDesigner['settings']>
@@ -28,6 +29,14 @@ export function standalone(designer: XhFormDesigner): void {
   })
 }
 // #endregion storage
+
+// #region layout
+export function hostLayout(designer: XhFormDesigner): void {
+  // 缺省收起问题面板；物料面板固定在原处，不能挪动或隐藏
+  designer.defaultLayout = { version: 1, hidden: [FORM_DESIGNER_PANELS.issues] }
+  designer.settingsPolicy = { [`${DESIGNER_SETTING_KEYS.layout}.${FORM_DESIGNER_PANELS.palette}`]: 'locked' }
+}
+// #endregion layout
 
 // #region open
 export function openGeneralSettings(designer: XhFormDesigner): void {

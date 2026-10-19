@@ -21,7 +21,7 @@
 | `readonly` | `readonly` | `boolean \| undefined` | 可选择、浏览与预览，不能修改。attribute 按三态读：没写或写 "false" 为可修改，其余写法为只读。 |
 | `mode` | `mode` | `FormDesignerMode \| undefined` | 设计态或预览态，缺省 design。 |
 | `previewWidth` | `preview-width` | `FormPreviewWidth \| undefined` | 预览宽度，缺省 full。 |
-| `panels` | `panels` | `string \| undefined` | 空格分隔的 toolbar palette properties issues status，缺省全部；画布常驻。预览态只留工具栏与状态栏；状态栏还受设置里的general.statusBar 控制。点了面板头的关闭钮时设计器改写它并派发 panels-change。 |
+| `defaultLayout` | — | `DesignerLayout \| undefined` | 宿主的缺省面板布局：用户没存过布局（settings 里没有 layout.panels）时用它，「恢复默认布局」也回到它；写了的字段整项覆盖内置缺省（物料在左栏、属性在右栏、问题在下栏，全部显示）。面板 id 见 FORM_DESIGNER_PANELS。用户挪了面板、改了显隐或大小，整份布局写进设置的 layout.panels 并派发 settings-change。预览态不显示面板，不动布局。 |
 | `settings` | — | `DesignerSettings \| undefined` | 设置的值：扁平的键值，键是「分区 id.条目 id」，如 general.theme；没写的键取条目的缺省值。赋值即生效；用户在设置对话框里改了以后设计器换成新的一份并派发 settings-change。 |
 | `settingsPolicy` | — | `DesignerSettingsPolicy \| undefined` | 宿主对设置条目的管控：键是条目键或分区 id，hidden 不显示，locked 只读、说明换成「由所在系统管理」。 |
 | `settingsStorageKey` | `settings-storage-key` | `string \| undefined` | 设置存在根所在窗口 localStorage 的哪个键下：给了，连上文档时若没赋 settings 就从这里读，用户改了设置就写回去，标了 secret 的条目不存；读写失败派发 settings-storage-error。不给就不读写。同名 attribute settings-storage-key。 |
@@ -75,8 +75,7 @@
 | `node-contextmenu` | `{ id: string, x: number, y: number }` | 要在节点上打开右键菜单，`x`、`y` 是视口坐标；可取消，取消后不打开内建菜单。 |
 | `blank-contextmenu` | `{ x: number, y: number }` | 要在画布空白处打开右键菜单；可取消，取消后不打开内建菜单。 |
 | `mode-change` | `{ mode: FormDesignerMode }` | 在设计态与预览态之间切换了。 |
-| `panels-change` | `{ panels: string }` | 点了面板头的关闭钮，设计器已收起这块面板：panels 是收起之后要显示的面板（空格分隔），设计器的 panels 已换成它。 |
-| `settings-change` | `{ key: string, value: JsonValue \| undefined, settings: DesignerSettings }` | 在设置对话框里改了一条设置：设计器已换成新的 settings 并生效（主题与主题色）；value 为 undefined 表示删掉这个键、回到缺省值。宿主存起来，下次赋回 settings。 |
+| `settings-change` | `{ key: string, value: JsonValue \| undefined, settings: DesignerSettings }` | 在设置对话框里改了一条设置，或在外框上挪了面板（键是 layout.panels，值是整份布局）：设计器已换成新的 settings 并生效（主题、主题色、状态栏与面板布局）；value 为 undefined 表示删掉这个键、回到缺省值。宿主存起来，下次赋回 settings。 |
 | `settings-storage-error` | `VisualEnvironmentStorageError` | 读写 settingsStorageKey 指的本机存储失败（内容不是对象、无痕窗口、配额满）；设置留在内存里。 |
 
 ## 类型
@@ -89,9 +88,13 @@
 
 预览宽度：全宽、平板、手机，设计态画布同样生效。取值：`full`、`tablet`、`phone`。
 
-### FormDesignerPanel {#formdesignerpanel}
+### FORM_DESIGNER_PANELS {#form_designer_panels}
 
-可收起的面板；画布常驻，不在其中。取值：`toolbar`、`palette`、`properties`、`issues`、`status`。
+设计器的面板 id：宿主写 defaultLayout、settingsPolicy（layout.panels.&lt;面板 id&gt;）时用；每块面板有一条开关命令 panel:&lt;面板 id&gt;。
+
+```ts
+const FORM_DESIGNER_PANELS = { palette: 'palette', properties: 'properties', issues: 'issues' } as const
+```
 
 ### FormSchemaChangeKind {#formschemachangekind}
 
@@ -328,6 +331,7 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 | --- | --- | --- |
 | `FORM_COMMANDS` | 常量 | 内置命令。 |
 | `FORM_DESIGNER_HELP_URL` | 常量 | 表单文档站上设计器的一页，工具栏的「帮助」在新窗口打开它。 |
+| `FORM_DESIGNER_PANELS` | 常量 | 设计器的面板 id：宿主写 defaultLayout、settingsPolicy（layout.panels.&lt;面板 id&gt;）时用；每块面板有一条开关命令 panel:&lt;面板 id&gt;。 |
 | `FORM_MENU_LAYOUTS` | 常量 | 右键菜单各主体的缺省排列；commandLayout 没写 menu:&lt;主体&gt; 时用它。 |
 | `FORM_TOOLBAR_LAYOUT` | 常量 | 工具栏的缺省排列；commandLayout 没写 toolbar 时用它，再把 placement 含 toolbar 的扩展命令追加成一组。 |
 | `FormDesignerCommand` | 类型 | 设计器的命令。 |
@@ -352,7 +356,7 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 
 | 名称 | 种类 | 说明 |
 | --- | --- | --- |
-| `createFormDesignerModel` | 函数 | 合出设计器用的模型；任何一处重名（设置分区与 general 重名也算）都抛 DesignerExtensionError。 |
+| `createFormDesignerModel` | 函数 | 合出设计器用的模型；任何一处重名（设置分区与 general 重名、扩展面板与外框的区重名、扩展面板的开关命令与已有命令重名也算）都抛 DesignerExtensionError。 |
 | `FORM_DESIGNER_EXTENSION` | 常量 | 设计器的内置扩展：内置命令。 |
 | `FormDesignerExtension` | 接口 | 表单设计器层的扩展：运行时层的全部字段，加上属性编辑器、命令、面板、导入导出与 setup。 |
 | `FormDesignerModel` | 接口 | 一组设计器扩展合出的东西：运行时模型、命令表、属性编辑器表与设置分区。 |
@@ -365,7 +369,6 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 | `FORM_DESIGNER_TAG` | 常量 | 设计器的标签名。 |
 | `FormDesignerEventMap` | 接口 | 设计器派发的事件。 |
 | `FormDesignerMode` | 类型 | 设计态或预览态。 |
-| `FormDesignerPanel` | 类型 | 可收起的面板；画布常驻，不在其中。 |
 | `FormPreviewWidth` | 类型 | 预览宽度：全宽、平板、手机，设计态画布同样生效。 |
 | `FormSchemaChangeKind` | 类型 | schema-change 的来源。 |
 | `XhFormDesigner` | 类 | `<xh-form-designer>`：可视化编辑表单模板，物料、画布、属性与问题列表都在里面；模板的保存与权限交给宿主，经 `schema-change`、`save` 事件与 `markSaved()` 往来。 |

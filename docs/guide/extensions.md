@@ -77,7 +77,7 @@ aside: false
 
 ## 面板
 
-`panels` 在设计器外框里加自己的区域：`region` 给出区名、位置与标题，给了 `title` 就画成卡片，面板头写标题，还可以给 `subtitle` 与 `help`；卡片能点「×」收起、从工具栏的「面板」菜单打开，写 `closable: false` 就不能收起。面板元素用设计器零件时写 `headless`，标题交给卡片画。`create({ designer })` 建出面板元素，可选的 `update` 在设计器状态变化后调用、`destroy` 在撤掉时调用。面板里的条目可以拖到画布上：拖动载荷写成 `{ kind }` 是新建一个节点，写成 `{ clipboard: { nodes } }` 是按粘贴的规则插入一段节点。面板与外框的约定见视图组件文档的 [designer-shell](https://ui.docs.xihanfun.com/runtime/designer-shell)。
+`panels` 在设计器外框里加自己的面板：`region` 给出区名（即面板 id）、缺省停的栏（`start`、`end`、`bottom`）与标题，给了 `title` 就画成卡片，面板头写标题，还可以给 `icon`、`subtitle` 与 `help`；`defaultHidden` 的面板缺省不显示。卡片和内置面板一样能挪动、浮出、收起与隐藏，写 `movable`、`floatable`、`minimizable`、`closable` 为 `false` 就不出对应的操作；每块面板自动有一条开关命令 `panel:<区名>`。区名与内置的区或别的扩展面板重名时，给 `extensions` 赋值就抛 `DesignerExtensionError`。面板元素用设计器零件时写 `headless`，标题交给卡片画。`create({ designer })` 建出面板元素，可选的 `update` 在设计器状态变化后调用、`destroy` 在撤掉时调用。面板里的条目可以拖到画布上：拖动载荷写成 `{ kind }` 是新建一个节点，写成 `{ clipboard: { nodes } }` 是按粘贴的规则插入一段节点。面板与外框的约定见视图组件文档的 [designer-shell](https://ui.docs.xihanfun.com/runtime/designer-shell)。
 
 ## 设置分区
 

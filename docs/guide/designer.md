@@ -34,19 +34,27 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 | 问题（画布下方） | 卡片。模板自检出的问题，面板头上是错误数与警告数，兼作筛选开关；点一条就选中并滚到出问题的节点 |
 | 状态栏 | 左边写选中的字段种类与字段名，选中区域写它所在的容器，多选写个数，什么都没选写字段数；右边是预览宽度，点一下回到全宽 |
 
-预览态的外框只留工具栏与状态栏，画布换成渲染器，见[预览](#预览)。
+预览态的外框不显示面板，只留顶栏、工具栏与状态栏，画布换成渲染器，见[预览](#预览)。
 
 ### 卡片与面板
 
-物料、属性与问题列表各是一张卡片：面板头写标题，「?」弹出这块面板的说明，「×」收起它，工具栏的「面板」菜单里勾回来再打开。收起或打开后设计器改写 `panels` 并派发 `panels-change`，`detail.panels` 是之后要显示的面板，宿主存下来、下次赋回即可。扩展登记的面板给了标题也画成卡片，同样能收起和从「面板」菜单打开，见[扩展](./extensions#面板)。
+物料、属性与问题列表各是一块面板，画成一张卡片：面板头写图标与标题，「?」弹出这块面板的说明，右边依次是收起、「更多」与关闭。面板停在左、右、下三栏，缺省物料在左栏、属性在右栏、问题在下栏；可以换栏、调先后、收成标题条，也可以浮出成小窗再吸回：
 
-`panels` 特性按空格列出要显示的面板（`toolbar`、`palette`、`properties`、`issues`、`status`，以及扩展面板的区名），缺省全部显示，写空串全部收起；画布总在。状态栏还受设置里的「状态栏」开关控制，关掉时不显示，`panels` 照样留着 `status`，再打开就回来。顶栏不归 `panels` 管：有插入钮就显示，没有就收起。
+- 按住面板头拖到另一栏或两块面板之间就停在那里，拖到画布上就地浮出；不用拖的话，「更多」菜单里有移到左栏、右栏、下栏，上移、下移，浮出与停靠，键盘与读屏也靠它。
+- 「×」隐藏这块面板，工具栏的「面板」菜单里勾回来再显示。菜单里还有「显示 / 隐藏所有面板」（Ctrl / ⌘ + \）、「还原面板显隐」（Ctrl / ⌘ + Shift + \）与「恢复默认布局」。
+- 每块面板另有一条开关命令 `panel:<面板 id>`，可以排进工具栏或右键菜单。
+
+挪了面板、改了显隐或大小，设计器把整份布局写进设置的 `layout.panels`（`DESIGNER_SETTING_KEYS.layout`），并像改了别的设置一样派发 `settings-change`，宿主存下来、下次随 `settings` 赋回即可，见[设置](#设置)。宿主要换掉内置的缺省布局时给 `defaultLayout`：用户还没存过布局时用它，「恢复默认布局」也回到它，写了的字段整项覆盖内置缺省。面板 id 用包入口导出的 `FORM_DESIGNER_PANELS`（`palette`、`properties`、`issues`）。`settingsPolicy` 也管布局：`layout.panels.<面板 id>` 写 `hidden` 就没有这块面板，写 `locked` 就固定它；`layout.panels` 锁定整份布局。
+
+<<< @/examples/snippets/settings.ts#layout
+
+扩展登记的面板给了标题也画成卡片，同样能挪动、浮出与隐藏，见[扩展](./extensions#面板)。画布总在。状态栏只受设置里的「状态栏」开关控制；顶栏有插入钮就显示，没有就收起。
 
 ### 工具栏
 
 工具栏缺省只显示图标，设置里的「工具栏显示方式」可以换成只显示文字或图标加文字（见[设置](#设置)）。按钮的名字与快捷键报给读屏，悬停或键盘聚焦到按钮时提示命令的文字与快捷键；会删掉内容的命令按危险色显示。宽度不够时，放不下的按钮收进末尾的「更多」菜单。
 
-末组是 designer-shell 内置的三条命令：「面板」点开一张菜单，列出能开关的卡片，勾选的显示；「设置」打开设置对话框（同 `openSettings()`）；「帮助」在新窗口打开本站的这一页，地址是包入口导出的 `FORM_DESIGNER_HELP_URL`。宿主不要哪一条，用 `commandLayout` 排掉，见[工具栏与菜单的排列](#工具栏与菜单的排列)。
+末组是 designer-shell 内置的三条命令：「面板」点开一张菜单，列出能开关的面板，勾选的显示，后面是全部显隐、还原显隐与恢复默认布局；「设置」打开设置对话框（同 `openSettings()`）；「帮助」在新窗口打开本站的这一页，地址是包入口导出的 `FORM_DESIGNER_HELP_URL`。宿主不要哪一条，用 `commandLayout` 排掉，见[工具栏与菜单的排列](#工具栏与菜单的排列)。
 
 撤销、重做、剪切、复制、粘贴、创建副本、删除、全选、设计与预览，以及面板、设置、帮助，这些四款设计器共用的命令，文字取 designer-shell 语言包的 `xh-designer-commands`，工具栏的可访问名也在这里；各语言的 `form…` 语言包已经带上。要换这些说法就改这一桶，设计器的 `translations` 属性只覆盖表单自己的文案。
 
@@ -72,6 +80,8 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 | Ctrl / ⌘ + D | 创建副本：复制并紧跟着粘贴 |
 | Ctrl / ⌘ + A | 全选 |
 | Ctrl / ⌘ + S | 派发 `save` |
+| Ctrl / ⌘ + \ | 显示或隐藏所有面板 |
+| Ctrl / ⌘ + Shift + \ | 还原面板显隐 |
 
 不带 Ctrl / ⌘ 的单键只在焦点在画布里时认，物料与属性面板里的列表、开关照常用这些键：
 
@@ -102,7 +112,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 ## 预览
 
-工具栏的「预览」或 `mode = 'preview'` 切到预览态：画布换成真实的渲染器，可以填写、校验、看联动，外框只留工具栏与状态栏。`previewValues` 是预览用的示例数据，`loadOptions` 是预览时的选项加载函数，`uploadFile` 是预览里文件字段的上传函数，都与渲染器的同名属性一样；不给 `uploadFile` 时，预览里选的文件不会上传，也不会写进字段值。
+工具栏的「预览」或 `mode = 'preview'` 切到预览态：画布换成真实的渲染器，可以填写、校验、看联动，外框不显示面板，回到设计态时面板照原来的布局回来。`previewValues` 是预览用的示例数据，`loadOptions` 是预览时的选项加载函数，`uploadFile` 是预览里文件字段的上传函数，都与渲染器的同名属性一样；不给 `uploadFile` 时，预览里选的文件不会上传，也不会写进字段值。
 
 预览宽度有全宽、平板与手机三档（`previewWidth`），设计态的画布也按这个宽度排。
 
@@ -149,7 +159,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
 ```
 
-内置命令的 id：`undo`、`redo`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`，以及 designer-shell 内置的 `panels`、`settings`、`help`；顶栏的插入钮是 `insert:text`、`insert:textarea`、`insert:number`、`insert:date`、`insert:select`、`insert:radio-group`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
+内置命令的 id：`undo`、`redo`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`，以及 designer-shell 内置的 `panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`settings`、`help` 与各面板的开关命令 `panel:palette`、`panel:properties`、`panel:issues`；顶栏的插入钮是 `insert:text`、`insert:textarea`、`insert:number`、`insert:date`、`insert:select`、`insert:radio-group`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
 
 ## 示例
 

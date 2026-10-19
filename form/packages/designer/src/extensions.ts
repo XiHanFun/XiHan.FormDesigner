@@ -12,8 +12,8 @@ import type { DesignerCommandTable, DesignerSettingsSection, DesignerShellExtens
 import type { FormDesignerContext } from './commands'
 import type { FormPropertyEditor } from './properties'
 import { createFormRuntimeModel } from '@xihan-form/runtime'
-import { extensionCommands, extensionEditors } from '@xihan-ui/designer-kit'
-import { collectSettingsSections } from '@xihan-ui/designer-shell'
+import { DesignerExtensionError, extensionCommands, extensionEditors } from '@xihan-ui/designer-kit'
+import { collectSettingsSections, DESIGNER_FRAME_REGIONS, designerPanelCommands } from '@xihan-ui/designer-shell'
 import { FORM_COMMANDS } from './commands'
 
 /** 表单设计器层的扩展：运行时层的全部字段，加上属性编辑器、命令、面板、导入导出与 setup。 */
@@ -36,9 +36,38 @@ export interface FormDesignerModel {
   readonly settings: readonly DesignerSettingsSection[]
 }
 
-/** 合出设计器用的模型；任何一处重名（设置分区与 general 重名也算）都抛 DesignerExtensionError。 */
+/**
+ * 命令表并上扩展面板的开关命令 panel:<区名>。扩展面板与外框的内置区或别的扩展面板重名时抛面板冲突，
+ * 扩展自己登记了同名命令时抛命令冲突，都是 DesignerExtensionError。
+ */
+function withPanelCommands(commands: DesignerCommandTable<FormDesignerContext>, extensions: readonly FormDesignerExtension[]): DesignerCommandTable<FormDesignerContext> {
+  const owners = new Map<string, string>(DESIGNER_FRAME_REGIONS.map(region => [region.name, 'builtin']))
+  const panels: string[] = []
+  for (const extension of extensions) {
+    for (const { region } of extension.panels ?? []) {
+      const previous = owners.get(region.name)
+      if (previous !== undefined)
+        throw new DesignerExtensionError('panel', region.name, [previous, extension.id])
+      owners.set(region.name, extension.id)
+      panels.push(region.name)
+    }
+  }
+  if (panels.length === 0)
+    return commands
+  const table = new Map(commands)
+  for (const command of designerPanelCommands<FormDesignerContext>({ panels, frame: context => context.frame })) {
+    if (table.has(command.id)) {
+      const owner = extensions.find(extension => extension.commands?.some(item => item.id === command.id))?.id ?? FORM_DESIGNER_EXTENSION.id
+      throw new DesignerExtensionError('command', command.id, [FORM_DESIGNER_EXTENSION.id, owner])
+    }
+    table.set(command.id, command)
+  }
+  return table
+}
+
+/** 合出设计器用的模型；任何一处重名（设置分区与 general 重名、扩展面板与外框的区重名、扩展面板的开关命令与已有命令重名也算）都抛 DesignerExtensionError。 */
 export function createFormDesignerModel(extensions: readonly FormDesignerExtension[]): FormDesignerModel {
   const runtime = createFormRuntimeModel([FORM_DESIGNER_EXTENSION, ...extensions])
   const all = runtime.extensions as readonly FormDesignerExtension[]
-  return Object.freeze({ extensions: all, runtime, commands: extensionCommands(all), editors: extensionEditors<FormPropertyEditor>(undefined, all), settings: collectSettingsSections(all) })
+  return Object.freeze({ extensions: all, runtime, commands: withPanelCommands(extensionCommands(all), all), editors: extensionEditors<FormPropertyEditor>(undefined, all), settings: collectSettingsSections(all) })
 }
