@@ -149,7 +149,7 @@ describe('<xh-form-designer>：设置', () => {
     expect(shell().getAttribute('data-display')).toBe('text')
   })
 
-  it('设置里关掉状态栏：外框不显示它；这时关掉一块面板，panels 仍留着 status，再打开状态栏照样出现', async () => {
+  it('设置里关掉状态栏：外框不登记它；这时关掉一块面板，设置里两条都在，再打开状态栏照样出现', async () => {
     const designer = await mount()
     const frame = designer.querySelector<HTMLElement & { showsPanel: (name: string) => boolean, updateComplete: Promise<unknown> }>('xh-designer-frame')!
     await frame.updateComplete
@@ -160,10 +160,12 @@ describe('<xh-form-designer>：设置', () => {
     expect(frame.showsPanel('status')).toBe(false)
     frame.querySelector<HTMLButtonElement>('[data-region="palette"] [data-part="panel-close"]')!.click()
     await designer.updateComplete
-    expect(designer.panels!.split(' ')).toContain('status')
-    designer.settings = {}
+    expect(designer.settings!['general.statusBar']).toBe(false)
+    expect(designer.settings!['layout.panels']).toMatchObject({ hidden: ['palette'] })
+    designer.settings = { 'layout.panels': designer.settings!['layout.panels']! }
     await designer.updateComplete
     await frame.updateComplete
     expect(frame.showsPanel('status')).toBe(true)
+    expect(frame.showsPanel('palette')).toBe(false)
   })
 })

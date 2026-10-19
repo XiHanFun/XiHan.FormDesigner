@@ -8,10 +8,11 @@ import { BUILTIN_FIELDS, createDocument, createFormModel, createNode, findNode, 
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
+import { DESIGNER_SETTING_KEYS } from '@xihan-ui/designer-shell'
 import { setXhConfig } from '@xihan-ui/web-components'
 import { defineXhElements } from '@xihan-ui/web-components/define'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { defineFormDesigner, FORM_DESIGNER_HELP_URL, FORM_DESIGNER_TAG } from '../src'
+import { defineFormDesigner, FORM_DESIGNER_HELP_URL, FORM_DESIGNER_PANELS, FORM_DESIGNER_TAG } from '../src'
 
 defineXhElements()
 defineFormDesigner()
@@ -263,19 +264,35 @@ describe('<xh-form-designer>：编辑', () => {
 })
 
 describe('<xh-form-designer>：面板与模式', () => {
-  it('panels 经外框收起面板，画布常驻；预览态只留工具栏与状态栏', async () => {
+  it('defaultLayout 给缺省的显隐，画布常驻；预览态不显示面板，不动布局', async () => {
     const designer = await mount((element) => {
-      element.panels = 'toolbar properties'
+      element.defaultLayout = { version: 1, hidden: [FORM_DESIGNER_PANELS.palette, FORM_DESIGNER_PANELS.issues] }
     })
-    const shown = (): string[] => ['toolbar', 'palette', 'canvas', 'properties', 'issues'].filter(name => designer.querySelector(`[data-part="frame"] [slot="${name}"]`) !== null)
-    expect(shown()).toEqual(['toolbar', 'canvas', 'properties'])
+    const frame = designer.querySelector('xh-designer-frame')!
+    const shown = (): string[] => ['toolbar', 'palette', 'canvas', 'properties', 'issues', 'status'].filter(name => frame.showsPanel(name))
+    expect(shown()).toEqual(['toolbar', 'canvas', 'properties', 'status'])
+    const changes = events(designer, 'settings-change')
     designer.mode = 'preview'
     await settle(designer)
-    expect(shown()).toEqual(['toolbar', 'canvas'])
+    expect(shown()).toEqual(['toolbar', 'canvas', 'status'])
     designer.mode = 'design'
-    designer.panels = undefined
     await settle(designer)
-    expect(shown()).toEqual(['toolbar', 'palette', 'canvas', 'properties', 'issues'])
+    expect(shown()).toEqual(['toolbar', 'canvas', 'properties', 'status'])
+    designer.defaultLayout = undefined
+    await settle(designer)
+    expect(shown()).toEqual(['toolbar', 'palette', 'canvas', 'properties', 'issues', 'status'])
+    expect(changes).toEqual([])
+  })
+
+  it('面板登记带图标与缺省的栏：物料在左栏、属性在右栏、问题在下栏', async () => {
+    const designer = await mount(() => {})
+    const frame = designer.querySelector('xh-designer-frame')!
+    const entries = frame.panelEntries()
+    expect(entries.map(entry => [entry.name, entry.dock, entry.icon !== undefined])).toEqual([
+      ['palette', 'start', true],
+      ['properties', 'end', true],
+      ['issues', 'bottom', true],
+    ])
   })
 
   it('工具栏：内置命令带图标、缺省只显示图标，名字与快捷键写在按钮上，共用命令取 xh-designer-commands 的文案，删除带危险语气', async () => {
@@ -376,7 +393,7 @@ describe('<xh-form-designer>：面板卡片', () => {
     expect([designer.previewWidth, zone('end')]).toEqual(['full', ['Preview width|Full']])
     designer.mode = 'preview'
     await settle(designer)
-    expect(frame.panels).toBe('toolbar status')
+    expect(['toolbar', 'palette', 'canvas', 'properties', 'issues', 'status'].filter(region => frame.showsPanel(region))).toEqual(['toolbar', 'canvas', 'status'])
   })
 
   it('顶栏中段是常用字段的插入钮：图标在上、种类名在下，点了插到选中节点之后；只读与预览态不可用，commandLayout 写空数组就没有顶栏', async () => {
@@ -429,7 +446,7 @@ describe('<xh-form-designer>：面板卡片', () => {
     }
   })
 
-  it('「面板」点开一张锚在按钮上的菜单，列出物料、属性与问题，勾选的显示；点一项开关它并派发 panels-change', async () => {
+  it('「面板」点开一张锚在按钮上的菜单，列出物料、属性与问题，勾选的显示；点一项开关它，布局写进设置并派发 settings-change', async () => {
     const designer = await mount(() => {})
     const button = designer.querySelector<HTMLButtonElement>('[data-part="command-bar"] button[value="panels"]')!
     button.click()
@@ -437,33 +454,71 @@ describe('<xh-form-designer>：面板卡片', () => {
     type MenuHost = HTMLElement & { open?: boolean, anchor?: HTMLElement | null, collection?: readonly { value: string }[], checkboxValue?: readonly string[] }
     const menu = designer.querySelector<MenuHost>('[data-part="command-bar"] xh-menu')!
     expect([menu.open, menu.anchor]).toEqual([true, button])
-    expect(menu.collection!.map(item => item.value)).toEqual(['item:palette', 'item:properties', 'item:issues'])
+    expect(menu.collection!.map(item => item.value).filter(value => value.startsWith('item:'))).toEqual(['item:palette', 'item:properties', 'item:issues'])
     expect(menu.checkboxValue).toEqual(['item:palette', 'item:properties', 'item:issues'])
-    const changes = events(designer, 'panels-change')
+    const changes = events(designer, 'settings-change')
+    const hidden = (): readonly string[] | undefined => (designer.settings?.[DESIGNER_SETTING_KEYS.layout] as { hidden?: readonly string[] } | undefined)?.hidden
     window.document.querySelector<HTMLElement>('[data-scope="menu"][data-part="item"][data-value="item:palette"]')!.click()
     await settle(designer)
-    expect(changes).toEqual([{ panels: designer.panels! }])
-    expect(designer.panels!.split(' ')).not.toContain('palette')
+    expect(changes.map(change => change.key)).toEqual([DESIGNER_SETTING_KEYS.layout])
+    expect(changes[0]!.settings).toBe(designer.settings)
+    expect(hidden()).toEqual(['palette'])
     expect(menu.checkboxValue).toEqual(['item:properties', 'item:issues'])
     window.document.querySelector<HTMLElement>('[data-scope="menu"][data-part="item"][data-value="item:palette"]')!.click()
     await settle(designer)
-    expect(designer.panels!.split(' ')).toContain('palette')
+    expect(hidden()).toEqual([])
   })
 
-  it('点面板头的关闭钮：收起这块面板，panels 换成外框剩下的区并派发 panels-change，外框的同名事件不冒出设计器', async () => {
+  it('每块面板一条开关命令 panel:<面板 id>，可以排进工具栏；扩展的面板也有', async () => {
+    const designer = await mount((element) => {
+      element.commandLayout = { toolbar: [['panel:issues', 'panel:acme']] }
+      element.extensions = [{ id: '@acme/panel', panels: [{ region: { name: 'acme', position: 'end', title: 'Acme' }, create: () => ({ element: window.document.createElement('section') }) }] }]
+    })
+    const frame = designer.querySelector('xh-designer-frame')!
+    const button = (value: string): HTMLButtonElement => designer.querySelector<HTMLButtonElement>(`[data-part="command-bar"] button[value="${value}"]`)!
+    expect([button('panel:issues').getAttribute('aria-label'), button('panel:issues').getAttribute('aria-pressed')]).toEqual([DEFAULT_FORM_DESIGNER_TRANSLATIONS.issues, 'true'])
+    expect(button('panel:acme').getAttribute('aria-label')).toBe('Acme')
+    button('panel:issues').click()
+    await settle(designer)
+    expect(frame.showsPanel('issues')).toBe(false)
+    expect(button('panel:issues').getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('settingsPolicy 管布局：layout.panels.<面板 id> 藏掉一块面板，layout.panels 锁定整份', async () => {
+    const designer = await mount((element) => {
+      element.settingsPolicy = { 'layout.panels.issues': 'hidden' }
+    })
+    const frame = designer.querySelector('xh-designer-frame')!
+    expect(frame.showsPanel('issues')).toBe(false)
+    expect(frame.panelEntries().map(entry => entry.name)).toEqual(['palette', 'properties'])
+    expect(designer.querySelector<HTMLButtonElement>('[data-region="palette"] [data-part="panel-close"]')!.hidden).toBe(false)
+    designer.settingsPolicy = { 'layout.panels': 'locked' }
+    await settle(designer)
+    expect(frame.showsPanel('issues')).toBe(true)
+    expect(designer.querySelector<HTMLButtonElement>('[data-region="palette"] [data-part="panel-close"]')!.hidden).toBe(true)
+  })
+
+  it('点面板头的关闭钮：隐藏这块面板，整份布局写进设置的 layout.panels 并派发 settings-change，外框的 layout-change 不冒出设计器', async () => {
     const designer = await mount(() => {})
-    const targets: string[] = []
-    window.document.body.addEventListener('panels-change', event => targets.push((event.target as Element).localName))
-    const changes = events(designer, 'panels-change')
+    const frame = designer.querySelector('xh-designer-frame')!
+    const bubbled: string[] = []
+    window.document.body.addEventListener('layout-change', event => bubbled.push((event.target as Element).localName))
+    const changes = events(designer, 'settings-change')
     designer.querySelector<HTMLButtonElement>('[data-region="palette"] [data-part="panel-close"]')!.click()
     await settle(designer)
-    expect(changes).toEqual([{ panels: 'header toolbar properties issues status' }])
-    expect(designer.panels).toBe('header toolbar properties issues status')
-    expect(targets).toEqual(['xh-form-designer'])
-    expect(designer.querySelector('[data-part="frame"] [slot="palette"]')).toBeNull()
+    expect(changes.map(change => change.key)).toEqual([DESIGNER_SETTING_KEYS.layout])
+    expect(changes[0]!.value).toEqual(frame.resolvedLayout)
+    expect(frame.showsPanel('palette')).toBe(false)
+    expect(bubbled).toEqual([])
     designer.querySelector<HTMLButtonElement>('[data-region="issues"] [data-part="panel-close"]')!.click()
     await settle(designer)
-    expect(designer.panels).toBe('header toolbar properties status')
+    const saved = designer.settings!
+    expect(saved[DESIGNER_SETTING_KEYS.layout]).toMatchObject({ hidden: ['palette', 'issues'] })
+    const again = await mount((element) => {
+      element.settings = saved
+    })
+    const restored = again.querySelector('xh-designer-frame')!
+    expect(['palette', 'properties', 'issues'].filter(name => restored.showsPanel(name))).toEqual(['properties'])
   })
 })
 

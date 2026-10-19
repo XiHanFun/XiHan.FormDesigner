@@ -879,6 +879,12 @@ function unionSection(file, name) {
   return `### ${name} {#${anchorOf(name)}}\n\n${blockDoc(jsdoc(declaration(file, name).node))}取值：${literalUnion(file, name).map(item => code(item)).join('、')}。`
 }
 
+/** 导出的常量原样写成 TypeScript 代码块，去掉 export。 */
+function constSection(file, name) {
+  const { node, statement } = declaration(file, name)
+  return [`### ${name} {#${anchorOf(name)}}`, blockDoc(jsdoc(node)), fenceType(flat(statement).replace(/, \}/g, ' }'))].filter(Boolean).join('\n\n')
+}
+
 function designerPage() {
   const designer = packageSource('designer', 'src', 'form-designer.ts')
   const internals = packageSource('designer', 'src', 'internals.ts')
@@ -894,7 +900,7 @@ function designerPage() {
     '## 类型',
     unionSection(internals, 'FormDesignerMode'),
     unionSection(designer, 'FormPreviewWidth'),
-    unionSection(designer, 'FormDesignerPanel'),
+    constSection(commands, 'FORM_DESIGNER_PANELS'),
     unionSection(designer, 'FormSchemaChangeKind'),
     interfaceSection(editor, 'FormSelection'),
     interfaceSection(editor, 'FormDropTarget'),

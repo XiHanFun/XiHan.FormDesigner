@@ -15,7 +15,7 @@ import type { FormSelection } from './editor'
 import type { XhFormDesigner } from './form-designer'
 import type { FormDesignerInternals } from './internals'
 import { findNode, findRegion, mergeTableCells, removeTableLine } from '@xihan-form/core'
-import { designerShellCommands } from '@xihan-ui/designer-shell'
+import { designerPanelCommands, designerShellCommands } from '@xihan-ui/designer-shell'
 import { AlignLeftIcon, ArrowDownIcon, ArrowUpIcon, CalendarIcon, CircleDotIcon, CircleHelpIcon, ClipboardIcon, CopyIcon, CopyPlusIcon, CornerLeftUpIcon, EyeIcon, HashIcon, MonitorIcon, PanelLeftIcon, PencilIcon, RedoIcon, SaveIcon, ScissorsIcon, SettingsIcon, SmartphoneIcon, SquareChevronDownIcon, SquareDashedIcon, TableCellsMergeIcon, TableCellsSplitIcon, TableColumnInsertLeftIcon, TableColumnInsertRightIcon, TableColumnRemoveIcon, TableRowInsertAboveIcon, TableRowInsertBelowIcon, TableRowRemoveIcon, TabletIcon, TrashIcon, TypeIcon, UndoIcon } from '@xihan-ui/icons'
 import { internalsOf } from './internals'
 
@@ -41,6 +41,13 @@ export type FormMenuSubject = 'node' | 'region' | 'cell' | 'blank'
 
 /** 表单文档站上设计器的一页，工具栏的「帮助」在新窗口打开它。 */
 export const FORM_DESIGNER_HELP_URL = 'https://form.docs.xihanfun.com/guide/designer'
+
+/** 设计器的面板 id：宿主写 defaultLayout、settingsPolicy（layout.panels.<面板 id>）时用；每块面板有一条开关命令 panel:<面板 id>。 */
+export const FORM_DESIGNER_PANELS = {
+  palette: 'palette',
+  properties: 'properties',
+  issues: 'issues',
+} as const
 
 /** 表格布局容器的种类，表格命令只认它。 */
 const TABLE_KIND = 'table'
@@ -161,7 +168,9 @@ type TextKey = { [K in keyof FormDesignerTranslations]: FormDesignerTranslations
 
 const text = (key: TextKey) => (context: FormDesignerContext): string => context.translations[key]
 
-const shared = (key: keyof DesignerCommandsTranslations) => (context: FormDesignerContext): string => context.commands[key]
+type SharedKey = { [K in keyof DesignerCommandsTranslations]: DesignerCommandsTranslations[K] extends string ? K : never }[keyof DesignerCommandsTranslations]
+
+const shared = (key: SharedKey) => (context: FormDesignerContext): string => context.commands[key]
 
 /** 只在可编辑时可用。 */
 function editing(test: (state: CommandState) => boolean) {
@@ -278,7 +287,7 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
         designer.revealNode(node.id)
     },
   })),
-  // designer-shell 内置的面板、设置与帮助，文案取共用的那一桶
+  // designer-shell 内置的面板、设置与帮助，文案取共用的那一桶；每块面板另有一条开关命令
   ...designerShellCommands<FormDesignerContext>({
     translations: context => context.commands,
     frame: context => context.frame,
@@ -286,4 +295,5 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
     helpUrl: () => FORM_DESIGNER_HELP_URL,
     icons: { panels: PanelLeftIcon, settings: SettingsIcon, help: CircleHelpIcon },
   }),
+  ...designerPanelCommands<FormDesignerContext>({ panels: Object.values(FORM_DESIGNER_PANELS), frame: context => context.frame }),
 ] satisfies FormDesignerCommand[])

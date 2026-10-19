@@ -7,7 +7,7 @@
 | 模板的保存 | 存模板 JSON，管名称、分类、版本与审核 | `schema`、`schema-change`、`save`、`dirty`、`markSaved()` |
 | 已有数据与提交 | 取出已有的数据，收下提交的数据并保存 | `values`、`submit`、`submitAction`、`getFormData()` |
 | 选项与附件 | 按选项来源返回选项，接收上传的文件 | `loadOptions`、`uploadFile` |
-| 权限 | 决定谁能改模板、谁能填哪些字段，服务端再复核 | `readonly`、`disabled`、`panels`、控制器的强制设定 |
+| 权限 | 决定谁能改模板、谁能填哪些字段，服务端再复核 | `readonly`、`disabled`、`settingsPolicy`、控制器的强制设定 |
 | 校验 | 保存前拦住有错误的模板，服务端复核提交的数据 | `validate()`、`issues-change`、`validateDocument`、`validateValues` |
 
 ## 模板的保存
@@ -36,7 +36,7 @@
 
 ## 权限
 
-- 只能看模板的用户把设计器设成 `readonly`：能选择、浏览与预览，不能修改；用 `panels` 去掉物料等区。
+- 只能看模板的用户把设计器设成 `readonly`：能选择、浏览与预览，不能修改；用 `settingsPolicy` 的 `layout.panels.palette` 写 `hidden` 去掉物料面板。
 - 只能看表单的用户把渲染器设成 `readonly`（仍可提交）或 `disabled`（不能提交）。
 - 某些字段只给特定角色填写时，按角色用控制器的 `setReadOnly`、`setHidden` 强制，见[渲染器](./renderer#只读与禁用)。
 - 这些都只在前端生效。模板与数据的保存权限要在服务端判断，服务端也应复核收到的模板与数据。
