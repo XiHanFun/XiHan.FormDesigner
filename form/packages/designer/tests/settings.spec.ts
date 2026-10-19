@@ -184,7 +184,7 @@ describe('<xh-form-designer>：设置', () => {
     frame.querySelector<HTMLButtonElement>('[data-region="palette"] [data-part="panel-close"]')!.click()
     await designer.updateComplete
     expect(designer.settings!['general.statusBar']).toBe(false)
-    expect(designer.settings!['layout.panels']).toMatchObject({ hidden: ['palette'] })
+    expect(designer.settings!['layout.panels']).toMatchObject({ hidden: ['history', 'palette'] })
     designer.settings = { 'layout.panels': designer.settings!['layout.panels']! }
     await designer.updateComplete
     await frame.updateComplete

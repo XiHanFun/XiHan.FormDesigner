@@ -756,7 +756,8 @@ export class XhFormDesigner extends XhReactiveElement {
     const settings = createAuthoredElement(doc, 'xh-designer-settings', { 'data-part': 'settings' })
     settings.addEventListener('settings-change', this.#onSettingsChange)
     this.replaceChildren(frame, settings)
-    const panels = createPanelHost<FormDesignerContext>(frame)
+    // 面板头的命令（如历史记录的清空）按设计器此刻的命令表铺
+    const panels = createPanelHost<FormDesignerContext>(frame, { commands: () => this.#model.commands })
     this.#parts = { frame, panels, toolbar, commandBar, headerBar, canvas, palette, catalog, dropIndicator, ...this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings, selectionStatus, widthStatus }
     this.#prepareMenu(this.#parts)
     panels.assign(this.#model.extensions, this.#context())

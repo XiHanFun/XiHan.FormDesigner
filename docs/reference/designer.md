@@ -93,7 +93,7 @@
 设计器的面板 id：宿主写 defaultLayout、settingsPolicy（layout.panels.&lt;面板 id&gt;）时用；每块面板有一条开关命令 panel:&lt;面板 id&gt;。
 
 ```ts
-const FORM_DESIGNER_PANELS = { palette: 'palette', outline: 'outline', properties: 'properties', issues: 'issues' } as const
+const FORM_DESIGNER_PANELS = { palette: 'palette', outline: 'outline', properties: 'properties', issues: 'issues', history: 'history' } as const
 ```
 
 ### FormSchemaChangeKind {#formschemachangekind}
@@ -368,7 +368,7 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 | 名称 | 种类 | 说明 |
 | --- | --- | --- |
 | `createFormDesignerModel` | 函数 | 合出设计器用的模型；任何一处重名（设置分区与 general 重名、扩展面板与外框的区重名、扩展面板的开关命令与已有命令重名也算）都抛 DesignerExtensionError。 |
-| `FORM_DESIGNER_EXTENSION` | 常量 | 设计器的内置扩展：内置命令与页面结构面板。 |
+| `FORM_DESIGNER_EXTENSION` | 常量 | 设计器的内置扩展：内置命令，以及页面结构与历史记录两块面板。 |
 | `FormDesignerExtension` | 接口 | 表单设计器层的扩展：运行时层的全部字段，加上属性编辑器、命令、面板、导入导出与 setup。 |
 | `FormDesignerModel` | 接口 | 一组设计器扩展合出的东西：运行时模型、命令表、属性编辑器表与设置分区。 |
 

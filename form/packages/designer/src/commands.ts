@@ -48,6 +48,7 @@ export const FORM_DESIGNER_PANELS = {
   outline: 'outline',
   properties: 'properties',
   issues: 'issues',
+  history: 'history',
 } as const
 
 /** 表格布局容器的种类，表格命令只认它。 */
@@ -315,6 +316,6 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
     helpUrl: () => FORM_DESIGNER_HELP_URL,
     icons: { panels: PanelLeftIcon, settings: SettingsIcon, help: CircleHelpIcon },
   }),
-  // 页面结构是内置扩展登记的面板，它的开关命令随扩展面板一起生成
+  // 页面结构与历史记录是内置扩展登记的面板，它们的开关命令随扩展面板一起生成
   ...designerPanelCommands<FormDesignerContext>({ panels: [FORM_DESIGNER_PANELS.palette, FORM_DESIGNER_PANELS.properties, FORM_DESIGNER_PANELS.issues], frame: context => context.frame }),
 ] satisfies FormDesignerCommand[])
