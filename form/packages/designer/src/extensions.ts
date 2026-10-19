@@ -15,14 +15,16 @@ import { createFormRuntimeModel } from '@xihan-form/runtime'
 import { DesignerExtensionError, extensionCommands, extensionEditors } from '@xihan-ui/designer-kit'
 import { collectSettingsSections, DESIGNER_FRAME_REGIONS, designerPanelCommands } from '@xihan-ui/designer-shell'
 import { FORM_COMMANDS } from './commands'
+import { FORM_OUTLINE_PANEL } from './outline'
 
 /** 表单设计器层的扩展：运行时层的全部字段，加上属性编辑器、命令、面板、导入导出与 setup。 */
 export interface FormDesignerExtension extends FormRuntimeExtension, DesignerShellExtension<FormDesignerContext, FormPropertyEditor, FormDocument, FormRuleContext> {}
 
-/** 设计器的内置扩展：内置命令。种类、渲染等内置部分在 core 与运行时的内置扩展里。 */
+/** 设计器的内置扩展：内置命令与页面结构面板。种类、渲染等内置部分在 core 与运行时的内置扩展里。 */
 export const FORM_DESIGNER_EXTENSION: FormDesignerExtension = Object.freeze({
   id: '@xihan-form/designer',
   commands: FORM_COMMANDS,
+  panels: [FORM_OUTLINE_PANEL],
 })
 
 /** 一组设计器扩展合出的东西：运行时模型、命令表、属性编辑器表与设置分区。 */

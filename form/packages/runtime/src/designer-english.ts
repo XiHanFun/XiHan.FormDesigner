@@ -59,6 +59,9 @@ export const ENGLISH_DESIGNER_LOCALE: FormDesignerLocale = {
   insertColumnRight: 'Insert column right',
   removeRow: 'Delete row',
   removeColumn: 'Delete column',
+  outlineColumn: n => `Column ${n}`,
+  outlineCell: (row, column) => `Row ${row}, column ${column}`,
+  outlineRegion: n => `Region ${n}`,
   history: {
     addNode: name => `Add “${name}”`,
     addNodes: count => `Add ${count} components`,

@@ -34,6 +34,7 @@ import { arrangeCommands, createCommandToolbar, createDesignerSettingsHost, crea
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { ArrowDownIcon, ArrowUpIcon, CircleAlertIcon, CopyPlusIcon, CornerLeftUpIcon, LayoutGridIcon, SlidersHorizontalIcon, TrashIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
+import { onXhConfigChange } from '@xihan-ui/web-components'
 import { BOOLEAN_CONVERTER, createAuthoredElement, emitEvent, registerElement, setAttributes, setText, SVG_NS, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { defineXhElement, XhButtonElement, XhContextMenuElement, XhExpressionInputElement, XhIconElement, XhMenuElement, XhToolbarElement, XhTooltipElement } from '@xihan-ui/web-components/define'
 import { createDialogService } from '@xihan-ui/web-components/services'
@@ -304,6 +305,9 @@ export class XhFormDesigner extends XhReactiveElement {
   #cancelSpanDrag: (() => void) | undefined
   /** 清空历史前的确认框，第一次用到时建。 */
   #dialogs: DialogService | undefined
+  /** 刚连上文档或所在处的配置（语言、文案）变了：画布与物料要按新配置重排；只是选择变了时不重排。 */
+  #configStale = true
+  #releaseConfigWatch: (() => void) | undefined
 
   constructor() {
     super()
@@ -365,6 +369,12 @@ export class XhFormDesigner extends XhReactiveElement {
       confirm: (options) => {
         this.#dialogs ??= createDialogService()
         return this.#dialogs.confirm(options)
+      },
+      editor: () => this.#editor,
+      highlight: id => this.#canvas.highlight(id),
+      revealRegion: (id) => {
+        this.#openRegion(id)
+        this.#canvas.regionElement(id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
       },
     })
     this.#editor.subscribe((change) => {
@@ -450,6 +460,10 @@ export class XhFormDesigner extends XhReactiveElement {
 
   override connectedCallback(): void {
     super.connectedCallback()
+    this.#configStale = true
+    this.#releaseConfigWatch ??= onXhConfigChange(() => {
+      this.#configStale = true
+    }, this)
     const parts = this.#ensureParts()
     for (const type of CLIPBOARD_EVENTS)
       this.addEventListener(type, this.#onClipboard)
@@ -468,6 +482,8 @@ export class XhFormDesigner extends XhReactiveElement {
       this.removeEventListener(type, this.#onClipboard)
     this.#releaseDropTarget?.()
     this.#releaseDropTarget = undefined
+    this.#releaseConfigWatch?.()
+    this.#releaseConfigWatch = undefined
     this.#cancelSpanDrag?.()
     this.#host.dispose()
     this.#settingsHost?.dispose()
@@ -481,12 +497,14 @@ export class XhFormDesigner extends XhReactiveElement {
     const parts = this.#ensureParts()
     const mode = this.mode ?? 'design'
     const t = this.#t()
+    const configStale = this.#configStale
+    this.#configStale = false
     this.#syncSettings(parts, changed)
     setAttributes(parts.frame, { 'data-mode': mode, 'data-width': this.previewWidth ?? 'full', 'data-readonly': this.readonly === true, 'aria-label': t.label })
     this.#syncStatus(t)
     if (changed.has('mode'))
       this.#syncMode()
-    if (this.#rendered !== this.#editor.document || changed.has('extensions') || changed.has('translations') || changed.size === 0)
+    if (this.#rendered !== this.#editor.document || changed.has('extensions') || changed.has('translations') || configStale)
       this.#renderCanvas()
     this.#syncPreview()
     this.#syncProperties(changed, t)
@@ -494,7 +512,7 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#syncRegions(parts.frame, t, mode)
     this.#syncLayout(parts.frame)
     this.#syncToolbar(t)
-    this.#syncPalette(changed, t)
+    this.#syncPalette(changed, t, configStale)
     this.#syncIssues(changed, t)
     this.#syncNodeToolbar(t)
     this.#syncRuleTabs(t)
@@ -1067,10 +1085,10 @@ export class XhFormDesigner extends XhReactiveElement {
     inspector.errors = propertyErrors(document, view, this.#issues, issue => this.#describe(issue, t))
   }
 
-  /** 扩展或文案变了时重排物料。 */
-  #syncPalette(changed: PropertyValues, t: FormDesignerTranslations): void {
+  /** 扩展、文案或配置变了时重排物料。 */
+  #syncPalette(changed: PropertyValues, t: FormDesignerTranslations, configStale: boolean): void {
     const catalog = this.#ensureParts().catalog
-    if (catalog.groups === undefined || changed.has('extensions') || changed.has('translations') || changed.size === 0)
+    if (catalog.groups === undefined || changed.has('extensions') || changed.has('translations') || configStale)
       catalog.groups = paletteGroups(this.#editor.registry, t)
     catalog.readonly = this.readonly === true
   }
@@ -1189,6 +1207,26 @@ export class XhFormDesigner extends XhReactiveElement {
     emitEvent(this, 'dirty-change', { dirty })
   }
 
+  /** 把区域所在的标签页切过去、所在的折叠项展开，连同它所在容器的上级。 */
+  #openRegion(id: string): void {
+    const owner = findRegion(this.#editor.document, id)
+    if (owner === undefined)
+      return
+    this.#openAncestors(owner.container.id)
+    this.#openContainer(owner.container, id)
+  }
+
+  /** 切到标签页容器的这一页，或展开折叠容器的这一项；别的容器不动。 */
+  #openContainer(container: FormNode, region: string): void {
+    const host = this.#canvas.nodeElement(container.id)?.querySelector<HTMLElement & { value?: unknown }>(container.kind === 'tabs' ? 'xh-tabs' : 'xh-accordion')
+    if (host === null || host === undefined)
+      return
+    if (container.kind === 'tabs')
+      host.value = region
+    else if (container.kind === 'collapse')
+      host.value = [...new Set([...(Array.isArray(host.value) ? host.value as string[] : []), region])]
+  }
+
   /** 把节点所在的标签页切过去、所在的折叠项展开。 */
   #openAncestors(id: string): void {
     const found = findNode(this.#editor.document, id)
@@ -1199,13 +1237,7 @@ export class XhFormDesigner extends XhReactiveElement {
       const owner = findRegion(this.#editor.document, region.id)
       if (owner === undefined)
         return
-      const host = this.#canvas.nodeElement(owner.container.id)?.querySelector<HTMLElement & { value?: unknown }>(owner.container.kind === 'tabs' ? 'xh-tabs' : 'xh-accordion')
-      if (host !== null && host !== undefined) {
-        if (owner.container.kind === 'tabs')
-          host.value = region.id
-        else if (owner.container.kind === 'collapse')
-          host.value = [...new Set([...(Array.isArray(host.value) ? host.value as string[] : []), region.id])]
-      }
+      this.#openContainer(owner.container, region.id)
       const parent = findNode(this.#editor.document, owner.container.id)
       region = parent?.region ?? null
     }

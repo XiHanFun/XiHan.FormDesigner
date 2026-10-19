@@ -92,6 +92,9 @@ const locale: FormLocale = {
     insertColumnRight: 'Вставить столбец справа',
     removeRow: 'Удалить строку',
     removeColumn: 'Удалить столбец',
+    outlineColumn: n => `Столбец ${n}`,
+    outlineCell: (row, column) => `Строка ${row}, столбец ${column}`,
+    outlineRegion: n => `Область ${n}`,
     history: {
       addNode: name => `Добавить «${name}»`,
       addNodes: count => `Добавить ${count} ${plural(count, 'элемент', 'элемента', 'элементов')}`,

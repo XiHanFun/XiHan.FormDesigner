@@ -8,7 +8,7 @@ import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { createHistory, createIdAllocator } from '@xihan-ui/designer-kit'
 import { DESIGNER_COMMANDS_EN_US, DESIGNER_HISTORY_EN_US } from '@xihan-ui/designer-shell'
 import { describe, expect, it } from 'vitest'
-import { FORM_COMMANDS, FORM_MENU_LAYOUTS } from '../src'
+import { createFormEditor, FORM_COMMANDS, FORM_MENU_LAYOUTS } from '../src'
 import { menuSubject } from '../src/commands'
 import { provideInternals } from '../src/internals'
 
@@ -49,6 +49,9 @@ function context(schema: FormDocument, selection: FormSelection, state: FakeStat
     history: () => history,
     historyTranslations: () => DESIGNER_HISTORY_EN_US,
     confirm,
+    editor: () => createFormEditor({ document: schema }),
+    highlight: noop,
+    revealRegion: noop,
   })
   return { designer: designer as unknown as XhFormDesigner, translations: DEFAULT_FORM_DESIGNER_TRANSLATIONS, commands: DESIGNER_COMMANDS_EN_US, settings: {}, frame: undefined }
 }

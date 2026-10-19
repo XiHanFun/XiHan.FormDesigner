@@ -8,6 +8,7 @@
 import type { FormDocument, FormOperation, KindRegistry } from '@xihan-form/core'
 import type { History, TableAxis } from '@xihan-ui/designer-kit'
 import type { DesignerHistoryConfirm, DesignerHistoryTranslations } from '@xihan-ui/designer-shell'
+import type { FormEditor } from './editor'
 
 /** 设计态或预览态。 */
 export type FormDesignerMode = 'design' | 'preview'
@@ -38,6 +39,12 @@ export interface FormDesignerInternals {
   readonly historyTranslations: () => DesignerHistoryTranslations
   /** 弹确认框，按确定时兑现为 true。 */
   readonly confirm: (options: DesignerHistoryConfirm) => Promise<boolean>
+  /** 编辑模型：页面结构判定与执行挪动用。 */
+  readonly editor: () => FormEditor
+  /** 在画布上标出节点或区域，null 撤掉；不改选择、不滚动。 */
+  readonly highlight: (id: string | null) => void
+  /** 把区域亮出来：切到它所在的标签页、展开所在的折叠项，再滚进可见区。 */
+  readonly revealRegion: (id: string) => void
 }
 
 const INTERNALS = new WeakMap<object, FormDesignerInternals>()

@@ -115,7 +115,7 @@ xh-form-designer [data-node-id] {
   cursor: default;
 }
 
-xh-form-designer [data-node-id]:hover {
+xh-form-designer [data-node-id]:is(:hover, [data-highlighted]) {
   border-color: var(--xh-border-default);
 }
 
@@ -161,6 +161,10 @@ xh-form-designer [data-region-id] {
   padding: var(--xh-space-1);
   border: var(--xh-stroke-thin) dashed var(--xh-border-subtle);
   border-radius: var(--xh-shape-control);
+}
+
+xh-form-designer [data-region-id][data-highlighted] {
+  border-color: var(--xh-border-default);
 }
 
 xh-form-designer [data-region-id][data-selected] {

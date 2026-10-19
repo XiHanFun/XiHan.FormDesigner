@@ -85,6 +85,8 @@ export class DesignCanvas {
   #nodes = new Map<string, HTMLElement>()
   #regions = new Map<string, HTMLElement>()
   #instances: FieldRendererInstance[] = []
+  /** 页面结构里标出的节点或区域；重排后照样标在新的外框上。 */
+  #highlighted: string | null = null
 
   constructor(host: CanvasHost) {
     this.#host = host
@@ -105,6 +107,16 @@ export class DesignCanvas {
     if (children.length === 0)
       children.push(createAuthoredElement(this.#host.ownerDocument, 'div', { 'data-part': 'canvas-empty' }, [this.#host.translations().emptyCanvas]))
     this.#root.replaceChildren(...children)
+    this.highlight(this.#highlighted)
+  }
+
+  /** 标出一个节点或区域（写 data-highlighted，样式同悬停），null 撤掉；不改选择、不滚动。 */
+  highlight(id: string | null): void {
+    if (this.#highlighted !== null)
+      (this.#nodes.get(this.#highlighted) ?? this.#regions.get(this.#highlighted))?.removeAttribute('data-highlighted')
+    this.#highlighted = id
+    if (id !== null)
+      (this.#nodes.get(id) ?? this.#regions.get(id))?.setAttribute('data-highlighted', '')
   }
 
   /** 把选中标记落到节点与区域上。 */

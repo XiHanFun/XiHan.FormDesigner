@@ -81,6 +81,9 @@ const locale: FormLocale = {
     insertColumnRight: '右に列を挿入',
     removeRow: '行を削除',
     removeColumn: '列を削除',
+    outlineColumn: n => `${n} 列目`,
+    outlineCell: (row, column) => `${row} 行 ${column} 列`,
+    outlineRegion: n => `領域 ${n}`,
     history: {
       addNode: name => `「${name}」を追加`,
       addNodes: count => `${count} 個の要素を追加`,
