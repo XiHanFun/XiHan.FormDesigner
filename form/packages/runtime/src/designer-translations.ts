@@ -9,6 +9,42 @@ import type { FormSchemaIssue } from '@xihan-form/core'
 import { ENGLISH_DESIGNER_LOCALE } from './designer-english'
 import { formDesignerTranslations } from './locale/types'
 
+/** 撤销历史里一步的说明。name 是显示名：节点写「种类 · 数据键」，属性写属性名，规则写规则种类或联动动作，区域写所在容器；count 是个数。 */
+export interface FormHistoryTranslations {
+  /** 添加一个节点。 */
+  readonly addNode: (name: string) => string
+  /** 添加几个节点。 */
+  readonly addNodes: (count: number) => string
+  /** 删除一个节点。 */
+  readonly removeNode: (name: string) => string
+  /** 删除几个节点。 */
+  readonly removeNodes: (count: number) => string
+  /** 移动一个节点。 */
+  readonly moveNode: (name: string) => string
+  /** 移动几个节点。 */
+  readonly moveNodes: (count: number) => string
+  /** 改了一项属性、区域属性、表单设置或数据键。 */
+  readonly editProperty: (name: string) => string
+  /** 添加一条校验或联动规则。 */
+  readonly addRule: (name: string) => string
+  /** 删除一条规则。 */
+  readonly removeRule: (name: string) => string
+  /** 修改一条规则。 */
+  readonly editRule: (name: string) => string
+  /** 调整一条规则的顺序。 */
+  readonly moveRule: (name: string) => string
+  /** 给容器添加一个区域。 */
+  readonly addRegion: (name: string) => string
+  /** 删除容器的一个区域。 */
+  readonly removeRegion: (name: string) => string
+  /** 删除几个区域。 */
+  readonly removeRegions: (count: number) => string
+  /** 调整容器里一个区域的顺序。 */
+  readonly moveRegion: (name: string) => string
+  /** 改了某个扩展的数据；id 是扩展的 id。 */
+  readonly editExtensionData: (id: string) => string
+}
+
 /** 表单设计器的文案：无参的是字符串，带参的是函数。 */
 export interface FormDesignerTranslations {
   /** 设计器的可访问名。 */
@@ -127,6 +163,8 @@ export interface FormDesignerTranslations {
   readonly removeRow: string
   /** 表格布局右键菜单：删除列。 */
   readonly removeColumn: string
+  /** 撤销历史里各步的说明。 */
+  readonly history: FormHistoryTranslations
   /** 问题列表里结构问题的来源小标签。 */
   readonly sourceStructure: string
   /** 问题列表里数据绑定问题的来源小标签。 */

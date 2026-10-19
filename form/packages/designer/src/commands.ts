@@ -15,8 +15,8 @@ import type { FormSelection } from './editor'
 import type { XhFormDesigner } from './form-designer'
 import type { FormDesignerInternals } from './internals'
 import { findNode, findRegion, mergeTableCells, removeTableLine } from '@xihan-form/core'
-import { designerPanelCommands, designerShellCommands } from '@xihan-ui/designer-shell'
-import { AlignLeftIcon, ArrowDownIcon, ArrowUpIcon, CalendarIcon, CircleDotIcon, CircleHelpIcon, ClipboardIcon, CopyIcon, CopyPlusIcon, CornerLeftUpIcon, EyeIcon, HashIcon, MonitorIcon, PanelLeftIcon, PencilIcon, RedoIcon, SaveIcon, ScissorsIcon, SettingsIcon, SmartphoneIcon, SquareChevronDownIcon, SquareDashedIcon, TableCellsMergeIcon, TableCellsSplitIcon, TableColumnInsertLeftIcon, TableColumnInsertRightIcon, TableColumnRemoveIcon, TableRowInsertAboveIcon, TableRowInsertBelowIcon, TableRowRemoveIcon, TabletIcon, TrashIcon, TypeIcon, UndoIcon } from '@xihan-ui/icons'
+import { designerHistoryCommands, designerPanelCommands, designerShellCommands } from '@xihan-ui/designer-shell'
+import { AlignLeftIcon, ArrowDownIcon, ArrowUpIcon, CalendarIcon, CircleDotIcon, CircleHelpIcon, ClipboardIcon, CopyIcon, CopyPlusIcon, CornerLeftUpIcon, EraserIcon, EyeIcon, HashIcon, MonitorIcon, PanelLeftIcon, PencilIcon, RedoIcon, SaveIcon, ScissorsIcon, SettingsIcon, SmartphoneIcon, SquareChevronDownIcon, SquareDashedIcon, TableCellsMergeIcon, TableCellsSplitIcon, TableColumnInsertLeftIcon, TableColumnInsertRightIcon, TableColumnRemoveIcon, TableRowInsertAboveIcon, TableRowInsertBelowIcon, TableRowRemoveIcon, TabletIcon, TrashIcon, TypeIcon, UndoIcon } from '@xihan-ui/icons'
 import { internalsOf } from './internals'
 
 /** 命令、面板与扩展装上时拿到的上下文。 */
@@ -182,8 +182,16 @@ function editing(test: (state: CommandState) => boolean) {
 
 /** 内置命令。 */
 export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
-  { id: 'undo', label: shared('undo'), icon: UndoIcon, shortcut: ['Mod', 'Z'], enabled: context => context.designer.readonly !== true && context.designer.canUndo, run: ({ designer }) => void designer.undo() },
-  { id: 'redo', label: shared('redo'), icon: RedoIcon, shortcut: ['Mod', 'Shift', 'Z'], enabled: context => context.designer.readonly !== true && context.designer.canRedo, run: ({ designer }) => void designer.redo() },
+  // designer-shell 的历史命令：撤销、重做的全名带上下一步的说明，重做另认 Ctrl+Y；清空历史先确认、不上工具栏
+  ...designerHistoryCommands<FormDesignerContext>({
+    history: ({ designer }) => internalsOf(designer).history(),
+    disabled: ({ designer }) => designer.readonly === true,
+    translations: context => context.commands,
+    historyTranslations: ({ designer }) => internalsOf(designer).historyTranslations(),
+    confirm: ({ designer }, options) => internalsOf(designer).confirm(options),
+    announce: (context, message) => context.frame?.announce(message),
+    icons: { undo: UndoIcon, redo: RedoIcon, clearHistory: EraserIcon },
+  }),
   { id: 'copy', label: shared('copy'), icon: CopyIcon, enabled: context => stateOf(context).selection.nodes.length > 0, run: ({ designer }) => void designer.copy() },
   { id: 'cut', label: shared('cut'), icon: ScissorsIcon, enabled: editing(state => state.selection.nodes.length > 0), run: ({ designer }) => void designer.cut() },
   { id: 'paste', label: shared('paste'), icon: ClipboardIcon, enabled: context => context.designer.readonly !== true && context.designer.canPaste, run: ({ designer }) => void designer.paste() },

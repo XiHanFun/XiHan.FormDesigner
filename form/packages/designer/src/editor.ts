@@ -20,7 +20,7 @@ import type {
   ValidationRule,
 } from '@xihan-form/core'
 import type { JsonValue } from '@xihan-ui/core/json'
-import type { ExecuteOptions, History, HistoryChangeKind, IdAllocator, TableAxis } from '@xihan-ui/designer-kit'
+import type { ExecuteOptions, History, HistoryChangeKind, HistoryLabel, IdAllocator, TableAxis } from '@xihan-ui/designer-kit'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import {
   applyOperation,
@@ -95,6 +95,8 @@ export interface FormEditorOptions {
   readonly mergeWithin?: number
   /** 取当前时间（毫秒），合并相邻修改时用；缺省 `Date.now`。 */
   readonly now?: () => number
+  /** 没写说明的一步按它的操作与应用前的文档生成说明，如 describeFormOperations；不给时这些步没有说明。 */
+  readonly describe?: (operations: readonly FormOperation[], before: FormDocument) => HistoryLabel | undefined
 }
 
 /** 表单编辑模型：当前文档、撤销历史与选择，以及各种编辑操作；不碰 DOM。 */
@@ -117,10 +119,10 @@ export interface FormEditor {
   readonly undo: () => boolean
   /** 重做一步；没有可重做的时返回 false。 */
   readonly redo: () => boolean
-  /** 封口：此后带同一合并键的修改另起一步。 */
+  /** 封口：此后带同一合并键的修改另起一步；选择变了时自动封口。 */
   readonly seal: () => void
   /** 把 run 里的全部修改合为一步撤销。 */
-  readonly transact: <T>(run: () => T, label?: string) => T
+  readonly transact: <T>(run: () => T, label?: HistoryLabel) => T
   /** 把当前文档记为已保存，此后 `history.dirty` 为 false，直到再改。 */
   readonly markSaved: () => void
   /** 选中节点或区域：给了非空的 regions 就选区域（只留与第一个同一容器的），否则选 nodes。 */
@@ -217,6 +219,7 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
     limit: options.historyLimit ?? 100,
     mergeWithin: options.mergeWithin ?? 1000,
     ...(options.now === undefined ? {} : { now: options.now }),
+    ...(options.describe === undefined ? {} : { describe: options.describe }),
   })
   const listeners = new Set<(change: FormEditorChange) => void>()
   let selection: FormSelection = EMPTY_SELECTION
@@ -241,6 +244,7 @@ export function createFormEditor(options: FormEditorOptions): FormEditor {
     if (sameList(nodes, selection.nodes) && sameList(regionIds, selection.regions ?? []))
       return
     selection = regionIds.length > 0 ? { nodes: [], regions: regionIds } : nodes.length > 0 ? { nodes } : EMPTY_SELECTION
+    history.seal()
     emit({ kind: 'selection', selection })
   }
 

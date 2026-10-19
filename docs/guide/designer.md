@@ -56,7 +56,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 末组是 designer-shell 内置的三条命令：「面板」点开一张菜单，列出能开关的面板，勾选的显示，后面是全部显隐、还原显隐与恢复默认布局；「设置」打开设置对话框（同 `openSettings()`）；「帮助」在新窗口打开本站的这一页，地址是包入口导出的 `FORM_DESIGNER_HELP_URL`。宿主不要哪一条，用 `commandLayout` 排掉，见[工具栏与菜单的排列](#工具栏与菜单的排列)。
 
-撤销、重做、剪切、复制、粘贴、创建副本、删除、全选、设计与预览，以及面板、设置、帮助，这些四款设计器共用的命令，文字取 designer-shell 语言包的 `xh-designer-commands`，工具栏的可访问名也在这里；各语言的 `form…` 语言包已经带上。要换这些说法就改这一桶，设计器的 `translations` 属性只覆盖表单自己的文案。
+撤销、重做、清空历史、剪切、复制、粘贴、创建副本、删除、全选、设计与预览，以及面板、设置、帮助，这些四款设计器共用的命令，文字取 designer-shell 语言包的 `xh-designer-commands`，工具栏的可访问名也在这里；各语言的 `form…` 语言包已经带上。要换这些说法就改这一桶，设计器的 `translations` 属性只覆盖表单自己的文案。
 
 ## 编辑
 
@@ -75,7 +75,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 | 按键 | 作用 |
 | --- | --- |
 | Ctrl / ⌘ + Z | 撤销 |
-| Ctrl / ⌘ + Shift + Z，Ctrl / ⌘ + Y | 重做 |
+| Ctrl / ⌘ + Shift + Z，Ctrl + Y | 重做 |
 | Ctrl / ⌘ + C、X、V | 复制、剪切、粘贴 |
 | Ctrl / ⌘ + D | 创建副本：复制并紧跟着粘贴 |
 | Ctrl / ⌘ + A | 全选 |
@@ -89,7 +89,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 | --- | --- |
 | Delete，Backspace | 删除选中的节点或区域 |
 | ↑ ↓ | 在同一层里移动选择 |
-| Alt + ↑ ↓ | 上移、下移选中的节点 |
+| Alt + ↑ ↓ | 上移、下移选中的节点，连续按的并成一步撤销 |
 | Enter | 选中第一个子节点 |
 | Esc | 选中上一级，再按一次清空选择 |
 | 菜单键，Shift + F10 | 打开右键菜单 |
@@ -104,7 +104,11 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 「校验规则」与「联动规则」两个页签编辑节点的规则：新增、删除、调整顺序、改每条规则的字段。条件、取值与表达式规则用表达式输入框，边输入边检查，并补全数据键、`$value` 等变量与函数名。规则的含义见[校验与联动](./validation)。
 
-改动随输入写进模板，连续改同一个属性合成一步撤销。
+改动随输入写进模板，连续改同一个属性合成一步撤销。拖栅格一列的跨度从按下到松手是一步，拖动中按 Esc 取消、跨度回到原样；连续按 Alt + ↑ ↓ 挪同一个节点，相隔一秒以内的并成一步，换了选择就另起一步。
+
+撤销历史的每一步带一句说明，写成「动作 + 对象名」，如「删除「单行文本 · name」」「修改「标签」」「移动 2 个组件」，跟着设计器的语言变。工具栏上撤销、重做的全名带上下一步的说明，如「撤销：删除「单行文本 · name」」，按钮上看得见的仍是图标与「撤销」。直接用 `createFormEditor` 的宿主把 `describeFormOperations` 传给它的 `describe`，也能得到同样的说明。
+
+清空历史（`clear-history`）丢掉全部撤销与重做的步骤，模板不变；它不上工具栏，执行时先弹确认框，要用就经 `commandLayout` 排进工具栏或右键菜单。只读时撤销、重做与清空历史都不可用，`undo()`、`redo()` 返回 `false`。
 
 ## 问题列表
 
@@ -143,7 +147,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 设计器不存模板，只告诉宿主什么时候变了、用户想什么时候存：
 
-- 每次修改派发 `schema-change`，载荷里是变化后的模板与这一步的操作，可以用来自动保存。
+- 每次修改派发 `schema-change`，载荷里是变化后的模板与这一步的操作，可以用来自动保存。拖动跨度这样的手势在松手时派发一次，操作是整个手势的；取消的手势不派发。
 - 有没有未保存的修改变了时派发 `dirty-change`。
 - 用户按 Ctrl / ⌘ + S 或点保存命令时派发 `save`；宿主存好后调用 `markSaved()`，设计器把当前模板记为已保存。
 
@@ -159,7 +163,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
 ```
 
-内置命令的 id：`undo`、`redo`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`，以及 designer-shell 内置的 `panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`settings`、`help` 与各面板的开关命令 `panel:palette`、`panel:properties`、`panel:issues`；顶栏的插入钮是 `insert:text`、`insert:textarea`、`insert:number`、`insert:date`、`insert:select`、`insert:radio-group`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
+内置命令的 id：`undo`、`redo`、`clear-history`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`，以及 designer-shell 内置的 `panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`settings`、`help` 与各面板的开关命令 `panel:palette`、`panel:properties`、`panel:issues`；顶栏的插入钮是 `insert:text`、`insert:textarea`、`insert:number`、`insert:date`、`insert:select`、`insert:radio-group`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
 
 ## 示例
 
