@@ -52,6 +52,7 @@ function context(schema: FormDocument, selection: FormSelection, state: FakeStat
     editor: () => createFormEditor({ document: schema }),
     highlight: noop,
     revealRegion: noop,
+    kindIcons: () => new Map(),
   })
   return { designer: designer as unknown as XhFormDesigner, translations: DEFAULT_FORM_DESIGNER_TRANSLATIONS, commands: DESIGNER_COMMANDS_EN_US, settings: {}, frame: undefined }
 }

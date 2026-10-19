@@ -141,6 +141,10 @@ schema-change 的来源。取值：`execute`、`undo`、`redo`、`load`。
 
 继承 `FormRuntimeExtension`、`DesignerShellExtension<FormDesignerContext, FormPropertyEditor, FormDocument, FormRuleContext>`。
 
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `kindIcons?` | `Readonly<Record<string, IconRecord>>` | 本扩展登记的种类的图标，物料面板与页面结构用；键是种类名，只能给本扩展 kinds 里的种类。 |
+
 ### FormDesignerContext {#formdesignercontext}
 
 命令、面板与扩展装上时拿到的上下文。
@@ -395,6 +399,12 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 | 名称 | 种类 | 说明 |
 | --- | --- | --- |
 | `describeFormOperations` | 函数 | 表单编辑模型的 describe：按这一步的正向操作与应用前的文档给出说明，文案经 translations 现取。 |
+
+### kind-icons
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `FORM_KIND_ICONS` | 常量 | 内置种类的图标，键是种类名。 |
 
 ### palette
 

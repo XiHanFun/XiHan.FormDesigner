@@ -12,7 +12,7 @@ aside: false
 | --- | --- | --- | --- |
 | core | `FormCoreExtension` | `id`、`kinds`、`documentProperties`、`controls`、`rules`、`issueText` | `validateDocument`、`createFormModel` |
 | 运行时 | `FormRuntimeExtension` | `fieldRenderers`、`containerRenderers`、`staticRenderers` | `<xh-form-renderer>`、`createFormController` |
-| 设计器 | `FormDesignerExtension` | `editors`、`commands`、`panels`、`settings`、`setup` | `<xh-form-designer>` |
+| 设计器 | `FormDesignerExtension` | `editors`、`commands`、`panels`、`settings`、`kindIcons`、`setup` | `<xh-form-designer>` |
 
 各层是超集：设计器层的扩展可以原样交给渲染器与 `validateDocument`，它们只读自己那一层的字段。业务页面只用渲染器时，扩展只写到运行时层，不会带进设计器的代码。
 
@@ -74,6 +74,10 @@ aside: false
 <FormDemo name="extension" fullscreen />
 
 物料的「输入」分类末尾多了身份证号；点它放进画布，问题列表给出一条警告；工具栏末尾多了「复制 JSON」。
+
+## 种类图标
+
+`kindIcons` 给本扩展登记的种类配图标，键是种类名，值取 `@xihan-ui/icons` 的图标；物料面板的条目与页面结构的行都用它。只能给自己 `kinds` 里的种类，给了别的种类时给 `extensions` 赋值就抛 `TypeError`。不给的种类只显示名字。内置种类的图标是包入口导出的 `FORM_KIND_ICONS`。
 
 ## 面板
 

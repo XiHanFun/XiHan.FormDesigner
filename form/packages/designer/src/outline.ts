@@ -8,6 +8,7 @@
 
 import type { ContainerNode, FormDocument, FormNode, KindRegistry, Region } from '@xihan-form/core'
 import type { FormDesignerTranslations } from '@xihan-form/runtime'
+import type { IconRecord } from '@xihan-ui/core'
 import type { DesignerOutlineAdapter, DesignerOutlineMove, DesignerOutlineNode } from '@xihan-ui/designer-shell'
 import type { FormDesignerContext } from './commands'
 import type { FormDropTarget } from './editor'
@@ -52,16 +53,18 @@ function regionLabel(t: FormDesignerTranslations, container: ContainerNode, regi
 }
 
 /**
- * 页面结构的树：顶层节点 → 容器 → 区域 → 节点。节点写「种类 · 数据键」，副文本是标签或标题；
+ * 页面结构的树：顶层节点 → 容器 → 区域 → 节点。节点写「种类 · 数据键」，副文本是标签或标题，带种类的图标（有的话）；
  * 区域行不能挪，能不能删跟着工具栏删区域的规矩（表格布局不删、删完不少于下限）。
  */
-export function formOutlineNodes(document: FormDocument, registry: KindRegistry, t: FormDesignerTranslations): DesignerOutlineNode[] {
+export function formOutlineNodes(document: FormDocument, registry: KindRegistry, t: FormDesignerTranslations, icons: ReadonlyMap<string, IconRecord> = new Map()): DesignerOutlineNode[] {
   const node = (item: FormNode): DesignerOutlineNode => {
     const caption = captionOf(item)
+    const icon = icons.get(item.kind)
     const base: DesignerOutlineNode = {
       id: item.id,
       label: t.nodeTag(item.kind, item.type === 'static' ? undefined : item.key),
       ...(caption === undefined ? {} : { description: caption }),
+      ...(icon === undefined ? {} : { icon }),
     }
     if (item.type !== 'container')
       return base
@@ -101,7 +104,10 @@ export function formOutlineTarget(document: FormDocument, registry: KindRegistry
 
 /** 表单的页面结构适配器：选中区域时选区域，否则选节点；删除先选中再走设计器的删除；挪动经编辑模型判定并执行。 */
 export const FORM_OUTLINE_ADAPTER: DesignerOutlineAdapter<FormDesignerContext> = {
-  nodes: ({ designer, translations }) => formOutlineNodes(designer.schema, internalsOf(designer).registry(), translations),
+  nodes: ({ designer, translations }) => {
+    const internals = internalsOf(designer)
+    return formOutlineNodes(designer.schema, internals.registry(), translations, internals.kindIcons())
+  },
   selection: ({ designer }) => {
     const selection = designer.getSelection()
     return (selection.regions?.length ?? 0) > 0 ? selection.regions! : selection.nodes
