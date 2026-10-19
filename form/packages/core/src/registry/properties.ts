@@ -3,27 +3,16 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 表单的属性描述：沿用 @xihan-ui/designer-kit/properties 的描述模型；内建编辑方式之外的编辑方式由扩展登记，
-// 表单自己的选项树也是这样登记的。
+// 表单的属性描述：沿用 @xihan-ui/designer-kit/properties 的描述模型；内建编辑方式之外的编辑方式由扩展登记。
 
 import type { JsonPath } from '@xihan-ui/core/json'
 import type { ControlKind, PropertyControl, PropertyDescriptor, PropertyEditorTable } from '@xihan-ui/designer-kit/properties'
 import type { PropertyGroup } from '../schema'
 import { isJsonValue } from '@xihan-ui/core/json'
-import { findOptionViolation } from '@xihan-ui/core/options'
 import { BUILTIN_CONTROL_KINDS, findPropertyValueIssue } from '@xihan-ui/designer-kit/properties'
 
 /** 表单的编辑方式：designer-kit 的内建编辑方式，或扩展登记的编辑方式（`kind` 是登记的键）。 */
 export type FormPropertyControl = PropertyControl | { readonly kind: string }
-
-/**
- * 表单内置扩展登记的编辑方式 `tree-options`：选项树，元素是 `{ value: string, label: string, disabled?: boolean, tone?: Tone, description?: string }`，
- * 另可带 `children` 与 `hasChildren`。结构由 `@xihan-ui/core/options` 的 `findOptionViolation` 判定（要求 label、不许多余的键、同一层 value 不重复、最多 32 层），
- * 不符时为 `invalid-value`。选项列表用 designer-kit 的内建编辑方式 `options`（表单的描述写 `requireLabel: true`）。
- */
-export const FORM_CONTROLS: Readonly<Record<string, ControlKind>> = Object.freeze({
-  'tree-options': { check: value => (findOptionViolation(value, { tree: true, requireLabel: true, strict: true }) === undefined ? undefined : 'invalid-value') },
-})
 
 /** 表单的属性描述：`path` 是属性在所在属性包（basic / data / appearance、区域或表单设置）里的路径，表单只用一段 `[名字]`。 */
 export type FormPropertyDescriptor = PropertyDescriptor<FormPropertyControl>
@@ -44,6 +33,9 @@ export function propertyName(descriptor: FormPropertyDescriptor): string {
   return String(descriptor.path[0])
 }
 
+/** 没有登记别的编辑方式。 */
+const NO_CONTROLS: Readonly<Record<string, ControlKind>> = Object.freeze({})
+
 /** 属性值的一处问题：`path` 相对这个值，落在值本身时是 `[]`。 */
 export interface FormPropertyValueIssue {
   readonly code: string
@@ -52,11 +44,12 @@ export interface FormPropertyValueIssue {
 
 /**
  * 找出属性值第一处不符合编辑方式的地方；符合时为 `undefined`。不是 JSON 值时为 `invalid-type`；
- * 内建编辑方式交给 designer-kit 的 `findPropertyValueIssue`（选项列表 `options` 的问题落在那一项的那个键上，如 `[2, "value"]`），
+ * 内建编辑方式交给 designer-kit 的 `findPropertyValueIssue`（选项列表 `options` 的问题落在那一项的那个键上，如 `[2, "value"]`；
+ * 选项树 `treeOptions` 的落在那一层那一项的那个键上，如 `[0, "children", 1, "value"]`），
  * 登记在 `controls` 里的交给它的 `check`，两边都没有时为 `unknown-control`，这两种落在值本身。
- * `controls` 缺省为表单内置的那一种，按扩展合出的表见 `createFormModel` 的 `controls`。
+ * `controls` 缺省为空，按扩展合出的表见 `createFormModel` 的 `controls`。
  */
-export function findFormPropertyValueIssue(control: FormPropertyControl, value: unknown, controls: Readonly<Record<string, ControlKind>> = FORM_CONTROLS): FormPropertyValueIssue | undefined {
+export function findFormPropertyValueIssue(control: FormPropertyControl, value: unknown, controls: Readonly<Record<string, ControlKind>> = NO_CONTROLS): FormPropertyValueIssue | undefined {
   if (!isJsonValue(value))
     return { code: 'invalid-type', path: [] }
   if ((BUILTIN_CONTROL_KINDS as readonly string[]).includes(control.kind))
@@ -66,7 +59,7 @@ export function findFormPropertyValueIssue(control: FormPropertyControl, value: 
 }
 
 /** 检查属性值是否符合编辑方式；符合时为 `undefined`，否则给出问题码。规则同 `findFormPropertyValueIssue`。 */
-export function checkFormPropertyValue(control: FormPropertyControl, value: unknown, controls: Readonly<Record<string, ControlKind>> = FORM_CONTROLS): string | undefined {
+export function checkFormPropertyValue(control: FormPropertyControl, value: unknown, controls: Readonly<Record<string, ControlKind>> = NO_CONTROLS): string | undefined {
   return findFormPropertyValueIssue(control, value, controls)?.code
 }
 
@@ -81,15 +74,15 @@ export function isValidPropertyValue(descriptor: FormPropertyDescriptor, value: 
  */
 export const FORM_PROPERTY_EDITORS: PropertyEditorTable<string> = Object.freeze({
   byControl: Object.freeze({
-    'text': 'text',
-    'number': 'number',
-    'boolean': 'switch',
-    'select': 'choice',
-    'tags': 'tags',
-    'color': 'color',
-    'json': 'json',
-    'options': 'options',
-    'tree-options': 'tree-options',
+    text: 'text',
+    number: 'number',
+    boolean: 'switch',
+    select: 'choice',
+    tags: 'tags',
+    color: 'color',
+    json: 'json',
+    options: 'options',
+    treeOptions: 'treeOptions',
   }),
   byPath: Object.freeze({ initialValue: 'value' }),
 })

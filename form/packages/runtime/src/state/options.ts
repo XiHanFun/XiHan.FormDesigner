@@ -55,7 +55,7 @@ export function optionsDescriptor(node: FieldNode, registry: KindRegistry): Form
   const definition = registry.get(node.kind)
   if (definition?.type !== 'field')
     return undefined
-  return definition.properties.data.find(property => propertyName(property) === 'options' && (property.control.kind === 'options' || property.control.kind === 'tree-options'))
+  return definition.properties.data.find(property => propertyName(property) === 'options' && (property.control.kind === 'options' || property.control.kind === 'treeOptions'))
 }
 
 /** 字段的选项来源名；没有来源时返回 `undefined`。 */

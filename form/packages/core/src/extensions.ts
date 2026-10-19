@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 表单 core 层的扩展：种类、表单设置的属性、编辑方式与规则；内置的种类、表单设置与两种编辑方式也写成一个扩展。
+// 表单 core 层的扩展：种类、表单设置的属性、编辑方式与规则；内置的种类与表单设置也写成一个扩展。
 // 运行时层与设计器层的扩展在它之上再加渲染、命令与面板。
 
 import type { DesignerExtensionCore, ExtensionKeySpaces } from '@xihan-ui/designer-kit'
@@ -16,7 +16,7 @@ import { extensionControls, mergeExtensions } from '@xihan-ui/designer-kit'
 import { FORM_SETTING_PROPERTIES } from './create'
 import { BUILTIN_KINDS } from './registry/builtin'
 import { createKindRegistry } from './registry/kinds'
-import { FORM_CONTROLS, propertyName } from './registry/properties'
+import { propertyName } from './registry/properties'
 
 /** 规则拿到的上下文：合并后的种类登记表。 */
 export interface FormRuleContext {
@@ -36,12 +36,11 @@ export interface FormCoreExtension extends DesignerExtensionCore<FormDocument, F
   readonly issueText?: (issue: FormSchemaIssue) => string | undefined
 }
 
-/** 内置扩展：内置种类、表单设置，以及选项列表与选项树两种编辑方式。 */
+/** 内置扩展：内置种类与表单设置。选项列表与选项树用 designer-kit 的内建编辑方式，不另登记。 */
 export const FORM_CORE_EXTENSION: FormCoreExtension = Object.freeze({
   id: '@xihan-form/core',
   kinds: BUILTIN_KINDS,
   documentProperties: FORM_SETTING_PROPERTIES,
-  controls: FORM_CONTROLS,
 })
 
 /** 表单各层扩展共用的名字空间：种类名与表单设置的属性名。 */

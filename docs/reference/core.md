@@ -193,7 +193,7 @@ declare function createFormModel(extensions?: readonly FormCoreExtension[]): For
 | 名称 | 种类 | 说明 |
 | --- | --- | --- |
 | `createFormModel` | 函数 | 合出表单模型：内置扩展 `FORM_CORE_EXTENSION` 在前，`extensions` 按顺序在后。 |
-| `FORM_CORE_EXTENSION` | 常量 | 内置扩展：内置种类、表单设置，以及选项列表与选项树两种编辑方式。 |
+| `FORM_CORE_EXTENSION` | 常量 | 内置扩展：内置种类与表单设置。 |
 | `FORM_EXTENSION_SPACES` | 常量 | 表单各层扩展共用的名字空间：种类名与表单设置的属性名。 |
 | `FormCoreExtension` | 接口 | 表单 core 层的扩展：种类（字段、容器、静态元素）、表单设置的属性、编辑方式与规则。 |
 | `FormModel` | 接口 | 一组扩展合出的表单模型。 |
@@ -278,7 +278,6 @@ declare function createFormModel(extensions?: readonly FormCoreExtension[]): For
 | `checkFormPropertyValue` | 函数 | 检查属性值是否符合编辑方式；符合时为 `undefined`，否则给出问题码。 |
 | `EMPTY_PROPERTY_SCHEMA` | 常量 | 空的属性描述表。 |
 | `findFormPropertyValueIssue` | 函数 | 找出属性值第一处不符合编辑方式的地方；符合时为 `undefined`。 |
-| `FORM_CONTROLS` | 常量 | 表单内置扩展登记的编辑方式 `tree-options`：选项树，元素是 `{ value: string, label: string, disabled?: boolean, tone?: Tone, description?: string }`，另可带 `children` 与 `hasChildren`。 |
 | `FORM_PROPERTY_EDITORS` | 常量 | 表单内置的属性编辑器查找表，交给 designer-kit 的 `resolvePropertyEditor` 使用：按编辑方式取缺省编辑器，字段初始值按路径另用 `value` 编辑器（形状随字段种类）。 |
 | `FormPropertyControl` | 类型 | 表单的编辑方式：designer-kit 的内建编辑方式，或扩展登记的编辑方式（`kind` 是登记的键）。 |
 | `FormPropertyDescriptor` | 类型 | 表单的属性描述：`path` 是属性在所在属性包（basic / data / appearance、区域或表单设置）里的路径，表单只用一段 `[名字]`。 |
