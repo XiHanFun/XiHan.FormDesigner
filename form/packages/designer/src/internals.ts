@@ -5,8 +5,9 @@
 
 // 内置命令要用、但不进设计器公开 API 的操作：设计器建好时按实例登记，命令经上下文里的设计器取回。
 
-import type { KindRegistry } from '@xihan-form/core'
-import type { TableAxis } from '@xihan-ui/designer-kit'
+import type { FormDocument, FormOperation, KindRegistry } from '@xihan-form/core'
+import type { History, TableAxis } from '@xihan-ui/designer-kit'
+import type { DesignerHistoryConfirm, DesignerHistoryTranslations } from '@xihan-ui/designer-shell'
 
 /** 设计态或预览态。 */
 export type FormDesignerMode = 'design' | 'preview'
@@ -31,6 +32,12 @@ export interface FormDesignerInternals {
   readonly insertTableLine: (axis: TableAxis, after: boolean) => void
   /** 删除选中的单元格所在的行或列。 */
   readonly removeTableLine: (axis: TableAxis) => void
+  /** 编辑模型的撤销历史，历史命令读写它。 */
+  readonly history: () => History<FormDocument, FormOperation>
+  /** 历史记录的文案：designer-shell 语言包的 xh-designer-history。 */
+  readonly historyTranslations: () => DesignerHistoryTranslations
+  /** 弹确认框，按确定时兑现为 true。 */
+  readonly confirm: (options: DesignerHistoryConfirm) => Promise<boolean>
 }
 
 const INTERNALS = new WeakMap<object, FormDesignerInternals>()

@@ -14,9 +14,11 @@ import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { VisualEnvironmentStorageError } from '@xihan-ui/core/visual-environment'
 import type { ExecuteOptions, ExtensionHost } from '@xihan-ui/designer-kit'
 import type { PropertySwatchOption } from '@xihan-ui/designer-kit/properties'
-import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerIssuesEventMap, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, PanRequestDetail } from '@xihan-ui/designer-shell'
+import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerHistoryTranslations, DesignerIssuesEventMap, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
+import type { PointerSession } from '@xihan-ui/pointer'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
+import type { DialogService } from '@xihan-ui/web-components/services'
 import type { CanvasDrop, CanvasTarget } from './canvas'
 import type { FormDesignerContext } from './commands'
 import type { FormClipboard, FormDropTarget, FormEditor, FormSelection } from './editor'
@@ -27,18 +29,20 @@ import type { PropertyView } from './properties'
 import { createDocument, findNode, findRegion, kindLabel, PROPERTY_GROUPS, validateDocument, walkNodes } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
-import { commandForShortcut, createExtensionHost } from '@xihan-ui/designer-kit'
-import { arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_FRAME_REGIONS, DESIGNER_SETTING_KEYS, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolveSettings, runCommand, startDrag, toolbarDisplayOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement } from '@xihan-ui/designer-shell'
+import { commandForShortcut, createExtensionHost, HISTORY_NUDGE_MERGE_WITHIN, nudgeMergeKey } from '@xihan-ui/designer-kit'
+import { arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolveSettings, runCommand, startDrag, toolbarDisplayOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { ArrowDownIcon, ArrowUpIcon, CircleAlertIcon, CopyPlusIcon, CornerLeftUpIcon, LayoutGridIcon, SlidersHorizontalIcon, TrashIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
 import { BOOLEAN_CONVERTER, createAuthoredElement, emitEvent, registerElement, setAttributes, setText, SVG_NS, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { defineXhElement, XhButtonElement, XhContextMenuElement, XhExpressionInputElement, XhIconElement, XhMenuElement, XhToolbarElement, XhTooltipElement } from '@xihan-ui/web-components/define'
+import { createDialogService } from '@xihan-ui/web-components/services'
 import { DesignCanvas, spanColumns } from './canvas'
 import { checkFormClipboard, readFormClipboard, writeFormClipboard } from './clipboard'
 import { FORM_MENU_LAYOUTS, FORM_TOOLBAR_LAYOUT, menuSubject } from './commands'
 import { createFormEditor } from './editor'
 import { createFormDesignerModel, FORM_DESIGNER_EXTENSION } from './extensions'
+import { describeFormOperations } from './history-labels'
 import { provideInternals } from './internals'
 import { issueFocus, issueItems } from './issues'
 import { dragSubject, paletteGroups, paletteSubject } from './palette'
@@ -294,10 +298,16 @@ export class XhFormDesigner extends XhReactiveElement {
   /** 此刻生效的设置：各分区没写的条目取了缺省值。 */
   #resolvedSettings: DesignerSettings = {}
   #fragments = new WeakMap<object, { readonly extensions: readonly FormDesignerExtension[] | undefined, readonly clipboard: FormClipboard | undefined }>()
+  /** 事务里已经执行的操作，提交时作为一次 execute 报出。 */
+  #pending: FormOperation[] = []
+  /** 正在拖的跨度把手：调用即取消，跨度回到按下时。 */
+  #cancelSpanDrag: (() => void) | undefined
+  /** 清空历史前的确认框，第一次用到时建。 */
+  #dialogs: DialogService | undefined
 
   constructor() {
     super()
-    this.#editor = createFormEditor({ document: createDocument() })
+    this.#editor = createFormEditor({ document: createDocument(), describe: describeFormOperations(() => this.#t()) })
     this.#canvas = new DesignCanvas({
       ownerDocument: this.ownerDocument,
       model: () => this.#model.runtime,
@@ -330,24 +340,31 @@ export class XhFormDesigner extends XhReactiveElement {
       mergeCells: () => {
         const cell = this.#selectedCell()
         if (cell !== undefined && this.readonly !== true)
-          this.#editor.mergeCells(cell.table, this.#editor.selection.regions ?? [])
+          this.#editor.mergeCells(cell.table, this.#editor.selection.regions ?? [], { label: () => this.#t().mergeCells })
       },
       splitCell: () => {
         const cell = this.#selectedCell()
         if (cell !== undefined && this.readonly !== true)
-          this.#editor.splitCell(cell.table, cell.region)
+          this.#editor.splitCell(cell.table, cell.region, { label: () => this.#t().splitCell })
       },
       insertTableLine: (axis, after) => {
         const cell = this.#selectedCell()
         if (cell === undefined || this.readonly === true)
           return
         const at = axis === 'row' ? cell.row + (after ? cell.rowSpan : 0) : cell.column + (after ? cell.columnSpan : 0)
-        this.#editor.insertTableLine(cell.table, axis, at)
+        const text = axis === 'row' ? (after ? 'insertRowBelow' : 'insertRowAbove') : (after ? 'insertColumnRight' : 'insertColumnLeft')
+        this.#editor.insertTableLine(cell.table, axis, at, { label: () => this.#t()[text] })
       },
       removeTableLine: (axis) => {
         const cell = this.#selectedCell()
         if (cell !== undefined && this.readonly !== true)
-          this.#editor.removeTableLine(cell.table, axis, axis === 'row' ? cell.row : cell.column)
+          this.#editor.removeTableLine(cell.table, axis, axis === 'row' ? cell.row : cell.column, { label: () => this.#t()[axis === 'row' ? 'removeRow' : 'removeColumn'] })
+      },
+      history: () => this.#editor.history,
+      historyTranslations: () => this.#config.translations<DesignerHistoryTranslations>('xh-designer-history', DESIGNER_HISTORY_EN_US),
+      confirm: (options) => {
+        this.#dialogs ??= createDialogService()
+        return this.#dialogs.confirm(options)
       },
     })
     this.#editor.subscribe((change) => {
@@ -357,12 +374,21 @@ export class XhFormDesigner extends XhReactiveElement {
         this.requestUpdate()
         return
       }
-      const kind: FormSchemaChangeKind | undefined = change.cause === 'execute' || change.cause === 'commit'
-        ? 'execute'
-        : change.cause === 'undo' || change.cause === 'redo' ? change.cause : change.cause === 'reset' ? 'load' : undefined
+      if (this.#editor.history.inTransaction) {
+        if (change.cause === 'execute')
+          this.#pending.push(...change.operations)
+        this.requestUpdate()
+        return
+      }
+      const pending = this.#pending
+      this.#pending = []
       this.#documentChanged()
-      if (kind !== undefined)
-        emitEvent(this, 'schema-change', { schema: change.document, operations: change.operations, kind })
+      if (change.cause === 'commit' && pending.length > 0)
+        emitEvent(this, 'schema-change', { schema: change.document, operations: pending, kind: 'execute' })
+      else if (change.cause === 'execute' || change.cause === 'undo' || change.cause === 'redo')
+        emitEvent(this, 'schema-change', { schema: change.document, operations: change.operations, kind: change.cause })
+      else if (change.cause === 'reset')
+        emitEvent(this, 'schema-change', { schema: change.document, operations: change.operations, kind: 'load' })
     })
   }
 
@@ -374,6 +400,7 @@ export class XhFormDesigner extends XhReactiveElement {
   set schema(value: FormDocument) {
     if (value === this.#editor.document)
       return
+    this.#cancelSpanDrag?.()
     this.#editor.load(value)
   }
 
@@ -441,9 +468,12 @@ export class XhFormDesigner extends XhReactiveElement {
       this.removeEventListener(type, this.#onClipboard)
     this.#releaseDropTarget?.()
     this.#releaseDropTarget = undefined
+    this.#cancelSpanDrag?.()
     this.#host.dispose()
     this.#settingsHost?.dispose()
     this.#settingsHost = undefined
+    this.#dialogs?.dispose()
+    this.#dialogs = undefined
   }
 
   protected override update(changed: PropertyValues): void {
@@ -507,14 +537,14 @@ export class XhFormDesigner extends XhReactiveElement {
     return this.#editor.execute(operations, options)
   }
 
-  /** 撤销一步；没有可撤销的时返回 false。 */
+  /** 撤销一步；只读、正在拖动跨度或没有可撤销的时返回 false。 */
   undo(): boolean {
-    return this.#editor.undo()
+    return this.readonly !== true && !this.#editor.history.inTransaction && this.#editor.undo()
   }
 
-  /** 重做一步；没有可重做的时返回 false。 */
+  /** 重做一步；只读、正在拖动跨度或没有可重做的时返回 false。 */
   redo(): boolean {
-    return this.#editor.redo()
+    return this.readonly !== true && !this.#editor.history.inTransaction && this.#editor.redo()
   }
 
   /** 把当前模板记为已保存：`dirty` 变为 false，并派发 `dirty-change`。 */
@@ -1356,7 +1386,7 @@ export class XhFormDesigner extends XhReactiveElement {
 
   /**
    * 拖区域右缘改跨度：按住时的跨度加上横向位移折成的列数，列宽取容器宽度除以总列数；从右到左时方向相反。
-   * 拖动中连续写入并成一步撤销，松手时封口；拖过之后不再当作点选。
+   * 按下到松手是一个事务，记为一步撤销；拖动中按 Esc 取消，跨度回到按下时、不留步。拖过之后不再当作点选。
    */
   #dragSpan(event: PointerEvent, handle: HTMLElement): void {
     const region = handle.closest<HTMLElement>('[data-region-id]')
@@ -1365,15 +1395,37 @@ export class XhFormDesigner extends XhReactiveElement {
     const columns = found === undefined ? undefined : spanColumns(this.#editor.registry, found.container.kind)
     const body = region?.closest('[data-node-id]')?.querySelector(':scope > [data-part="node-body"]')
     const width = body?.getBoundingClientRect().width ?? 0
-    if (region === null || region === undefined || regionId === undefined || found === undefined || columns === undefined || width <= 0)
+    if (region === null || region === undefined || regionId === undefined || found === undefined || columns === undefined || width <= 0 || this.#editor.history.inTransaction)
       return
     event.preventDefault()
     const start = typeof found.region.props.span === 'number' ? found.region.props.span : columns
     const sign = getComputedStyle(region).direction === 'rtl' ? -1 : 1
     const canvas = this.#ensureParts().canvas
+    const history = this.#editor.history
     canvas.setAttribute('data-resizing', '')
+    history.begin()
     let moved = false
-    const session = createPointerSession({
+    let session: PointerSession | undefined
+    const listening = new AbortController()
+    const finish = (keep: boolean): void => {
+      session?.dispose()
+      listening.abort()
+      this.#cancelSpanDrag = undefined
+      canvas.removeAttribute('data-resizing')
+      if (keep)
+        history.commit()
+      else
+        history.rollback()
+      this.#suppressClick = moved
+    }
+    this.ownerDocument.addEventListener('keydown', (key) => {
+      if (key.key !== 'Escape')
+        return
+      key.preventDefault()
+      key.stopPropagation()
+      finish(false)
+    }, { capture: true, signal: listening.signal })
+    session = createPointerSession({
       doc: this.ownerDocument,
       pointerId: event.pointerId,
       onMove: ({ point }) => {
@@ -1382,15 +1434,11 @@ export class XhFormDesigner extends XhReactiveElement {
         const span = Math.round(start + dx / (width / columns))
         const current = findRegion(this.#editor.document, regionId)?.region.props.span
         if (span !== current)
-          this.#editor.setGridSpan(regionId, span, { mergeWithin: Number.POSITIVE_INFINITY })
+          this.#editor.setGridSpan(regionId, span)
       },
-      onEnd: () => {
-        session.dispose()
-        canvas.removeAttribute('data-resizing')
-        this.#editor.seal()
-        this.#suppressClick = moved
-      },
+      onEnd: () => finish(true),
     })
+    this.#cancelSpanDrag = () => finish(false)
   }
 
   /** 拖动节点时跟着指针的小标签：节点的种类与键，多个时带上个数。 */
@@ -1475,14 +1523,7 @@ export class XhFormDesigner extends XhReactiveElement {
       hit.run(context)
       return
     }
-    const command = event.ctrlKey || event.metaKey
-    if (command && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'y') {
-      event.preventDefault()
-      if (this.readonly !== true)
-        this.redo()
-      return
-    }
-    if (inCanvas && !command && this.#onPlainKey(event))
+    if (inCanvas && !event.ctrlKey && !event.metaKey && this.#onPlainKey(event))
       event.preventDefault()
   }
 
@@ -1512,7 +1553,7 @@ export class XhFormDesigner extends XhReactiveElement {
       }
       case 'ArrowUp':
       case 'ArrowDown':
-        return current !== undefined && (event.altKey ? this.#moveBy(current, event.key === 'ArrowUp' ? -1 : 1) : this.#selectSibling(current, event.key === 'ArrowUp' ? -1 : 1))
+        return current !== undefined && (event.altKey ? this.#moveBy(current, event.key === 'ArrowUp' ? -1 : 1, { merge: nudgeMergeKey([current]), mergeWithin: HISTORY_NUDGE_MERGE_WITHIN }) : this.#selectSibling(current, event.key === 'ArrowUp' ? -1 : 1))
       default:
         return false
     }
@@ -1547,7 +1588,7 @@ export class XhFormDesigner extends XhReactiveElement {
     return true
   }
 
-  #moveBy(id: string, step: number): boolean {
+  #moveBy(id: string, step: number, options?: ExecuteOptions): boolean {
     if (this.readonly === true)
       return false
     const siblings = this.#siblings(id)
@@ -1556,7 +1597,7 @@ export class XhFormDesigner extends XhReactiveElement {
     const index = siblings.index + (step < 0 ? -1 : 2)
     if (index < 0 || index > siblings.ids.length)
       return false
-    return this.#editor.moveNodes([id], { parent: siblings.parent, index })
+    return this.#editor.moveNodes([id], { parent: siblings.parent, index }, options)
   }
 }
 

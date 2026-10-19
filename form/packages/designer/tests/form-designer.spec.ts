@@ -6,6 +6,7 @@ import type { DesignerFrameRegion, XhDesignerPropertiesElement } from '@xihan-ui
 import type { FormDesignerEventMap, FormDesignerExtension, XhFormDesigner } from '../src'
 import { BUILTIN_FIELDS, createDocument, createFormModel, createNode, findNode, findRegion } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
+import { formZhCN } from '@xihan-form/runtime/locale'
 import { onDiagnostic, setDiagnosticsLevel } from '@xihan-ui/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { DESIGNER_SETTING_KEYS } from '@xihan-ui/designer-shell'
@@ -133,6 +134,32 @@ describe('<xh-form-designer>：装载与画布', () => {
 })
 
 describe('<xh-form-designer>：编辑', () => {
+  it('工具栏上撤销、重做的全名带上下一步的说明，跟着设计器的语言变；只读时 undo() 不撤', async () => {
+    const { document, name } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    const button = (value: string): HTMLButtonElement => designer.querySelector<HTMLButtonElement>(`[data-part="command-bar"] button[value="${value}"]`)!
+    designer.select({ nodes: [name.id] })
+    designer.deleteSelection()
+    await settle(designer)
+    expect(button('undo').getAttribute('aria-label')).toBe('Undo: Delete “Single-line text · name”')
+    setXhConfig(formZhCN)
+    try {
+      await settle(designer)
+      expect(button('undo').getAttribute('aria-label')).toContain('删除「单行文本 · name」')
+    }
+    finally {
+      setXhConfig({})
+    }
+    designer.readonly = true
+    expect(designer.undo()).toBe(false)
+    designer.readonly = false
+    expect(designer.undo()).toBe(true)
+    await settle(designer)
+    expect(button('redo').getAttribute('aria-label')).toBe('Redo: Delete “Single-line text · name”')
+  })
+
   it('新建节点后画布重排；撤销重做；dirty 与 markSaved', async () => {
     const designer = await mount(() => {})
     const dirty = events(designer, 'dirty-change')
@@ -148,7 +175,7 @@ describe('<xh-form-designer>：编辑', () => {
     expect(dirty.map(item => item.dirty)).toEqual([true, false, true])
   })
 
-  it('键盘：Delete 删除，Alt+↓ 下移，↑ 选上一个，Esc 选上一级再清空，Ctrl+Z 撤销', async () => {
+  it('键盘：Delete 删除，Alt+↓ 下移，↑ 选上一个，Esc 选上一级再清空，Ctrl+Z 撤销，Ctrl+Y 重做', async () => {
     const { document, name, card, inner } = sample()
     const designer = await mount((element) => {
       element.schema = document
@@ -172,6 +199,38 @@ describe('<xh-form-designer>：编辑', () => {
     expect(findNode(designer.schema, inner.id)).toBeUndefined()
     key({ key: 'z', ctrlKey: true })
     expect(findNode(designer.schema, inner.id)).toBeDefined()
+    key({ key: 'y', ctrlKey: true })
+    expect(findNode(designer.schema, inner.id)).toBeUndefined()
+    expect(designer.canRedo).toBe(false)
+  })
+
+  it('连续按 Alt + ↑ ↓ 挪同一个节点并成一步撤销；换了选择另起一步', async () => {
+    const { document, name, card } = sample()
+    const extra = createNode(registry, 'switch', createIdAllocator('x'), { key: 'agree' })
+    const designer = await mount((element) => {
+      element.schema = { ...document, children: [...document.children, extra] }
+    })
+    const canvas = designer.querySelector<HTMLElement>('[data-part="canvas"]')!
+    const nudge = (key: 'ArrowUp' | 'ArrowDown'): void => {
+      canvas.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key, altKey: true }))
+    }
+    const order = (): string[] => designer.schema.children.map(node => node.id)
+    designer.select({ nodes: [name.id] })
+    nudge('ArrowDown')
+    nudge('ArrowDown')
+    expect(order()).toEqual([card.id, extra.id, name.id])
+    designer.undo()
+    expect(order()).toEqual([name.id, card.id, extra.id])
+    expect(designer.canUndo).toBe(false)
+    nudge('ArrowDown')
+    designer.select({ nodes: [card.id] })
+    designer.select({ nodes: [name.id] })
+    nudge('ArrowDown')
+    expect(order()).toEqual([card.id, extra.id, name.id])
+    designer.undo()
+    expect(order()).toEqual([card.id, name.id, extra.id])
+    designer.undo()
+    expect(order()).toEqual([name.id, card.id, extra.id])
   })
 
   it('快捷键在整个设计器里认：焦点在物料、属性面板时 Ctrl+Z / Ctrl+D 照样生效，单键不抢；文字输入里与组件已处理过的键不接', async () => {
@@ -303,6 +362,7 @@ describe('<xh-form-designer>：面板与模式', () => {
     expect(bar.querySelector('xh-toolbar [data-xh-part="root"]')!.getAttribute('aria-label')).toBe('Designer actions')
     expect(['undo', 'redo', 'delete', 'duplicate', 'design', 'preview', 'width-full', 'width-tablet', 'width-phone'].filter(value => button(value).getAttribute('data-icon') === null)).toEqual([])
     expect([button('undo').getAttribute('aria-label'), button('undo').getAttribute('aria-keyshortcuts')]).toEqual(['Undo', 'Control+Z'])
+    expect(button('redo').getAttribute('aria-keyshortcuts')).toBe('Control+Shift+Z Control+Y')
     expect([button('duplicate').getAttribute('aria-label'), button('width-tablet').getAttribute('aria-label')]).toEqual(['Duplicate', 'Tablet'])
     expect([button('delete').getAttribute('data-tone'), button('undo').getAttribute('data-tone')]).toEqual(['danger', null])
     expect(button('design').getAttribute('aria-pressed')).toBe('true')
@@ -771,7 +831,8 @@ describe('<xh-form-designer>：节点小工具条', () => {
 })
 
 describe('<xh-form-designer>：栅格跨度', () => {
-  it('栅格的区域带跨度把手；拖右缘按列宽改 span，拖动中并成一步撤销', async () => {
+  /** 一个栅格（首列带跨度把手，正文宽 1200px）与一张卡片。 */
+  async function spanSetup() {
     const ids = createIdAllocator('g')
     const grid = createNode(registry, 'grid', ids) as ContainerNode
     const card = createNode(registry, 'card', ids) as ContainerNode
@@ -779,23 +840,57 @@ describe('<xh-form-designer>：栅格跨度', () => {
       element.schema = { ...createDocument(), children: [grid, card] }
     })
     const region = grid.regions[0]!.id
-    const span = (): unknown => findRegion(designer.schema, region)!.region.props.span
-    expect(designer.querySelector(`[data-region-id="${card.regions[0]!.id}"] > [data-part="span-handle"]`)).toBeNull()
     const handle = designer.querySelector<HTMLElement>(`[data-region-id="${region}"] > [data-part="span-handle"]`)!
     const body = block(designer, grid.id).querySelector<HTMLElement>(':scope > [data-part="node-body"]')!
     body.getBoundingClientRect = () => ({ top: 0, bottom: 100, left: 0, right: 1200, width: 1200, height: 100, x: 0, y: 0, toJSON: () => ({}) })
     const pointer = (type: string, target: EventTarget, clientX: number): void => {
       target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 3, isPrimary: true, button: 0, clientX, clientY: 10 }))
     }
+    const span = (): unknown => findRegion(designer.schema, region)!.region.props.span
+    return { designer, grid, card, region, handle, pointer, span }
+  }
+
+  it('栅格的区域带跨度把手；拖右缘按列宽改 span，按下到松手是一步撤销，松手时派发一次 schema-change', async () => {
+    const { designer, card, region, handle, pointer, span } = await spanSetup()
+    expect(designer.querySelector(`[data-region-id="${card.regions[0]!.id}"] > [data-part="span-handle"]`)).toBeNull()
+    const changes = events(designer, 'schema-change')
     pointer('pointerdown', handle, 600)
     pointer('pointermove', window.document, 760)
     expect(span()).toBe(8)
+    expect(designer.undo()).toBe(false)
     pointer('pointermove', window.document, 420)
     expect(span()).toBe(4)
+    expect(changes).toEqual([])
     pointer('pointerup', window.document, 420)
+    expect(changes.map(change => [change.kind, change.operations])).toEqual([['execute', [
+      { type: 'setRegionProperty', regionId: region, name: 'span', value: 8 },
+      { type: 'setRegionProperty', regionId: region, name: 'span', value: 4 },
+    ]]])
     designer.undo()
     expect(span()).toBe(6)
     expect(designer.canUndo).toBe(false)
+  })
+
+  it('拖跨度时按 Esc 取消：跨度回到按下时，不留步、不派发 schema-change，也不当作选上一级', async () => {
+    const { designer, grid, handle, pointer, span } = await spanSetup()
+    designer.select({ nodes: [grid.id] })
+    const changes = events(designer, 'schema-change')
+    pointer('pointerdown', handle, 600)
+    pointer('pointermove', window.document, 760)
+    expect(span()).toBe(8)
+    const canvas = designer.querySelector<HTMLElement>('[data-part="canvas"]')!
+    const escape = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' })
+    canvas.dispatchEvent(escape)
+    expect(escape.defaultPrevented).toBe(true)
+    expect(span()).toBe(6)
+    expect(designer.getSelection().nodes).toEqual([grid.id])
+    expect(canvas.hasAttribute('data-resizing')).toBe(false)
+    pointer('pointermove', window.document, 900)
+    pointer('pointerup', window.document, 900)
+    expect(span()).toBe(6)
+    expect(designer.canUndo).toBe(false)
+    expect(designer.dirty).toBe(false)
+    expect(changes).toEqual([])
   })
 })
 

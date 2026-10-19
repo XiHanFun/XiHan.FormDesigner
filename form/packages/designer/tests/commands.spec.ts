@@ -1,11 +1,12 @@
-import type { ContainerNode, FieldNode, FormDocument } from '@xihan-form/core'
+import type { ContainerNode, FieldNode, FormDocument, FormOperation } from '@xihan-form/core'
+import type { History } from '@xihan-ui/designer-kit'
 import type { FormDesignerContext, FormMenuSubject } from '../src'
 import type { FormSelection } from '../src/editor'
 import type { XhFormDesigner } from '../src/form-designer'
-import { createDocument, createFormModel, createNode } from '@xihan-form/core'
+import { applyOperation, createDocument, createFormModel, createNode } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
-import { createIdAllocator } from '@xihan-ui/designer-kit'
-import { DESIGNER_COMMANDS_EN_US } from '@xihan-ui/designer-shell'
+import { createHistory, createIdAllocator } from '@xihan-ui/designer-kit'
+import { DESIGNER_COMMANDS_EN_US, DESIGNER_HISTORY_EN_US } from '@xihan-ui/designer-shell'
 import { describe, expect, it } from 'vitest'
 import { FORM_COMMANDS, FORM_MENU_LAYOUTS } from '../src'
 import { menuSubject } from '../src/commands'
@@ -26,13 +27,29 @@ interface FakeState {
   readonly readonly?: boolean
   readonly canPaste?: boolean
   readonly mode?: 'design' | 'preview'
+  readonly history?: History<FormDocument, FormOperation>
+  readonly confirm?: () => Promise<boolean>
 }
 
 /** 只带命令要读的状态的假设计器。 */
 function context(schema: FormDocument, selection: FormSelection, state: FakeState = {}): FormDesignerContext {
-  const designer = { schema, getSelection: () => selection, canUndo: false, canRedo: false, canPaste: false, ...state }
+  const { history = createHistory<FormDocument, FormOperation>({ document: schema, apply: applyOperation }), confirm = async () => true, ...rest } = state
+  const designer = { schema, getSelection: () => selection, canPaste: false, ...rest }
   const noop = (): void => {}
-  provideInternals(designer, { registry: () => registry, setMode: noop, save: noop, selectParent: noop, moveSelected: noop, mergeCells: noop, splitCell: noop, insertTableLine: noop, removeTableLine: noop })
+  provideInternals(designer, {
+    registry: () => registry,
+    setMode: noop,
+    save: noop,
+    selectParent: noop,
+    moveSelected: noop,
+    mergeCells: noop,
+    splitCell: noop,
+    insertTableLine: noop,
+    removeTableLine: noop,
+    history: () => history,
+    historyTranslations: () => DESIGNER_HISTORY_EN_US,
+    confirm,
+  })
   return { designer: designer as unknown as XhFormDesigner, translations: DEFAULT_FORM_DESIGNER_TRANSLATIONS, commands: DESIGNER_COMMANDS_EN_US, settings: {}, frame: undefined }
 }
 
@@ -53,7 +70,39 @@ describe('内置命令与右键菜单', () => {
     expect(FORM_COMMANDS.filter(command => command.icon === undefined).map(command => command.id)).toEqual(['panels-toggle-all', 'panels-restore', 'layout-reset', 'panel:palette', 'panel:properties', 'panel:issues'])
     expect([label('duplicate'), label('preview'), label('undo'), label('select-all')]).toEqual(['Shared duplicate', 'Shared preview', 'Undo', 'Select all'])
     expect([label('select-parent'), label('insert-column-left'), label('remove-row')]).toEqual(['Select parent', 'Insert column left', 'Delete row'])
-    expect(FORM_COMMANDS.filter(command => command.tone === 'danger').map(command => command.id)).toEqual(['delete', 'remove-row', 'remove-column'])
+    expect(FORM_COMMANDS.filter(command => command.tone === 'danger').map(command => command.id)).toEqual(['clear-history', 'delete', 'remove-row', 'remove-column'])
+  })
+
+  it('撤销、重做与清空历史用 designer-shell 的历史命令：全名带上下一步的说明，重做另认 Ctrl+Y，清空先确认，只读时都不可用', async () => {
+    const { document, a } = sample()
+    const history = createHistory<FormDocument, FormOperation>({ document, apply: applyOperation })
+    history.execute([{ type: 'removeNode', nodeId: a.id }], { label: 'Delete a' })
+    let answer = false
+    const asked: string[] = []
+    const ctx = context(document, { nodes: [] }, { history, confirm: async () => {
+      asked.push('confirm')
+      return answer
+    } })
+    const command = (id: string) => FORM_COMMANDS.find(item => item.id === id)!
+    const label = (id: string): string => {
+      const found = command(id).label
+      return typeof found === 'function' ? found(ctx) : found
+    }
+    expect([label('undo'), label('redo'), command('redo').alternateShortcuts]).toEqual(['Undo: Delete a', 'Redo', [['Ctrl', 'Y']]])
+    expect(command('clear-history').placement).toBeUndefined()
+    command('undo').run!(ctx)
+    expect([history.canUndo, label('redo')]).toEqual([false, 'Redo: Delete a'])
+    command('clear-history').run!(ctx)
+    await Promise.resolve()
+    expect([asked, history.entries.length]).toEqual([['confirm'], 1])
+    answer = true
+    command('clear-history').run!(ctx)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(history.entries).toEqual([])
+    history.execute([{ type: 'removeNode', nodeId: a.id }])
+    const locked = context(document, { nodes: [] }, { history, readonly: true })
+    expect(['undo', 'redo', 'clear-history'].map(id => command(id).enabled!(locked))).toEqual([false, false, false])
   })
 
   it('选中节点：剪贴板、层级与删除；顶层第一个不能选父级、不能上移，没有剪贴板内容不能粘贴', () => {

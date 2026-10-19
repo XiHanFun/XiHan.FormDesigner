@@ -44,8 +44,8 @@
 | 方法 | 说明 |
 | --- | --- |
 | `execute(operations: readonly FormOperation[], options?: ExecuteOptions): FormDocument` | 执行一组操作并记为一步撤销；返回新模板。 |
-| `undo(): boolean` | 撤销一步；没有可撤销的时返回 false。 |
-| `redo(): boolean` | 重做一步；没有可重做的时返回 false。 |
+| `undo(): boolean` | 撤销一步；只读、正在拖动跨度或没有可撤销的时返回 false。 |
+| `redo(): boolean` | 重做一步；只读、正在拖动跨度或没有可重做的时返回 false。 |
 | `markSaved(): void` | 把当前模板记为已保存：`dirty` 变为 false，并派发 `dirty-change`。 |
 | `addNode(kind: string, target?: FormDropTarget): FormNode \| undefined` | 按种类新建节点并选中它；目标缺省为选中节点之后，没有选中时为末尾。目标不收时返回 undefined。 |
 | `select(selection: Partial<FormSelection>): void` | 选中节点或区域：给了非空的 regions 就选区域，否则选 nodes。 |
@@ -217,6 +217,7 @@ type FormDesignerCommand = DesignerCommand<FormDesignerContext>
 | `insertColumnRight` | `string` | 表格布局右键菜单：在右侧插入列。 |
 | `removeRow` | `string` | 表格布局右键菜单：删除行。 |
 | `removeColumn` | `string` | 表格布局右键菜单：删除列。 |
+| `history` | `FormHistoryTranslations` | 撤销历史里各步的说明。 |
 | `sourceStructure` | `string` | 问题列表里结构问题的来源小标签。 |
 | `sourceBinding` | `string` | 问题列表里数据绑定问题的来源小标签。 |
 
@@ -260,6 +261,7 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 | 方法 | 说明 |
 | --- | --- |
 | `now(): number` | 取当前时间（毫秒），合并相邻修改时用；缺省 `Date.now`。 |
+| `describe(operations: readonly FormOperation[], before: FormDocument): HistoryLabel \| undefined` | 没写说明的一步按它的操作与应用前的文档生成说明，如 describeFormOperations；不给时这些步没有说明。 |
 
 ### FormEditor {#formeditor}
 
@@ -279,8 +281,8 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 | `execute(operations: readonly FormOperation[], options?: ExecuteOptions): FormDocument` | 执行一组操作并记为一步撤销；返回新文档。 |
 | `undo(): boolean` | 撤销一步；没有可撤销的时返回 false。 |
 | `redo(): boolean` | 重做一步；没有可重做的时返回 false。 |
-| `seal(): void` | 封口：此后带同一合并键的修改另起一步。 |
-| `transact<T>(run: () => T, label?: string): T` | 把 run 里的全部修改合为一步撤销。 |
+| `seal(): void` | 封口：此后带同一合并键的修改另起一步；选择变了时自动封口。 |
+| `transact<T>(run: () => T, label?: HistoryLabel): T` | 把 run 里的全部修改合为一步撤销。 |
 | `markSaved(): void` | 把当前文档记为已保存，此后 `history.dirty` 为 false，直到再改。 |
 | `select(selection: Partial<FormSelection>, mode?: FormSelectMode): void` | 选中节点或区域：给了非空的 regions 就选区域（只留与第一个同一容器的），否则选 nodes。 |
 | `clearSelection(): void` | 清空选择。 |
@@ -372,6 +374,12 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 | `FormPreviewWidth` | 类型 | 预览宽度：全宽、平板、手机，设计态画布同样生效。 |
 | `FormSchemaChangeKind` | 类型 | schema-change 的来源。 |
 | `XhFormDesigner` | 类 | `<xh-form-designer>`：可视化编辑表单模板，物料、画布、属性与问题列表都在里面；模板的保存与权限交给宿主，经 `schema-change`、`save` 事件与 `markSaved()` 往来。 |
+
+### history-labels
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `describeFormOperations` | 函数 | 表单编辑模型的 describe：按这一步的正向操作与应用前的文档给出说明，文案经 translations 现取。 |
 
 ### palette
 

@@ -134,6 +134,16 @@ describe('属性与合并', () => {
     expect(editor.document).toEqual(document)
   })
 
+  it('选择变了时封口：同一属性接着改另起一步', () => {
+    const { document, name, age } = sample()
+    const editor = editorOf(document, () => 0)
+    editor.setProperty(name.id, 'basic', 'label', '姓')
+    editor.select({ nodes: [age.id] })
+    editor.select({ nodes: [name.id] })
+    editor.setProperty(name.id, 'basic', 'label', '姓名')
+    expect(editor.history.undoCount).toBe(2)
+  })
+
   it('改键、改设置、写区域属性；value 为 undefined 时删除', () => {
     const { document, name, card } = sample()
     const editor = editorOf(document)
