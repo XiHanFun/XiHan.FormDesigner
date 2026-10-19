@@ -12,7 +12,7 @@ import { setXhConfig } from '@xihan-ui/web-components'
 import { defineXhElements } from '@xihan-ui/web-components/define'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineFormDesigner, FORM_DESIGNER_TAG } from '../src'
-import { formOutlineNodes, formOutlineTarget } from '../src/outline'
+import { formOutlineNodes, formOutlineSelection, formOutlineTarget } from '../src/outline'
 
 defineXhElements()
 defineFormDesigner()
@@ -116,6 +116,25 @@ describe('页面结构：树', () => {
     expect(formOutlineTarget(document, registry, { id: name.id, parent: grid.id, index: 0 })).toBeUndefined()
     expect(formOutlineTarget(document, registry, { id: name.id, parent: age.id, index: 0 })).toBeUndefined()
   })
+
+  it('多选换成表单的选择：新选上的有节点就只留节点，只新选上了区域就留同一个容器的区域，只取消了几行时照原来的种类', () => {
+    const { document, name, age, grid, tabs } = sample()
+    const [col1, col2] = grid.regions.map(region => region.id)
+    const page2 = tabs.regions[1]!.id
+    const nodes = (...ids: string[]) => ({ nodes: ids })
+    const regions = (...ids: string[]) => ({ nodes: [], regions: ids })
+    expect(formOutlineSelection(document, nodes(name.id), [name.id, age.id])).toEqual(nodes(name.id, age.id))
+    expect(formOutlineSelection(document, nodes(name.id), [name.id, col1!])).toEqual(regions(col1!))
+    expect(formOutlineSelection(document, regions(col1!), [col1!, age.id])).toEqual(nodes(age.id))
+    expect(formOutlineSelection(document, regions(col1!), [col1!, col2!])).toEqual(regions(col1!, col2!))
+    expect(formOutlineSelection(document, regions(col1!), [col1!, page2])).toEqual(regions(page2))
+    // 从姓名 Shift 选到第 2 列：区域行不算
+    expect(formOutlineSelection(document, nodes(name.id), [name.id, grid.id, col1!, age.id, col2!])).toEqual(nodes(name.id, grid.id, age.id))
+    expect(formOutlineSelection(document, regions(col1!, col2!), [col2!])).toEqual(regions(col2!))
+    expect(formOutlineSelection(document, nodes(name.id, age.id), [age.id])).toEqual(nodes(age.id))
+    expect(formOutlineSelection(document, nodes(name.id), [])).toEqual(nodes())
+    expect(formOutlineSelection(document, regions(col1!), [])).toEqual(regions())
+  })
 })
 
 describe('页面结构：面板', () => {
@@ -145,6 +164,26 @@ describe('页面结构：面板', () => {
     await settle(designer)
     const host = designer.querySelector<HTMLElement & { value?: unknown }>(`[data-node-id="${tabs.id}"] xh-tabs`)!
     expect(host.value).toBe(tabs.regions[1]!.id)
+  })
+
+  it('多选：树上交出的整份选中换成设计器的选择，只把新选上的第一个亮出来；取消到空就全部取消；画布上的多选整份交给树', async () => {
+    const { document, name, age, phone, grid } = sample()
+    const designer = await mount(document)
+    const outline = outlineOf(designer)
+    const revealed: string[] = []
+    designer.revealNode = id => void revealed.push(id)
+    send(outline, 'node-select', { ids: [name.id] })
+    send(outline, 'node-select', { ids: [name.id, phone.id, age.id] })
+    expect(designer.getSelection()).toEqual({ nodes: [name.id, phone.id, age.id] })
+    send(outline, 'node-select', { ids: [phone.id] })
+    send(outline, 'node-select', { ids: [phone.id, grid.regions[1]!.id] })
+    expect(designer.getSelection()).toEqual({ nodes: [], regions: [grid.regions[1]!.id] })
+    send(outline, 'node-select', { ids: [] })
+    expect(designer.getSelection()).toEqual({ nodes: [] })
+    expect(revealed).toEqual([name.id, phone.id])
+    designer.select({ nodes: [age.id, name.id] })
+    await settle(designer)
+    expect(outline.selection).toEqual([age.id, name.id])
   })
 
   it('悬停或焦点所在的行在画布上标出，换一行换标，离开时撤掉；重排画布后照样标着', async () => {
