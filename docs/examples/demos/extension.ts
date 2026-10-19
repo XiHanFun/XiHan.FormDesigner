@@ -17,6 +17,8 @@ export function mount(host: HTMLElement): () => void {
   designer.extensions = [idCard]
   designer.schema = schema
   // #endregion use
+  // 文档页里不自动开始新手引导
+  designer.autoTour = false
   host.append(designer)
   return () => host.replaceChildren()
 }

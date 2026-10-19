@@ -28,6 +28,7 @@
 | `brands` | — | `readonly PropertySwatchOption[] \| undefined` | 设置里主题色的预设：value 是品牌 id（写成设计器根上的 data-brand），color 是色板格子的颜色。不给且没给 registerBrand 时没有主题色这一项。 |
 | `registerBrand` | — | `((id: string, color: string) => () => void) \| undefined` | 注册自定义主题色，形状与 @xihan-ui/tokens 的 registerBrand 相同；给了才许在设置里自定义主题色。 |
 | `historyLimit` | `history-limit` | `number \| undefined` | 撤销步数上限，缺省 100；在下一次装载（赋 schema）时生效。同名 attribute history-limit。 |
+| `autoTour` | `auto-tour` | `boolean \| undefined` | 第一次铺好画布后自动开始新手引导，缺省开；设置里记着引导已经走完或跳过（help.tourDone）时不开。写 false 不自动开始，仍能用 startTour() 或命令 start-tour 开。同名 attribute auto-tour，写 "false" 为关。 |
 
 ### 存取器
 
@@ -54,6 +55,7 @@
 | `addNode(kind: string, target?: FormDropTarget): FormNode \| undefined` | 按种类新建节点并选中它；目标缺省为选中节点之后，没有选中时为末尾。目标不收时返回 undefined。 |
 | `select(selection: Partial<FormSelection>): void` | 选中节点或区域：给了非空的 regions 就选区域，否则选 nodes。 |
 | `getSelection(): FormSelection` | 当前的选择。 |
+| `startTour(): boolean` | 开始新手引导，从第一步起；没有能走的步骤时返回 false。引导收起时派发 tour-end，并在设置里记下 help.tourDone。 |
 | `openSettings(section?: string): void` | 打开设置对话框，给了分区 id 就显示那一页：基础是 general，扩展的分区用它们自己的 id。 |
 | `deleteSelection(): boolean` | 删除选中的节点或区域；只读或什么都没删时返回 false。 |
 | `copy(): FormClipboard \| undefined` | 复制选中的节点，放进这个设计器的剪贴板并返回；没有选中时返回 undefined。 |
@@ -82,6 +84,7 @@
 | `settings-change` | `{ key: string, value: JsonValue \| undefined, settings: DesignerSettings }` | 在设置对话框里改了一条设置，或在外框上挪了面板（键是 layout.panels，值是整份布局）：设计器已换成新的 settings 并生效（主题、主题色、状态栏与面板布局）；value 为 undefined 表示删掉这个键、回到缺省值。宿主存起来，下次赋回 settings。 |
 | `settings-storage-error` | `VisualEnvironmentStorageError` | 读写 settingsStorageKey 指的本机存储失败（内容不是对象、无痕窗口、配额满）；设置留在内存里。 |
 | `history-change` | `HistorySnapshot` | 撤销历史变了：执行（含并入上一步）、撤销、重做、跳转、装载、清空与保存之后都派发，拖动跨度这样的事务进行中不派发。detail 是此刻的 historyState。 |
+| `tour-end` | `{ reason: 'complete' \| 'skip' \| 'close', step: string \| undefined }` | 新手引导收起了：reason 是 complete（走完）、skip（跳过或 Esc）或 close（关闭钮），step 是收起时那一步的 id。设计器同时在设置里记下 help.tourDone（会派发 settings-change），下次不再自动开始。 |
 
 ## 类型
 
@@ -231,6 +234,7 @@ type FormDesignerCommand = DesignerCommand<FormDesignerContext>
 | `removeRow` | `string` | 表格布局右键菜单：删除行。 |
 | `removeColumn` | `string` | 表格布局右键菜单：删除列。 |
 | `history` | `FormHistoryTranslations` | 撤销历史里各步的说明。 |
+| `tour` | `FormTourTranslations` | 新手引导里表单自己的几步。 |
 | `sourceStructure` | `string` | 问题列表里结构问题的来源小标签。 |
 | `sourceBinding` | `string` | 问题列表里数据绑定问题的来源小标签。 |
 
@@ -377,8 +381,8 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 
 | 名称 | 种类 | 说明 |
 | --- | --- | --- |
-| `createFormDesignerModel` | 函数 | 合出设计器用的模型；任何一处重名（设置分区与 general 重名、扩展面板与外框的区重名、扩展面板的开关命令与已有命令重名也算）都抛 DesignerExtensionError。 |
-| `FORM_DESIGNER_EXTENSION` | 常量 | 设计器的内置扩展：内置命令，以及页面结构与历史记录两块面板。 |
+| `createFormDesignerModel` | 函数 | 合出设计器用的模型；任何一处重名（设置分区与 general 重名、扩展面板与外框的区重名、扩展面板的开关命令与已有命令重名、引导步骤重名或用了 shell. 前缀也算）都抛 DesignerExtensionError。 |
+| `FORM_DESIGNER_EXTENSION` | 常量 | 设计器的内置扩展：内置命令、页面结构与历史记录两块面板，以及引导里表单自己的几步。 |
 | `FormDesignerExtension` | 接口 | 表单设计器层的扩展：运行时层的全部字段，加上属性编辑器、命令、面板、导入导出与 setup。 |
 | `FormDesignerModel` | 接口 | 一组设计器扩展合出的东西：运行时模型、命令表、属性编辑器表与设置分区。 |
 

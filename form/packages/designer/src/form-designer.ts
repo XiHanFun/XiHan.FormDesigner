@@ -13,7 +13,7 @@ import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { VisualEnvironmentStorageError } from '@xihan-ui/core/visual-environment'
 import type { ExecuteOptions, ExtensionHost, HistorySnapshot } from '@xihan-ui/designer-kit'
 import type { PropertySwatchOption } from '@xihan-ui/designer-kit/properties'
-import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerHistoryTranslations, DesignerIssuesEventMap, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, PanRequestDetail } from '@xihan-ui/designer-shell'
+import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerHistoryTranslations, DesignerIssuesEventMap, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, DesignerTourEventMap, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PointerSession } from '@xihan-ui/pointer'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
@@ -29,7 +29,7 @@ import { createDocument, findNode, findRegion, kindLabel, PROPERTY_GROUPS, valid
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
 import { commandForShortcut, createExtensionHost, HISTORY_NUDGE_MERGE_WITHIN, nudgeMergeKey, snapshotHistory } from '@xihan-ui/designer-kit'
-import { applyToolbarCustomization, arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolveSettings, runCommand, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement } from '@xihan-ui/designer-shell'
+import { applyToolbarCustomization, arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, DESIGNER_TOUR_DONE_KEY, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolveSettings, resolveTourSteps, runCommand, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, tourDoneOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement, XhDesignerTourElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { CircleAlertIcon, LayoutGridIcon, SlidersHorizontalIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
@@ -93,6 +93,11 @@ export interface FormDesignerEventMap {
    * detail 是此刻的 historyState。
    */
   'history-change': CustomEvent<HistorySnapshot>
+  /**
+   * 新手引导收起了：reason 是 complete（走完）、skip（跳过或 Esc）或 close（关闭钮），step 是收起时那一步的 id。
+   * 设计器同时在设置里记下 help.tourDone（会派发 settings-change），下次不再自动开始。
+   */
+  'tour-end': CustomEvent<{ reason: 'complete' | 'skip' | 'close', step: string | undefined }>
 }
 
 const CLIPBOARD_EVENTS = ['copy', 'cut', 'paste'] as const
@@ -163,6 +168,8 @@ interface DesignerParts {
   readonly menuContent: HTMLElement
   /** 设置对话框：外框的兄弟节点。 */
   readonly settings: XhDesignerSettingsElement
+  /** 新手引导：外框的兄弟节点。 */
+  readonly tour: XhDesignerTourElement
   /** 状态栏左段：选中的对象，没选中时是字段数。 */
   readonly selectionStatus: DesignerStatusItem
   /** 状态栏右段：预览宽度，点了回到全宽。 */
@@ -210,6 +217,7 @@ export class XhFormDesigner extends XhReactiveElement {
     settings: { attribute: false },
     settingsPolicy: { attribute: false },
     settingsStorageKey: { attribute: 'settings-storage-key', converter: { fromAttribute: (value: string | null) => value ?? undefined } },
+    autoTour: { attribute: 'auto-tour', converter: BOOLEAN_CONVERTER },
     historyLimit: { attribute: 'history-limit', converter: { fromAttribute: (value: string | null) => (value === null || value === '' ? undefined : Number(value)) } },
     brands: { attribute: false },
     registerBrand: { attribute: false },
@@ -260,6 +268,11 @@ export class XhFormDesigner extends XhReactiveElement {
   declare registerBrand: ((id: string, color: string) => () => void) | undefined
   /** 撤销步数上限，缺省 100；在下一次装载（赋 schema）时生效。同名 attribute history-limit。 */
   declare historyLimit: number | undefined
+  /**
+   * 第一次铺好画布后自动开始新手引导，缺省开；设置里记着引导已经走完或跳过（help.tourDone）时不开。
+   * 写 false 不自动开始，仍能用 startTour() 或命令 start-tour 开。同名 attribute auto-tour，写 "false" 为关。
+   */
+  declare autoTour: boolean | undefined
 
   readonly #config = new XhConfigController(this)
   readonly #editor: FormEditor
@@ -311,7 +324,13 @@ export class XhFormDesigner extends XhReactiveElement {
   /** 刚连上文档或所在处的配置（语言、文案）变了：画布与物料要按新配置重排；只是选择变了时不重排。 */
   #configStale = true
   #releaseConfigWatch: (() => void) | undefined
-  /** 画布或选中工具条的尺寸变了、工具条换了位置重新观察时，重新摆选中工具条。 */
+  /** 上次交给引导零件的步骤：内容没变就不重设。 */
+  #tourStepsKey = ''
+  /** 已经看过要不要自动开始引导：每个实例只看一次。 */
+  #autoTourChecked = false
+  /** 引导等着自动开始：设计器显示出来就开始。 */
+  #autoTourPending = false
+  /** 画布或选中工具条的尺寸变了、工具条换了位置重新观察时，重新摆选中工具条；画布有了宽度时开始待开始的引导。 */
   #canvasResize: ResizeObserver | undefined
 
   constructor() {
@@ -502,7 +521,10 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#host.assign(this.#extensions ?? NO_EXTENSIONS)
     const Observer = this.ownerDocument.defaultView?.ResizeObserver
     if (Observer !== undefined && this.#canvasResize === undefined) {
-      this.#canvasResize = new Observer(() => this.#placeNodeToolbar())
+      this.#canvasResize = new Observer(() => {
+        this.#placeNodeToolbar()
+        this.#startPendingTour()
+      })
       this.#canvasResize.observe(parts.canvas)
       this.#canvasResize.observe(parts.nodeToolbar)
     }
@@ -552,6 +574,53 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#syncNodeToolbar(t)
     this.#syncRuleTabs(t)
     parts.panels.update(this.#context(t))
+    this.#syncTour(parts, t)
+  }
+
+  /**
+   * 引导：外框与各步（按此刻的上下文取好文字、过了 when）交给引导零件。第一次铺好画布、在设计态时看一次要不要自动开始：
+   * autoTour 不为 false、设置里没记着走完时记下待开始，等设计器显示出来再开始。
+   */
+  #syncTour(parts: DesignerParts, t: FormDesignerTranslations): void {
+    const { tour } = parts
+    if (tour.frame !== parts.frame)
+      tour.frame = parts.frame
+    const steps = resolveTourSteps(this.#model.tourSteps, this.#context(t))
+    const key = JSON.stringify(steps)
+    if (key !== this.#tourStepsKey) {
+      this.#tourStepsKey = key
+      tour.steps = steps
+    }
+    if (!this.#autoTourChecked && this.#rendered !== undefined && (this.mode ?? 'design') === 'design') {
+      this.#autoTourChecked = true
+      this.#autoTourPending = this.autoTour !== false && !tourDoneOf(this.settings)
+    }
+    this.#startPendingTour()
+  }
+
+  /**
+   * 有待开始的引导、设计器在设计态且显示着（画布有宽度）时，等这一轮更新落定后开始；
+   * 到那时 autoTour 关了、设置里记着走完或引导已经开着就不开。
+   */
+  #startPendingTour(): void {
+    const parts = this.#parts
+    if (!this.#autoTourPending || parts === undefined || !this.isConnected || (this.mode ?? 'design') !== 'design' || parts.canvas.clientWidth === 0)
+      return
+    this.#autoTourPending = false
+    void this.updateComplete.then(() => {
+      if (this.isConnected && this.autoTour !== false && !tourDoneOf(this.settings) && !parts.tour.running)
+        parts.tour.start()
+    })
+  }
+
+  /** 引导收起了（走完、跳过或关掉）：设置里记下 help.tourDone，下次不再自动开始。 */
+  readonly #onTourEnd = (event: Event): void => {
+    event.stopPropagation()
+    emitEvent(this, 'tour-end', (event as DesignerTourEventMap['tour-end']).detail)
+    if (tourDoneOf(this.settings))
+      return
+    const key = DESIGNER_TOUR_DONE_KEY
+    this.#commitSettings({ key, value: true, settings: { ...this.settings, [key]: true } })
   }
 
   /** 页签文案与可用：校验规则只给登记了校验种类的单个字段或容器，联动规则只给单个节点；当前页签不可用时回到属性页签。 */
@@ -621,6 +690,13 @@ export class XhFormDesigner extends XhReactiveElement {
   /** 当前的选择。 */
   getSelection(): FormSelection {
     return this.#editor.selection
+  }
+
+  /** 开始新手引导，从第一步起；没有能走的步骤时返回 false。引导收起时派发 tour-end，并在设置里记下 help.tourDone。 */
+  startTour(): boolean {
+    const parts = this.#ensureParts()
+    this.#syncTour(parts, this.#t())
+    return parts.tour.start()
   }
 
   /** 打开设置对话框，给了分区 id 就显示那一页：基础是 general，扩展的分区用它们自己的 id。 */
@@ -801,10 +877,12 @@ export class XhFormDesigner extends XhReactiveElement {
     inspector.addEventListener('property-commit', this.#onPropertyCommit)
     const settings = createAuthoredElement(doc, 'xh-designer-settings', { 'data-part': 'settings' })
     settings.addEventListener('settings-change', this.#onSettingsChange)
-    this.replaceChildren(frame, settings)
+    const tour = createAuthoredElement(doc, 'xh-designer-tour', { 'data-part': 'tour' })
+    tour.addEventListener('tour-end', this.#onTourEnd)
+    this.replaceChildren(frame, settings, tour)
     // 面板头的命令（如历史记录的清空）按设计器此刻的命令表铺
     const panels = createPanelHost<FormDesignerContext>(frame, { commands: () => this.#model.commands })
-    this.#parts = { frame, panels, toolbar, commandBar, headerBar, canvas, palette, catalog, dropIndicator, ...this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings, selectionStatus, widthStatus }
+    this.#parts = { frame, panels, toolbar, commandBar, headerBar, canvas, palette, catalog, dropIndicator, ...this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings, tour, selectionStatus, widthStatus }
     this.#prepareMenu(this.#parts)
     panels.assign(this.#model.extensions, this.#context())
     return this.#parts
@@ -1673,6 +1751,7 @@ export function defineFormDesigner(): void {
   defineDesignerShellElement('xh-designer-palette', XhDesignerPaletteElement)
   defineDesignerShellElement('xh-designer-issues', XhDesignerIssuesElement)
   defineDesignerShellElement('xh-designer-settings', XhDesignerSettingsElement)
+  defineDesignerShellElement('xh-designer-tour', XhDesignerTourElement)
   registerElement(FORM_DESIGNER_TAG, XhFormDesigner)
 }
 

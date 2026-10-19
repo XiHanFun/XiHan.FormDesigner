@@ -28,6 +28,8 @@ export function mount(host: HTMLElement): () => void {
   designer.previewValues = values
   designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
   // #endregion render
+  // 文档页里不自动开始新手引导
+  designer.autoTour = false
 
   // #region save
   let saved: FormDocument = schema
