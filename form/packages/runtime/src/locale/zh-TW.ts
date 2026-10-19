@@ -112,6 +112,22 @@ const locale: FormLocale = {
       previewTitle: '預覽',
       previewDescription: '像填表的人那樣填一遍表單，預覽寬度可以換成平板或手機。',
     },
+    help: {
+      product: '曦寒表單設計器',
+      docs: '開啟文件',
+      notes: [
+        '從物料面板或頂欄把欄位加進畫布，點選畫布裡的欄位，在屬性面板裡修改標籤、資料鍵與外觀。',
+        '屬性面板的「驗證規則」「連動規則」兩頁為選取的欄位加上規則：必填、格式與範圍，或依其他欄位的值顯示、隱藏、停用它。',
+        '預覽時像填表的人那樣填一遍表單。每一步修改都能復原，歷史記錄面板列出全部步驟。',
+      ],
+    },
+    keys: {
+      selectSibling: '選上一個 / 下一個欄位',
+      moveSibling: '欄位上移 / 下移',
+      selectChild: '選取裡面第一個欄位',
+      selectParent: '選取上一層',
+      contextMenu: '右鍵選單',
+    },
     sourceStructure: '結構',
     sourceBinding: '繫結',
     unboundKey: key => `資料鍵 ${key} 不在資料模型中`,

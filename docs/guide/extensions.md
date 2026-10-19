@@ -12,7 +12,7 @@ aside: false
 | --- | --- | --- | --- |
 | core | `FormCoreExtension` | `id`、`kinds`、`documentProperties`、`controls`、`rules`、`issueText` | `validateDocument`、`createFormModel` |
 | 运行时 | `FormRuntimeExtension` | `fieldRenderers`、`containerRenderers`、`staticRenderers` | `<xh-form-renderer>`、`createFormController` |
-| 设计器 | `FormDesignerExtension` | `editors`、`commands`、`panels`、`settings`、`tourSteps`、`kindIcons`、`setup` | `<xh-form-designer>` |
+| 设计器 | `FormDesignerExtension` | `editors`、`commands`、`panels`、`settings`、`tourSteps`、`about`、`kindIcons`、`setup` | `<xh-form-designer>` |
 
 各层是超集：设计器层的扩展可以原样交给渲染器与 `validateDocument`，它们只读自己那一层的字段。业务页面只用渲染器时，扩展只写到运行时层，不会带进设计器的代码。
 
@@ -97,6 +97,10 @@ aside: false
 - `order` 定先后：designer-shell 的通用步骤是 0–90，表单的是 100–130，扩展从 200 起；同值按登记顺序。`when` 返回 `false` 时跳过这一步，如只读时不讲编辑。
 
 引导怎么开始、怎么记下走完，见[新手引导](./designer#新手引导)。
+
+## 关于
+
+`about` 给设置对话框「关于」页加几行，如附加包的版本与授权：`[{ label, value }]`，按扩展顺序接在表单自己那几行后面。
 
 ## 属性编辑器与编辑方式
 

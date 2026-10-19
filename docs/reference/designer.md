@@ -235,6 +235,8 @@ type FormDesignerCommand = DesignerCommand<FormDesignerContext>
 | `removeColumn` | `string` | 表格布局右键菜单：删除列。 |
 | `history` | `FormHistoryTranslations` | 撤销历史里各步的说明。 |
 | `tour` | `FormTourTranslations` | 新手引导里表单自己的几步。 |
+| `help` | `FormHelpTranslations` | 设置对话框「帮助」「关于」两页里表单自己的文字。 |
+| `keys` | `FormKeyTranslations` | 快捷键表里不是命令的按键。 |
 | `sourceStructure` | `string` | 问题列表里结构问题的来源小标签。 |
 | `sourceBinding` | `string` | 问题列表里数据绑定问题的来源小标签。 |
 
@@ -424,3 +426,9 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 | 名称 | 种类 | 说明 |
 | --- | --- | --- |
 | `FormPropertyEditor` | 类型 | 宿主的属性编辑器，经 `editors` 压在内建编辑器之上。 |
+
+### version
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `FORM_DESIGNER_VERSION` | 常量 | @xihan-form/designer 的版本号。 |

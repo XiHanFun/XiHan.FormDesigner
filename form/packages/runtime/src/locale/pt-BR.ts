@@ -112,6 +112,22 @@ const locale: FormLocale = {
       previewTitle: 'Visualização',
       previewDescription: 'Preencha o formulário como seus usuários farão. A largura da visualização pode ser trocada para tablet ou celular.',
     },
+    help: {
+      product: 'XiHan Form Designer',
+      docs: 'Abrir a documentação',
+      notes: [
+        'Adicione campos pela paleta ou pela barra de inserção rápida no topo; depois selecione um campo na tela e altere o rótulo, a chave de dados e a aparência no painel de propriedades.',
+        'As abas Validação e Lógica condicional do painel de propriedades adicionam regras ao campo selecionado: obrigatório, formato e intervalo, ou exibir, ocultar e desativar o campo conforme outros campos.',
+        'Na visualização, preencha o formulário como seus usuários farão. Toda alteração pode ser desfeita, e o histórico lista todas as etapas.',
+      ],
+    },
+    keys: {
+      selectSibling: 'Selecionar o campo anterior / próximo',
+      moveSibling: 'Mover o campo para cima / baixo',
+      selectChild: 'Selecionar o primeiro campo interno',
+      selectParent: 'Selecionar o item pai',
+      contextMenu: 'Menu de contexto',
+    },
     sourceStructure: 'Estrutura',
     sourceBinding: 'Vínculo',
     unboundKey: key => `${key} não está no modelo de dados`,

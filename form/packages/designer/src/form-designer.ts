@@ -29,7 +29,7 @@ import { createDocument, findNode, findRegion, kindLabel, PROPERTY_GROUPS, valid
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
 import { commandForShortcut, createExtensionHost, HISTORY_NUDGE_MERGE_WITHIN, nudgeMergeKey, snapshotHistory } from '@xihan-ui/designer-kit'
-import { applyToolbarCustomization, arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, DESIGNER_TOUR_DONE_KEY, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolveSettings, resolveTourSteps, runCommand, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, tourDoneOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement, XhDesignerTourElement } from '@xihan-ui/designer-shell'
+import { applyToolbarCustomization, arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_COMMON_KEYS, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, DESIGNER_SHELL_COMMANDS, DESIGNER_TOUR_DONE_KEY, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolveSettings, resolveTourSteps, runCommand, shortcutSettingsSource, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, tourDoneOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement, XhDesignerTourElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { CircleAlertIcon, LayoutGridIcon, SlidersHorizontalIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
@@ -49,6 +49,7 @@ import { dragSubject, paletteGroups, paletteSubject } from './palette'
 import { propertyErrors, propertyOperations, propertyView } from './properties'
 import { RuleLists } from './rule-lists'
 import { hasRuleList } from './rules'
+import { FORM_DESIGNER_VERSION } from './version'
 
 /** 设计器的标签名。 */
 export const FORM_DESIGNER_TAG = 'xh-form-designer'
@@ -104,6 +105,9 @@ const CLIPBOARD_EVENTS = ['copy', 'cut', 'paste'] as const
 
 /** 撤销步数上限的缺省值。 */
 const DEFAULT_HISTORY_LIMIT = 100
+
+/** 快捷键页「通用」组末尾里表单有的按键：Alt+F10 到选中工具条、Esc 取消；表单的画布不能微移，也不能按住空格拖动。 */
+const FORM_COMMON_KEYS = DESIGNER_COMMON_KEYS.filter(key => key.id === 'selectionToolbar' || key.id === 'cancel')
 
 /** 选中工具条往行尾挪的量，样式里加在 inset-inline-end 上。 */
 const NODE_TOOLBAR_SHIFT = '--xh-form-node-toolbar-shift'
@@ -326,6 +330,8 @@ export class XhFormDesigner extends XhReactiveElement {
   #releaseConfigWatch: (() => void) | undefined
   /** 上次交给引导零件的步骤：内容没变就不重设。 */
   #tourStepsKey = ''
+  /** 上次交给设置对话框「帮助」「快捷键」「关于」三页的数据：内容没变就不重设。 */
+  #settingsPagesKey = ''
   /** 已经看过要不要自动开始引导：每个实例只看一次。 */
   #autoTourChecked = false
   /** 引导等着自动开始：设计器显示出来就开始。 */
@@ -569,6 +575,7 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#syncRegions(parts.frame, t, mode)
     this.#syncLayout(parts.frame)
     this.#syncToolbar(t)
+    this.#syncSettingsPages(t)
     this.#syncPalette(changed, t, configStale)
     this.#syncIssues(changed, t)
     this.#syncNodeToolbar(t)
@@ -877,6 +884,7 @@ export class XhFormDesigner extends XhReactiveElement {
     inspector.addEventListener('property-commit', this.#onPropertyCommit)
     const settings = createAuthoredElement(doc, 'xh-designer-settings', { 'data-part': 'settings' })
     settings.addEventListener('settings-change', this.#onSettingsChange)
+    settings.addEventListener('settings-command', this.#onSettingsCommand)
     const tour = createAuthoredElement(doc, 'xh-designer-tour', { 'data-part': 'tour' })
     tour.addEventListener('tour-end', this.#onTourEnd)
     this.replaceChildren(frame, settings, tour)
@@ -936,6 +944,49 @@ export class XhFormDesigner extends XhReactiveElement {
       dialog.settings = this.settings
     if (dialog.frame !== parts.frame)
       dialog.frame = parts.frame
+  }
+
+  /**
+   * 设置对话框的「帮助」「快捷键」「关于」三页：帮助页是表单的几段说明，加上开始引导与打开文档两颗钮；快捷键表按命令表现算，
+   * 扩展的命令归「扩展」，补上表单不是命令的按键，「通用」组末尾只留表单有的；关于页是产品名、版本与许可证，后面接各扩展的 about。内容没变不重设。
+   */
+  #syncSettingsPages(t: FormDesignerTranslations): void {
+    const { settings: dialog } = this.#ensureParts()
+    const context = this.#context(t)
+    const help = {
+      notes: t.help.notes,
+      actions: [
+        { command: DESIGNER_SHELL_COMMANDS.startTour, label: context.commands.startTour },
+        { command: DESIGNER_SHELL_COMMANDS.help, label: t.help.docs },
+      ],
+    }
+    const shortcuts = shortcutSettingsSource(this.#model.commands, context, {
+      extensionCommands: (this.#extensions ?? []).flatMap(extension => extension.commands ?? []).map(command => command.id),
+      keys: [
+        { label: t.keys.selectSibling, keys: [['ArrowUp'], ['ArrowDown']] },
+        { label: t.keys.moveSibling, keys: [['Alt', 'ArrowUp'], ['Alt', 'ArrowDown']] },
+        { label: t.keys.selectChild, keys: [['Enter']] },
+        { label: t.keys.selectParent, keys: [['Escape']] },
+        { label: t.keys.contextMenu, keys: [['Shift', 'F10'], ['ContextMenu']] },
+      ],
+      commonKeys: FORM_COMMON_KEYS,
+    })
+    const about = { product: t.help.product, version: FORM_DESIGNER_VERSION, license: 'MIT', rows: this.#model.extensions.flatMap(extension => extension.about ?? []) }
+    const key = JSON.stringify([help, shortcuts, about])
+    if (key === this.#settingsPagesKey)
+      return
+    this.#settingsPagesKey = key
+    dialog.help = help
+    dialog.shortcuts = shortcuts
+    dialog.about = about
+  }
+
+  /** 设置对话框里点了跑命令的钮（帮助页的开始引导、打开文档）：关上对话框，再跑这条命令。 */
+  readonly #onSettingsCommand = (event: Event): void => {
+    event.stopPropagation()
+    const { command } = (event as DesignerSettingsEventMap['settings-command']).detail
+    this.#ensureParts().settings.open = false
+    runCommand(this.#model.commands, command, this.#context())
   }
 
   /** 设置对话框里改了一条：换成新的 settings，给了存储键就存起来，再派发 settings-change。 */
@@ -1648,6 +1699,11 @@ export class XhFormDesigner extends XhReactiveElement {
       this.#requestMenu(this.#editor.selection.nodes.at(-1), this.#selectionAnchor())
       return
     }
+    if (inCanvas && event.key === 'F10' && event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+      if (this.#focusSelectionBar())
+        event.preventDefault()
+      return
+    }
     const context = this.#context()
     const hit = commandForShortcut(this.#model.commands.values(), event, context, this.#kbdPlatform())
     if (hit !== undefined) {
@@ -1657,6 +1713,16 @@ export class XhFormDesigner extends XhReactiveElement {
     }
     if (inCanvas && !event.ctrlKey && !event.metaKey && this.#onPlainKey(event))
       event.preventDefault()
+  }
+
+  /** 把焦点交给选中工具条：先给它 roving 的当前钮，没有就给第一颗可用的；选中工具条不在时返回 false。 */
+  #focusSelectionBar(): boolean {
+    const bar = this.#parts?.nodeToolbar
+    if (bar === undefined || !bar.isConnected)
+      return false
+    const target = bar.querySelector<HTMLButtonElement>('button[tabindex="0"]:not([disabled])') ?? bar.querySelector<HTMLButtonElement>('button:not([disabled])')
+    target?.focus()
+    return target !== null
   }
 
   #onPlainKey(event: KeyboardEvent): boolean {

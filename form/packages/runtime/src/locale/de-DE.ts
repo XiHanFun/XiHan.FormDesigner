@@ -112,6 +112,22 @@ const locale: FormLocale = {
       previewTitle: 'Vorschau',
       previewDescription: 'Füllen Sie das Formular so aus, wie es Ihre Benutzer tun. Die Vorschaubreite lässt sich auf Tablet oder Smartphone umstellen.',
     },
+    help: {
+      product: 'XiHan Form Designer',
+      docs: 'Dokumentation öffnen',
+      notes: [
+        'Fügen Sie Felder aus der Palette oder der Schnellleiste oben auf der Arbeitsfläche ein, wählen Sie ein Feld aus und ändern Sie im Eigenschaftenbereich Beschriftung, Datenschlüssel und Aussehen.',
+        'Auf den Registerkarten „Prüfregeln“ und „Bedingte Logik“ im Eigenschaftenbereich erhält das ausgewählte Feld Regeln: Pflichtfeld, Format und Bereich, oder Ein- und Ausblenden und Deaktivieren abhängig von anderen Feldern.',
+        'In der Vorschau füllen Sie das Formular so aus, wie es Ihre Benutzer tun. Jede Änderung lässt sich rückgängig machen, und der Verlauf listet alle Schritte auf.',
+      ],
+    },
+    keys: {
+      selectSibling: 'Vorheriges / nächstes Feld auswählen',
+      moveSibling: 'Feld nach oben / unten verschieben',
+      selectChild: 'Erstes Feld darin auswählen',
+      selectParent: 'Übergeordnetes Element auswählen',
+      contextMenu: 'Kontextmenü',
+    },
     sourceStructure: 'Struktur',
     sourceBinding: 'Bindung',
     unboundKey: key => `${key} ist nicht im Datenmodell enthalten`,

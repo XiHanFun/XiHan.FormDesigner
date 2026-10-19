@@ -6,7 +6,7 @@
 // 导出 @xihan-form/runtime 的公共接口。
 
 export { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from './designer-translations'
-export type { FormDesignerTranslations, FormHistoryTranslations, FormTourTranslations } from './designer-translations'
+export type { FormDesignerTranslations, FormHelpTranslations, FormHistoryTranslations, FormKeyTranslations, FormTourTranslations } from './designer-translations'
 export { createFormRuntimeModel, FORM_RUNTIME_EXTENSION } from './extensions'
 export type { FormRuntimeExtension, FormRuntimeModel } from './extensions'
 export type { ContainerBuilder, ContainerView, StaticBuilder, StaticView } from './renderer/containers'

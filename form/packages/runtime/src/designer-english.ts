@@ -90,6 +90,22 @@ export const ENGLISH_DESIGNER_LOCALE: FormDesignerLocale = {
     previewTitle: 'Preview',
     previewDescription: 'Fill in the form as your users will. The preview width can be switched to tablet or phone.',
   },
+  help: {
+    product: 'XiHan Form Designer',
+    docs: 'Open documentation',
+    notes: [
+      'Add fields from the palette or the quick insert bar at the top, then select a field on the canvas and change its label, data key and appearance in the properties panel.',
+      'The Validation and Linkage tabs of the properties panel add rules to the selected field: required, format and range checks, or showing, hiding and disabling it based on other fields.',
+      'In preview, fill in the form as your users will. Every change can be undone, and the history panel lists all the steps.',
+    ],
+  },
+  keys: {
+    selectSibling: 'Select previous / next field',
+    moveSibling: 'Move field up / down',
+    selectChild: 'Select first field inside',
+    selectParent: 'Select parent',
+    contextMenu: 'Context menu',
+  },
   sourceStructure: 'Structure',
   sourceBinding: 'Binding',
   unboundKey: key => `${key} is not in the data model`,

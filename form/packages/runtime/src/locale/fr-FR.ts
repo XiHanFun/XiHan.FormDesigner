@@ -116,6 +116,22 @@ const locale: FormLocale = {
       previewTitle: 'Aperçu',
       previewDescription: 'Remplissez le formulaire comme le feront vos utilisateurs. La largeur de l’aperçu peut passer en tablette ou en téléphone.',
     },
+    help: {
+      product: 'XiHan Form Designer',
+      docs: 'Ouvrir la documentation',
+      notes: [
+        'Ajoutez des champs depuis la palette ou la barre d’insertion rapide en haut, puis sélectionnez un champ sur le canevas et modifiez son libellé, sa clé de données et son apparence dans le panneau des propriétés.',
+        'Les onglets Validation et Logique conditionnelle du panneau des propriétés ajoutent des règles au champ sélectionné : obligatoire, format et plage, ou affichage, masquage et désactivation selon d’autres champs.',
+        'Dans l’aperçu, remplissez le formulaire comme le feront vos utilisateurs. Chaque modification peut être annulée et l’historique liste toutes les étapes.',
+      ],
+    },
+    keys: {
+      selectSibling: 'Sélectionner le champ précédent / suivant',
+      moveSibling: 'Monter / descendre le champ',
+      selectChild: 'Sélectionner le premier champ à l’intérieur',
+      selectParent: 'Sélectionner le parent',
+      contextMenu: 'Menu contextuel',
+    },
     sourceStructure: 'Structure',
     sourceBinding: 'Liaison',
     unboundKey: key => `${key} ne figure pas dans le modèle de données`,
