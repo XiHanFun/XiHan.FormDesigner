@@ -910,6 +910,7 @@ function designerPage() {
     interfaceSection(commands, 'FormDesignerContext'),
     typeSection(commands, 'FormDesignerCommand'),
     unionSection(commands, 'FormMenuSubject'),
+    unionSection(commands, 'FormSelectionSubject'),
     '## 文案',
     interfaceSection(translations, 'FormDesignerTranslations', '###', `文案键是 ${code('xh-form-designer')}，各语言的文案在 ${code('@xihan-form/runtime/locale')}，如中文的 ${code('formZhCN')}。`),
     '## 编辑模型',

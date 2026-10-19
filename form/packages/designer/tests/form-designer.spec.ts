@@ -816,41 +816,71 @@ describe('<xh-form-designer>：问题列表', () => {
   })
 })
 
-describe('<xh-form-designer>：节点小工具条', () => {
-  it('只选中一个节点时挂进它的外框，按它在同层的位置启用按钮；点按钮执行后不丢选择', async () => {
+describe('<xh-form-designer>：选中工具条', () => {
+  const ORDER = ['select-parent', 'move-up', 'move-down', 'duplicate', 'delete']
+
+  function toolbarOf(designer: XhFormDesigner): HTMLElement | null {
+    return designer.querySelector<HTMLElement>('[data-part="node-toolbar"]')
+  }
+
+  function buttonOf(designer: XhFormDesigner, id: string): HTMLButtonElement {
+    return toolbarOf(designer)!.querySelector<HTMLButtonElement>(`button[value="${id}"]`)!
+  }
+
+  it('只选中一个节点时挂进它的外框，命令按 selection:node 的缺省排列、按它在同层的位置启用；点了执行后不丢选择，焦点回到画布', async () => {
     const { document, name, card, inner } = sample()
     const designer = await mount((element) => {
       element.schema = document
     })
-    const toolbar = (): HTMLElement | null => designer.querySelector<HTMLElement>('[data-part="node-toolbar"]')
-    const button = (action: string): HTMLButtonElement => toolbar()!.querySelector<HTMLButtonElement>(`button[value="${action}"]`)!
-    const disabled = (): boolean[] => ['parent', 'up', 'down', 'duplicate', 'delete'].map(action => button(action).disabled)
-    expect(toolbar()).toBeNull()
+    const disabled = (): boolean[] => ORDER.map(id => buttonOf(designer, id).disabled)
+    expect(toolbarOf(designer)).toBeNull()
     designer.select({ nodes: [name.id] })
     await settle(designer)
-    expect(toolbar()!.parentElement).toBe(block(designer, name.id))
+    expect(toolbarOf(designer)!.parentElement).toBe(block(designer, name.id))
+    expect(Array.from(toolbarOf(designer)!.querySelectorAll<HTMLButtonElement>('button[value]'), button => button.value)).toEqual(ORDER)
     expect(disabled()).toEqual([true, true, false, false, false])
-    expect(button('down').getAttribute('aria-label')).toBe(DEFAULT_FORM_DESIGNER_TRANSLATIONS.moveDown)
-    expect([button('duplicate').getAttribute('aria-label'), button('delete').getAttribute('aria-label'), button('delete').getAttribute('data-tone')]).toEqual(['Duplicate', 'Delete', 'danger'])
-    // 名字只写在 aria-label 上，悬停与聚焦的提示由整条工具条的委托提示给，不用原生 title
-    expect(Array.from(toolbar()!.querySelectorAll('button[value]'), item => item.hasAttribute('title'))).toEqual([false, false, false, false, false])
-    expect(toolbar()!.querySelector(':scope > xh-tooltip')!.getAttribute('delegate')).toBe('button[data-xh-part=\'item\']')
-    button('down').click()
+    expect(toolbarOf(designer)!.querySelector('xh-toolbar [data-xh-part="root"]')!.getAttribute('aria-label')).toBe('Single-line text · name')
+    expect(buttonOf(designer, 'move-down').getAttribute('aria-label')).toBe(DEFAULT_FORM_DESIGNER_TRANSLATIONS.moveDown)
+    expect([buttonOf(designer, 'duplicate').getAttribute('aria-label'), buttonOf(designer, 'delete').getAttribute('aria-label'), buttonOf(designer, 'delete').getAttribute('data-tone')]).toEqual(['Duplicate', 'Delete', 'danger'])
+    buttonOf(designer, 'move-down').click()
     await settle(designer)
     expect(designer.schema.children.map(node => node.id)).toEqual([card.id, name.id])
     expect(designer.getSelection().nodes).toEqual([name.id])
-    expect(toolbar()!.parentElement).toBe(block(designer, name.id))
+    expect(toolbarOf(designer)!.parentElement).toBe(block(designer, name.id))
+    expect(window.document.activeElement).toBe(designer.querySelector('[data-part="canvas"]'))
     designer.select({ nodes: [inner.id] })
     await settle(designer)
-    button('parent').click()
+    buttonOf(designer, 'select-parent').click()
     expect(designer.getSelection().nodes).toEqual([card.id])
     designer.select({ nodes: [name.id, card.id] })
     await settle(designer)
-    expect(toolbar()).toBeNull()
+    expect(toolbarOf(designer)).toBeNull()
     designer.select({ nodes: [name.id] })
     designer.readonly = true
     await settle(designer)
-    expect(toolbar()).toBeNull()
+    expect(toolbarOf(designer)).toBeNull()
+  })
+
+  it('宿主经 commandLayout 改 selection:node 的排列，写空就没有工具条；扩展命令写上这个落点就追加成一组', async () => {
+    const { document, name } = sample()
+    const pinged: string[] = []
+    const designer = await mount((element) => {
+      element.schema = document
+      element.commandLayout = { 'selection:node': [['delete']] }
+    })
+    designer.select({ nodes: [name.id] })
+    await settle(designer)
+    const values = (): string[] => Array.from(toolbarOf(designer)!.querySelectorAll<HTMLButtonElement>('button[value]'), button => button.value)
+    expect(values()).toEqual(['delete'])
+    designer.commandLayout = { 'selection:node': [] }
+    await settle(designer)
+    expect(toolbarOf(designer)).toBeNull()
+    designer.commandLayout = undefined
+    designer.extensions = [{ id: '@acme/ping', commands: [{ id: '@acme/ping.node', label: 'Ping', placement: ['selection:node'], run: ({ designer: owner }) => void pinged.push(owner.getSelection().nodes.join()) }] }]
+    await settle(designer)
+    expect(values()).toEqual([...ORDER, '@acme/ping.node'])
+    buttonOf(designer, '@acme/ping.node').click()
+    expect(pinged).toEqual([name.id])
   })
 })
 

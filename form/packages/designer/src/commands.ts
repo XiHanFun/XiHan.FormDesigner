@@ -80,6 +80,17 @@ export const FORM_MENU_LAYOUTS: Readonly<Record<FormMenuSubject, readonly (reado
   blank: [['paste']],
 }
 
+/** 选中工具条落在哪类选中上：眼下只有单个节点。 */
+export type FormSelectionSubject = 'node'
+
+/**
+ * 选中工具条（命令落点 selection:<主体>）的缺省排列：选父级、上移、下移，创建副本、删除。
+ * commandLayout 没写 selection:<主体> 时用它，再把 placement 含这个落点的扩展命令追加成一组。
+ */
+export const FORM_SELECTION_LAYOUTS: Readonly<Record<FormSelectionSubject, readonly (readonly string[])[]>> = {
+  node: [['select-parent', 'move-up', 'move-down'], ['duplicate', 'delete']],
+}
+
 /** 当前选择对应的右键菜单主体。 */
 export function menuSubject(document: FormDocument, selection: FormSelection): FormMenuSubject {
   const region = selection.regions?.[0]
