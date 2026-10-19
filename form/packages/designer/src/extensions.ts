@@ -9,20 +9,24 @@ import type { FormDocument, FormRuleContext } from '@xihan-form/core'
 import type { FormRuntimeExtension, FormRuntimeModel } from '@xihan-form/runtime'
 import type { IconRecord } from '@xihan-ui/core'
 import type { PropertyEditorTable } from '@xihan-ui/designer-kit/properties'
-import type { DesignerCommandTable, DesignerSettingsSection, DesignerShellExtension, DesignerTourStep } from '@xihan-ui/designer-shell'
+import type { DesignerCommandTable, DesignerPaletteSource, DesignerSettingsSection, DesignerShellExtension, DesignerTourStep } from '@xihan-ui/designer-shell'
 import type { FormDesignerContext } from './commands'
+import type { FormDropTarget } from './editor'
 import type { FormPropertyEditor } from './properties'
 import { createFormRuntimeModel } from '@xihan-form/runtime'
 import { DesignerExtensionError, extensionCommands, extensionEditors } from '@xihan-ui/designer-kit'
-import { collectSettingsSections, collectTourSteps, DESIGNER_FRAME_REGIONS, designerPanelCommands } from '@xihan-ui/designer-shell'
+import { collectPaletteSources, collectSettingsSections, collectTourSteps, DESIGNER_FRAME_REGIONS, designerPanelCommands } from '@xihan-ui/designer-shell'
 import { FORM_COMMANDS } from './commands'
 import { FORM_HISTORY_PANEL } from './history-panel'
 import { FORM_KIND_ICONS } from './kind-icons'
 import { FORM_OUTLINE_PANEL } from './outline'
 import { FORM_TOUR_STEPS } from './tour'
 
-/** 表单设计器层的扩展：运行时层的全部字段，加上属性编辑器、命令、面板、导入导出与 setup。 */
-export interface FormDesignerExtension extends FormRuntimeExtension, DesignerShellExtension<FormDesignerContext, FormPropertyEditor, FormDocument, FormRuleContext> {
+/**
+ * 表单设计器层的扩展：运行时层的全部字段，加上属性编辑器、命令、面板、物料来源、导入导出与 setup。
+ * 物料来源的条目拖到画布上放下时，落点是 FormDropTarget。
+ */
+export interface FormDesignerExtension extends FormRuntimeExtension, DesignerShellExtension<FormDesignerContext, FormPropertyEditor, FormDocument, FormRuleContext, FormDropTarget> {
   /** 本扩展登记的种类的图标，物料面板与页面结构用；键是种类名，只能给本扩展 kinds 里的种类。 */
   readonly kindIcons?: Readonly<Record<string, IconRecord>>
 }
@@ -48,6 +52,8 @@ export interface FormDesignerModel {
   readonly kindIcons: ReadonlyMap<string, IconRecord>
   /** 引导步骤：表单内置的几步加上各扩展的，按扩展顺序；排序与通用步骤由引导零件做。 */
   readonly tourSteps: readonly DesignerTourStep<FormDesignerContext>[]
+  /** 各扩展的物料来源，按 order 排；分组接在内置分组后面。 */
+  readonly paletteSources: readonly DesignerPaletteSource<FormDesignerContext, FormDropTarget>[]
 }
 
 /** 内置种类的图标并上各扩展给自己种类的图标；给了别人的种类时抛 TypeError。 */
@@ -95,10 +101,10 @@ function withPanelCommands(commands: DesignerCommandTable<FormDesignerContext>, 
 
 /**
  * 合出设计器用的模型；任何一处重名（设置分区与 general 重名、扩展面板与外框的区重名、扩展面板的开关命令与已有命令重名、
- * 引导步骤重名或用了 shell. 前缀也算）都抛 DesignerExtensionError。
+ * 引导步骤重名或用了 shell. 前缀、物料来源重名也算）都抛 DesignerExtensionError。
  */
 export function createFormDesignerModel(extensions: readonly FormDesignerExtension[]): FormDesignerModel {
   const runtime = createFormRuntimeModel([FORM_DESIGNER_EXTENSION, ...extensions])
   const all = runtime.extensions as readonly FormDesignerExtension[]
-  return Object.freeze({ extensions: all, runtime, commands: withPanelCommands(extensionCommands(all), all), editors: extensionEditors<FormPropertyEditor>(undefined, all), settings: collectSettingsSections(all), kindIcons: collectKindIcons(all), tourSteps: collectTourSteps(all) })
+  return Object.freeze({ extensions: all, runtime, commands: withPanelCommands(extensionCommands(all), all), editors: extensionEditors<FormPropertyEditor>(undefined, all), settings: collectSettingsSections(all), kindIcons: collectKindIcons(all), tourSteps: collectTourSteps(all), paletteSources: collectPaletteSources(all) })
 }

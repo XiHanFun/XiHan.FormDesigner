@@ -12,7 +12,7 @@ aside: false
 | --- | --- | --- | --- |
 | core | `FormCoreExtension` | `id`、`kinds`、`documentProperties`、`controls`、`rules`、`issueText` | `validateDocument`、`createFormModel` |
 | 运行时 | `FormRuntimeExtension` | `fieldRenderers`、`containerRenderers`、`staticRenderers` | `<xh-form-renderer>`、`createFormController` |
-| 设计器 | `FormDesignerExtension` | `editors`、`commands`、`panels`、`settings`、`tourSteps`、`about`、`kindIcons`、`setup` | `<xh-form-designer>` |
+| 设计器 | `FormDesignerExtension` | `editors`、`commands`、`panels`、`paletteSources`、`settings`、`tourSteps`、`about`、`kindIcons`、`setup` | `<xh-form-designer>` |
 
 各层是超集：设计器层的扩展可以原样交给渲染器与 `validateDocument`，它们只读自己那一层的字段。业务页面只用渲染器时，扩展只写到运行时层，不会带进设计器的代码。
 
@@ -82,6 +82,14 @@ aside: false
 ## 面板
 
 `panels` 在设计器外框里加自己的面板：`region` 给出区名（即面板 id）、缺省停的栏（`start`、`end`、`bottom`）与标题，给了 `title` 就画成卡片，面板头写标题，还可以给 `icon`、`subtitle` 与 `help`；`defaultHidden` 的面板缺省不显示。卡片和内置面板一样能挪动、浮出、收起与隐藏，写 `movable`、`floatable`、`minimizable`、`closable` 为 `false` 就不出对应的操作；每块面板自动有一条开关命令 `panel:<区名>`。区名与内置的区或别的扩展面板重名时，给 `extensions` 赋值就抛 `DesignerExtensionError`。面板元素用设计器零件时写 `headless`，标题交给卡片画。`create({ designer })` 建出面板元素，可选的 `update` 在设计器状态变化后调用、`destroy` 在撤掉时调用。面板里的条目可以拖到画布上：拖动载荷写成 `{ kind }` 是新建一个节点，写成 `{ clipboard: { nodes } }` 是按粘贴的规则插入一段节点。面板与外框的约定见视图组件文档的 [designer-shell](https://ui.docs.xihanfun.com/runtime/designer-shell)。
+
+## 物料来源
+
+`paletteSources` 往物料面板里加自己的几组条目，如一组常用的字段片段：每个来源是 `{ id, order?, groups(context), insert(item, context, at?) }`。
+
+- `groups` 每次刷新现取，组接在内置分组后面，几个来源按 `order` 排（不写按 100）。组 id 与条目 id 在整个物料面板里不能重名，与内置的种类名也不能重。
+- 条目被点按（或回车）时调 `insert(item, context)`；拖到画布上放下时调 `insert(item, context, at)`，`at` 是放下处的 `FormDropTarget`（`{ parent, index? }`，`parent` 是区域 id，顶层为 `null`）。插入怎么做由来源定，比如按粘贴的规则插入一组节点：`designer.paste(clipboard, { at })`，不给 `at` 时插到选中节点之后。
+- 来源 id 与别的扩展的重名时，给 `extensions` 赋值就抛 `DesignerExtensionError`。
 
 ## 设置分区
 

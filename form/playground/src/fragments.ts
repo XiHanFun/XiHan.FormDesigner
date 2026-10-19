@@ -3,53 +3,49 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 开发预览用的扩展：「常用片段」面板。条目按住拖到画布上，或点按插到选中节点之后，按粘贴的规则换 id 插入一组字段。
+// 开发预览用的扩展：经物料来源（paletteSources）往物料面板加一组「常用片段」。条目点按插到选中节点之后，
+// 拖到画布上就插到放下处，都按粘贴的规则换 id 插入一组字段。只是演示，不进任何发布物。
 
 import type { FieldNode } from '@xihan-form/core'
-import type { FormDesignerExtension, FormPalettePayload } from '@xihan-form/designer'
-import type { DesignerPaletteEventMap, DesignerPaletteGroup, DesignerPaletteItem, XhDesignerPaletteElement } from '@xihan-ui/designer-shell'
+import type { FormClipboard, FormDesignerExtension } from '@xihan-form/designer'
+import type { DesignerPaletteGroup, DesignerPaletteItem } from '@xihan-ui/designer-shell'
 import { createFormModel, createNode } from '@xihan-form/core'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 
-function fragmentGroups(): DesignerPaletteGroup[] {
+/** 片段的分组，第一次用到时建一次。 */
+let groups: readonly DesignerPaletteGroup[] | undefined
+
+function fragmentGroups(): readonly DesignerPaletteGroup[] {
+  if (groups !== undefined)
+    return groups
   const registry = createFormModel().registry
   const ids = createIdAllocator('fragment')
   const field = (kind: string, key: string, label: string): FieldNode => {
     const node = createNode(registry, kind, ids, { key }) as FieldNode
     return { ...node, basic: { ...node.basic, label } }
   }
-  const item = (id: string, label: string, nodes: FieldNode[]): DesignerPaletteItem => ({ id, label, payload: { clipboard: { nodes } } satisfies FormPalettePayload })
-  return [{
-    id: 'fields',
-    label: '字段组',
+  const item = (id: string, label: string, nodes: FieldNode[]): DesignerPaletteItem => ({ id, label, payload: { nodes } satisfies FormClipboard })
+  groups = [{
+    id: 'fragments',
+    label: '常用片段',
     items: [
-      item('contact', '联系人', [field('text', 'contactName', '联系人'), field('text', 'contactPhone', '联系电话')]),
-      item('address', '地址', [field('text', 'province', '省份'), field('text', 'city', '城市'), field('textarea', 'street', '详细地址')]),
+      item('fragment.contact', '联系人', [field('text', 'contactName', '联系人'), field('text', 'contactPhone', '联系电话')]),
+      item('fragment.address', '地址', [field('text', 'province', '省份'), field('text', 'city', '城市'), field('textarea', 'street', '详细地址')]),
     ],
   }]
+  return groups
 }
 
-/** 「常用片段」面板：放在物料下面，画成带标题与帮助的卡片，可从工具栏的「面板」菜单开关。 */
+/** 「常用片段」：物料面板末尾的一组，点按或拖放都由这个来源按粘贴的规则插入。 */
 export const fragmentLibrary: FormDesignerExtension = {
   id: '@xihan-form/playground/fragments',
-  panels: [{
-    region: { name: 'fragments', position: 'start', title: '常用片段', help: '常用的几组字段：拖到画布上，或点一下插到选中节点之后。' },
-    create: ({ designer }) => {
-      const element = designer.ownerDocument.createElement('xh-designer-palette') as XhDesignerPaletteElement
-      element.headless = true
-      element.groups = fragmentGroups()
-      element.addEventListener('item-activate', (event) => {
-        event.stopPropagation()
-        const payload = (event as DesignerPaletteEventMap['item-activate']).detail.payload as FormPalettePayload
-        if ('clipboard' in payload)
-          designer.paste(payload.clipboard)
-      })
-      return {
-        element,
-        update: (context) => {
-          element.readonly = context.designer.readonly === true
-        },
-      }
+  paletteSources: [{
+    id: '@xihan-form/playground/fragments',
+    groups: fragmentGroups,
+    insert: (item, { designer }, at) => {
+      const first = designer.paste(item.payload as FormClipboard, at === undefined ? {} : { at }).nodes[0]
+      if (first !== undefined)
+        designer.revealNode(first)
     },
   }],
 }

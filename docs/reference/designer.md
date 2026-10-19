@@ -61,7 +61,7 @@
 | `deleteSelection(): boolean` | 删除选中的节点或区域；只读或什么都没删时返回 false。 |
 | `copy(): FormClipboard \| undefined` | 复制选中的节点，放进这个设计器的剪贴板并返回；没有选中时返回 undefined。 |
 | `cut(): FormClipboard \| undefined` | 复制并删除选中的节点；只读或没有选中时返回 undefined。 |
-| `paste(clipboard?: FormClipboard): FormSelection` | 粘贴：给了内容就粘贴它，否则粘贴最近一次复制或剪切的内容；返回新的选择。 |
+| `paste(clipboard?: FormClipboard, options?: { readonly at?: FormDropTarget }): FormSelection` | 粘贴：给了内容就粘贴它，否则粘贴最近一次复制或剪切的内容；返回新的选择。给了 at 就粘贴到那里（如物料来源的条目拖到画布上的落点），不给时在选中节点之后，没有选中时在末尾。 |
 | `duplicate(): FormSelection` | 复制选中节点并紧跟在原节点之后粘贴，不改动剪贴板；返回新的选择。 |
 | `validate(): readonly FormSchemaIssue[]` | 检查模板结构，规则里的表达式用 expressionEngine 检查。 |
 | `scrollToNode(id: string): void` | 滚动到节点：必要时先切到所在的标签页、展开所在的折叠项。 |
@@ -139,11 +139,11 @@ schema-change 的来源。取值：`execute`、`undo`、`redo`、`load`。
 
 ### FormDesignerExtension {#formdesignerextension}
 
-表单设计器层的扩展：运行时层的全部字段，加上属性编辑器、命令、面板、导入导出与 setup。
+表单设计器层的扩展：运行时层的全部字段，加上属性编辑器、命令、面板、物料来源、导入导出与 setup。物料来源的条目拖到画布上放下时，落点是 FormDropTarget。
 
 其余成员见视图组件文档的 [designer-shell](https://ui.docs.xihanfun.com/runtime/designer-shell)。
 
-继承 `FormRuntimeExtension`、`DesignerShellExtension<FormDesignerContext, FormPropertyEditor, FormDocument, FormRuleContext>`。
+继承 `FormRuntimeExtension`、`DesignerShellExtension<FormDesignerContext, FormPropertyEditor, FormDocument, FormRuleContext, FormDropTarget>`。
 
 | 属性 | 类型 | 说明 |
 | --- | --- | --- |
@@ -384,9 +384,9 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 
 | 名称 | 种类 | 说明 |
 | --- | --- | --- |
-| `createFormDesignerModel` | 函数 | 合出设计器用的模型；任何一处重名（设置分区与 general 重名、扩展面板与外框的区重名、扩展面板的开关命令与已有命令重名、引导步骤重名或用了 shell. 前缀也算）都抛 DesignerExtensionError。 |
+| `createFormDesignerModel` | 函数 | 合出设计器用的模型；任何一处重名（设置分区与 general 重名、扩展面板与外框的区重名、扩展面板的开关命令与已有命令重名、引导步骤重名或用了 shell. 前缀、物料来源重名也算）都抛 DesignerExtensionError。 |
 | `FORM_DESIGNER_EXTENSION` | 常量 | 设计器的内置扩展：内置命令、页面结构与历史记录两块面板，以及引导里表单自己的几步。 |
-| `FormDesignerExtension` | 接口 | 表单设计器层的扩展：运行时层的全部字段，加上属性编辑器、命令、面板、导入导出与 setup。 |
+| `FormDesignerExtension` | 接口 | 表单设计器层的扩展：运行时层的全部字段，加上属性编辑器、命令、面板、物料来源、导入导出与 setup。 |
 | `FormDesignerModel` | 接口 | 一组设计器扩展合出的东西：运行时模型、命令表、属性编辑器表与设置分区。 |
 
 ### form-designer
