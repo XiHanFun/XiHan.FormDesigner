@@ -7,6 +7,7 @@
 
 import type { KindRegistry } from '@xihan-form/core'
 import type { FormDesignerTranslations } from '@xihan-form/runtime'
+import type { IconRecord } from '@xihan-ui/core'
 import type { DesignerPaletteGroup, DesignerPaletteItem } from '@xihan-ui/designer-shell'
 import type { FormClipboard } from './editor'
 
@@ -30,11 +31,12 @@ export interface FormFragmentDragPayload {
 export type FormDragSubject = { readonly kind: string } | { readonly clipboard: unknown } | { readonly nodes: readonly string[] }
 
 /** 按种类的 category 分组，组与组内都按登记顺序；名称取文案。 */
-export function paletteGroups(registry: KindRegistry, t: FormDesignerTranslations): DesignerPaletteGroup[] {
+export function paletteGroups(registry: KindRegistry, t: FormDesignerTranslations, icons: ReadonlyMap<string, IconRecord> = new Map()): DesignerPaletteGroup[] {
   const groups = new Map<string, DesignerPaletteItem[]>()
   for (const definition of registry.list()) {
     const items = groups.get(definition.category) ?? []
-    items.push({ id: definition.kind, label: t.kind(definition.kind), payload: { kind: definition.kind } satisfies FormPalettePayload })
+    const icon = icons.get(definition.kind)
+    items.push({ id: definition.kind, label: t.kind(definition.kind), ...(icon === undefined ? {} : { icon }), payload: { kind: definition.kind } satisfies FormPalettePayload })
     groups.set(definition.category, items)
   }
   return [...groups].map(([category, items]) => ({ id: category, label: t.category(category), items }))

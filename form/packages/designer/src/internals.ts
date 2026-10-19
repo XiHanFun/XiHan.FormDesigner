@@ -6,6 +6,7 @@
 // 内置命令要用、但不进设计器公开 API 的操作：设计器建好时按实例登记，命令经上下文里的设计器取回。
 
 import type { FormDocument, FormOperation, KindRegistry } from '@xihan-form/core'
+import type { IconRecord } from '@xihan-ui/core'
 import type { History, TableAxis } from '@xihan-ui/designer-kit'
 import type { DesignerHistoryConfirm, DesignerHistoryTranslations } from '@xihan-ui/designer-shell'
 import type { FormEditor } from './editor'
@@ -45,6 +46,8 @@ export interface FormDesignerInternals {
   readonly highlight: (id: string | null) => void
   /** 把区域亮出来：切到它所在的标签页、展开所在的折叠项，再滚进可见区。 */
   readonly revealRegion: (id: string) => void
+  /** 种类的图标：内置的加上扩展给的。 */
+  readonly kindIcons: () => ReadonlyMap<string, IconRecord>
 }
 
 const INTERNALS = new WeakMap<object, FormDesignerInternals>()

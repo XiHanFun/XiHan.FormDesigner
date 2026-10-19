@@ -372,6 +372,7 @@ export class XhFormDesigner extends XhReactiveElement {
       },
       editor: () => this.#editor,
       highlight: id => this.#canvas.highlight(id),
+      kindIcons: () => this.#model.kindIcons,
       revealRegion: (id) => {
         this.#openRegion(id)
         this.#canvas.regionElement(id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
@@ -1071,7 +1072,7 @@ export class XhFormDesigner extends XhReactiveElement {
   #syncPalette(changed: PropertyValues, t: FormDesignerTranslations, configStale: boolean): void {
     const catalog = this.#ensureParts().catalog
     if (catalog.groups === undefined || changed.has('extensions') || changed.has('translations') || configStale)
-      catalog.groups = paletteGroups(this.#editor.registry, t)
+      catalog.groups = paletteGroups(this.#editor.registry, t, this.#model.kindIcons)
     catalog.readonly = this.readonly === true
   }
 
