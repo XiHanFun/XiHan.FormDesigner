@@ -9,7 +9,7 @@ export { checkFormClipboard, decodeFormClipboard, encodeFormClipboard, readFormC
 export { FORM_COMMANDS, FORM_DESIGNER_HELP_URL, FORM_DESIGNER_PANELS, FORM_MENU_LAYOUTS, FORM_SELECTION_LAYOUTS, FORM_TOOLBAR_LAYOUT } from './commands'
 export type { FormDesignerCommand, FormDesignerContext, FormMenuSubject, FormSelectionSubject } from './commands'
 export { createFormEditor } from './editor'
-export type { FormClipboard, FormDropTarget, FormEditor, FormEditorChange, FormEditorOptions, FormRuleInit, FormSelection, FormSelectMode } from './editor'
+export type { FormClipboard, FormDropTarget, FormEditor, FormEditorChange, FormEditorLoadOptions, FormEditorOptions, FormRuleInit, FormSelection, FormSelectMode } from './editor'
 export { createFormDesignerModel, FORM_DESIGNER_EXTENSION } from './extensions'
 export type { FormDesignerExtension, FormDesignerModel } from './extensions'
 export { defineFormDesigner, FORM_DESIGNER_TAG, XhFormDesigner } from './form-designer'

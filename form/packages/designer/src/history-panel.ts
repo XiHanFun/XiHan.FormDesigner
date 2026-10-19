@@ -13,15 +13,11 @@ import { internalsOf } from './internals'
 
 /**
  * 历史记录面板：缺省在右栏属性下面、缺省隐藏，从「面板」菜单打开；面板头是清空历史。
- * 选一行跳到那一步，只读或正在拖动跨度时不跳；跳到以后经外框的 announce 播报。
+ * 选一行经 goToHistory 跳到那一步，只读、预览或正在拖动跨度时不跳；跳到以后经外框的 announce 播报。
  */
 export const FORM_HISTORY_PANEL = createHistoryPanel<FormDesignerContext>({
   snapshot: ({ designer }) => snapshotHistory(internalsOf(designer).history()),
-  goTo: ({ designer }, position) => {
-    const history = internalsOf(designer).history()
-    if (designer.readonly !== true && !history.inTransaction)
-      history.goTo(position)
-  },
+  goTo: ({ designer }, position) => void designer.goToHistory(position),
   announce: ({ frame }, message) => frame?.announce(message),
 }, {
   region: { icon: HistoryIcon },

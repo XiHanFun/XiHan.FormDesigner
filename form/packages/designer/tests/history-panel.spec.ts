@@ -115,3 +115,78 @@ describe('<xh-form-designer>：历史记录面板', () => {
     expect(part.snapshot!.entries[0]!.label).toBe('删除「单行文本 · name」')
   })
 })
+
+describe('<xh-form-designer>：元素的历史接口', () => {
+  it('historyLimit 在下一次装载时生效：只留最近几步，起点之前丢过步', async () => {
+    const designer = await mount((element) => {
+      element.historyLimit = 2
+    })
+    const { name, age } = sample()
+    // 每次删一个节点各是一步；mount 时 historyLimit 还没生效，三步都留着
+    const removeAll = (): void => {
+      for (const id of [name.id, age.id]) {
+        designer.select({ nodes: [id] })
+        designer.deleteSelection()
+      }
+      designer.execute([{ type: 'setSetting', name: 'labelPlacement', value: 'start' }])
+    }
+    removeAll()
+    expect([designer.historyState.entries.length, designer.historyState.truncated]).toEqual([3, false])
+    designer.schema = sample().document
+    removeAll()
+    expect([designer.historyState.entries.length, designer.historyState.truncated]).toEqual([2, true])
+  })
+
+  it('goToHistory 一次跳到某一步或起点；只读、预览或位置号不认识时返回 false', async () => {
+    const designer = await mount()
+    const { name, age } = sample()
+    const original = designer.schema
+    designer.select({ nodes: [name.id] })
+    designer.deleteSelection()
+    designer.select({ nodes: [age.id] })
+    designer.deleteSelection()
+    const { origin, entries } = designer.historyState
+    expect(designer.goToHistory(-99)).toBe(false)
+    designer.readonly = true
+    expect(designer.goToHistory(origin)).toBe(false)
+    designer.readonly = false
+    designer.mode = 'preview'
+    expect(designer.goToHistory(origin)).toBe(false)
+    designer.mode = 'design'
+    expect(designer.goToHistory(origin)).toBe(true)
+    expect(designer.schema).toEqual(original)
+    expect(designer.historyState.position).toBe(origin)
+    expect(designer.goToHistory(entries[1]!.position)).toBe(true)
+    expect(findNode(designer.schema, age.id)).toBeUndefined()
+  })
+
+  it('clearHistory 清空撤销与重做，模板与是否已保存不变；只读时什么都不做', async () => {
+    const designer = await mount()
+    const { name } = sample()
+    designer.select({ nodes: [name.id] })
+    designer.deleteSelection()
+    designer.readonly = true
+    designer.clearHistory()
+    expect(designer.historyState.entries).toHaveLength(1)
+    designer.readonly = false
+    const before = designer.schema
+    designer.clearHistory()
+    expect([designer.historyState.entries, designer.canUndo, designer.schema, designer.dirty]).toEqual([[], false, before, true])
+  })
+
+  it('history-change 在执行、撤销、跳转、清空、保存与装载之后各派发一次，detail 是此刻的 historyState', async () => {
+    const designer = await mount()
+    const { name } = sample()
+    const seen: HistorySnapshot[] = []
+    designer.addEventListener('history-change', event => seen.push((event as CustomEvent<HistorySnapshot>).detail))
+    designer.execute([{ type: 'setProperty', nodeId: name.id, group: 'basic', name: 'label', value: '姓名' }])
+    designer.undo()
+    designer.goToHistory(designer.historyState.entries[0]!.position)
+    designer.markSaved()
+    designer.clearHistory()
+    designer.schema = sample().document
+    expect(seen).toHaveLength(6)
+    expect(seen.at(-1)).toEqual(designer.historyState)
+    expect(seen.map(snapshot => snapshot.entries.length)).toEqual([1, 1, 1, 1, 0, 0])
+  })
+})

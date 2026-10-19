@@ -11,7 +11,7 @@ import type { FormDocument, FormNode, FormOperation, FormSchemaIssue, RuleList }
 import type { FileUploader, FormDesignerTranslations, FormRendererTranslations, OptionLoader, XhFormRenderer } from '@xihan-form/runtime'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { VisualEnvironmentStorageError } from '@xihan-ui/core/visual-environment'
-import type { ExecuteOptions, ExtensionHost } from '@xihan-ui/designer-kit'
+import type { ExecuteOptions, ExtensionHost, HistorySnapshot } from '@xihan-ui/designer-kit'
 import type { PropertySwatchOption } from '@xihan-ui/designer-kit/properties'
 import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerHistoryTranslations, DesignerIssuesEventMap, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
@@ -28,7 +28,7 @@ import type { PropertyView } from './properties'
 import { createDocument, findNode, findRegion, kindLabel, PROPERTY_GROUPS, validateDocument, walkNodes } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
-import { commandForShortcut, createExtensionHost, HISTORY_NUDGE_MERGE_WITHIN, nudgeMergeKey } from '@xihan-ui/designer-kit'
+import { commandForShortcut, createExtensionHost, HISTORY_NUDGE_MERGE_WITHIN, nudgeMergeKey, snapshotHistory } from '@xihan-ui/designer-kit'
 import { applyToolbarCustomization, arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolveSettings, runCommand, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { CircleAlertIcon, LayoutGridIcon, SlidersHorizontalIcon } from '@xihan-ui/icons'
@@ -88,9 +88,17 @@ export interface FormDesignerEventMap {
   'settings-change': CustomEvent<{ key: string, value: JsonValue | undefined, settings: DesignerSettings }>
   /** 读写 settingsStorageKey 指的本机存储失败（内容不是对象、无痕窗口、配额满）；设置留在内存里。 */
   'settings-storage-error': CustomEvent<VisualEnvironmentStorageError>
+  /**
+   * 撤销历史变了：执行（含并入上一步）、撤销、重做、跳转、装载、清空与保存之后都派发，拖动跨度这样的事务进行中不派发。
+   * detail 是此刻的 historyState。
+   */
+  'history-change': CustomEvent<HistorySnapshot>
 }
 
 const CLIPBOARD_EVENTS = ['copy', 'cut', 'paste'] as const
+
+/** 撤销步数上限的缺省值。 */
+const DEFAULT_HISTORY_LIMIT = 100
 
 /** 预览态登记的区：只留顶栏、工具栏、画布与状态栏。 */
 const PREVIEW_REGIONS: ReadonlySet<string> = new Set(['header', 'toolbar', 'canvas', 'status'])
@@ -199,6 +207,7 @@ export class XhFormDesigner extends XhReactiveElement {
     settings: { attribute: false },
     settingsPolicy: { attribute: false },
     settingsStorageKey: { attribute: 'settings-storage-key', converter: { fromAttribute: (value: string | null) => value ?? undefined } },
+    historyLimit: { attribute: 'history-limit', converter: { fromAttribute: (value: string | null) => (value === null || value === '' ? undefined : Number(value)) } },
     brands: { attribute: false },
     registerBrand: { attribute: false },
   }
@@ -246,6 +255,8 @@ export class XhFormDesigner extends XhReactiveElement {
   declare brands: readonly PropertySwatchOption[] | undefined
   /** 注册自定义主题色，形状与 @xihan-ui/tokens 的 registerBrand 相同；给了才许在设置里自定义主题色。 */
   declare registerBrand: ((id: string, color: string) => () => void) | undefined
+  /** 撤销步数上限，缺省 100；在下一次装载（赋 schema）时生效。同名 attribute history-limit。 */
+  declare historyLimit: number | undefined
 
   readonly #config = new XhConfigController(this)
   readonly #editor: FormEditor
@@ -388,6 +399,7 @@ export class XhFormDesigner extends XhReactiveElement {
         emitEvent(this, 'schema-change', { schema: change.document, operations: change.operations, kind: change.cause })
       else if (change.cause === 'reset')
         emitEvent(this, 'schema-change', { schema: change.document, operations: change.operations, kind: 'load' })
+      emitEvent(this, 'history-change', this.historyState)
     })
   }
 
@@ -400,7 +412,7 @@ export class XhFormDesigner extends XhReactiveElement {
     if (value === this.#editor.document)
       return
     this.#cancelSpanDrag?.()
-    this.#editor.load(value)
+    this.#editor.load(value, { historyLimit: this.historyLimit ?? DEFAULT_HISTORY_LIMIT })
   }
 
   /**
@@ -445,6 +457,26 @@ export class XhFormDesigner extends XhReactiveElement {
   /** 有没保存的修改：上次 `markSaved` 之后改过。 */
   get dirty(): boolean {
     return this.#editor.history.dirty
+  }
+
+  /** 撤销历史的快照：各步的说明按此刻的语言取好，位置号用于 goToHistory。 */
+  get historyState(): HistorySnapshot {
+    return snapshotHistory(this.#editor.history)
+  }
+
+  /** 跳到撤销历史里的一步或起点（historyState 里的位置号），一次跳到；只读、预览、拖动中或位置号不认识时返回 false。 */
+  goToHistory(position: number): boolean {
+    const history = this.#editor.history
+    if (this.readonly === true || (this.mode ?? 'design') !== 'design' || history.inTransaction)
+      return false
+    return history.goTo(position)
+  }
+
+  /** 清空撤销与重做；模板与是否已保存不变。只读或拖动中什么都不做。 */
+  clearHistory(): void {
+    const history = this.#editor.history
+    if (this.readonly !== true && !history.inTransaction)
+      history.clear()
   }
 
   override connectedCallback(): void {
