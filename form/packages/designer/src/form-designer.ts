@@ -13,7 +13,7 @@ import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { VisualEnvironmentStorageError } from '@xihan-ui/core/visual-environment'
 import type { ExecuteOptions, ExtensionHost, HistorySnapshot } from '@xihan-ui/designer-kit'
 import type { PropertySwatchOption } from '@xihan-ui/designer-kit/properties'
-import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerHistoryTranslations, DesignerIssueItem, DesignerIssuesEventMap, DesignerJsonEditorEventMap, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, DesignerTourEventMap, PanRequestDetail } from '@xihan-ui/designer-shell'
+import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerHistoryTranslations, DesignerIssueItem, DesignerIssuesEventMap, DesignerJsonEditorEventMap, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPaletteGroup, DesignerPaletteItem, DesignerPaletteView, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, DesignerTourEventMap, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PointerSession } from '@xihan-ui/pointer'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
@@ -29,7 +29,7 @@ import { createDocument, findNode, findRegion, kindLabel, PROPERTY_GROUPS, valid
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
 import { commandForShortcut, createExtensionHost, HISTORY_NUDGE_MERGE_WITHIN, nudgeMergeKey, snapshotHistory } from '@xihan-ui/designer-kit'
-import { applyToolbarCustomization, arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_COMMON_KEYS, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, DESIGNER_SHELL_COMMANDS, DESIGNER_TOUR_DONE_KEY, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolveSettings, resolveTourSteps, runCommand, shortcutSettingsSource, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, tourDoneOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerJsonEditorElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement, XhDesignerTourElement } from '@xihan-ui/designer-shell'
+import { applyToolbarCustomization, arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_COMMON_KEYS, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, DESIGNER_SHELL_COMMANDS, DESIGNER_TOUR_DONE_KEY, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolvePaletteSources, resolveSettings, resolveTourSteps, runCommand, shortcutSettingsSource, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, tourDoneOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerJsonEditorElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement, XhDesignerTourElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { CircleAlertIcon, LayoutGridIcon, SlidersHorizontalIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
@@ -330,6 +330,14 @@ export class XhFormDesigner extends XhReactiveElement {
   /** 刚连上文档或所在处的配置（语言、文案）变了：画布与物料要按新配置重排；只是选择变了时不重排。 */
   #configStale = true
   #releaseConfigWatch: (() => void) | undefined
+  /** 物料面板的内置分组（种类按分类）；扩展、文案或配置变了时重排。 */
+  #builtinPalette: readonly DesignerPaletteGroup[] | undefined
+  /** 物料面板此刻的分组与按条目交给来源插入；每轮更新现取。 */
+  #paletteView: DesignerPaletteView<FormDesignerContext, FormDropTarget> | undefined
+  /** 上次交给物料面板的来源分组：内容没变就不重设。 */
+  #paletteSourcesKey = ''
+  /** 各物料来源的条目 id（含下级）：拖到画布上时据此接收、交给来源插入。 */
+  #sourceItems: ReadonlySet<string> = new Set()
   /** 上次交给引导零件的步骤：内容没变就不重设。 */
   #tourStepsKey = ''
   /** 上次交给设置对话框「帮助」「快捷键」「关于」三页的数据：内容没变就不重设。 */
@@ -748,11 +756,14 @@ export class XhFormDesigner extends XhReactiveElement {
     return copied
   }
 
-  /** 粘贴：给了内容就粘贴它，否则粘贴最近一次复制或剪切的内容；返回新的选择。 */
-  paste(clipboard?: FormClipboard): FormSelection {
+  /**
+   * 粘贴：给了内容就粘贴它，否则粘贴最近一次复制或剪切的内容；返回新的选择。给了 at 就粘贴到那里（如物料来源的条目拖到画布上的落点），
+   * 不给时在选中节点之后，没有选中时在末尾。
+   */
+  paste(clipboard?: FormClipboard, options: { readonly at?: FormDropTarget } = {}): FormSelection {
     if (this.readonly === true)
       return { nodes: [] }
-    return this.#editor.paste(clipboard ?? this.#clipboard)
+    return this.#editor.paste(clipboard ?? this.#clipboard, options.at)
   }
 
   /** 复制选中节点并紧跟在原节点之后粘贴，不改动剪贴板；返回新的选择。 */
@@ -1271,12 +1282,42 @@ export class XhFormDesigner extends XhReactiveElement {
     inspector.errors = propertyErrors(document, view, this.#issues, issue => this.#describe(issue, t))
   }
 
-  /** 扩展、文案或配置变了时重排物料。 */
+  /**
+   * 物料面板：内置分组在扩展、文案或配置变了时重排；各扩展的物料来源每轮现取，分组接在内置分组后面，内容没变不重设。
+   * 记下来源的条目，拖到画布上时据此接收。
+   */
   #syncPalette(changed: PropertyValues, t: FormDesignerTranslations, configStale: boolean): void {
     const catalog = this.#ensureParts().catalog
-    if (catalog.groups === undefined || changed.has('extensions') || changed.has('translations') || configStale)
-      catalog.groups = paletteGroups(this.#editor.registry, t, this.#model.kindIcons)
+    const rebuilt = this.#builtinPalette === undefined || changed.has('extensions') || changed.has('translations') || configStale
+    if (rebuilt)
+      this.#builtinPalette = paletteGroups(this.#editor.registry, t, this.#model.kindIcons)
+    const builtin = this.#builtinPalette!
+    const view = resolvePaletteSources(builtin, this.#model.paletteSources, this.#context(t))
+    this.#paletteView = view
+    const sourced = view.groups.slice(builtin.length)
+    const key = JSON.stringify(sourced)
+    if (rebuilt || key !== this.#paletteSourcesKey || catalog.groups === undefined) {
+      this.#paletteSourcesKey = key
+      catalog.groups = view.groups
+      const ids = new Set<string>()
+      const collect = (items: readonly DesignerPaletteItem[]): void => {
+        for (const item of items) {
+          ids.add(item.id)
+          collect(item.children ?? [])
+        }
+      }
+      sourced.forEach(group => collect(group.items))
+      this.#sourceItems = ids
+    }
     catalog.readonly = this.readonly === true
+  }
+
+  /** 拖来的是物料来源的条目时给出它的 id；别的拖动为 undefined。 */
+  #sourceItemOf(payload: unknown): string | undefined {
+    if (typeof payload !== 'object' || payload === null)
+      return undefined
+    const { source, id } = payload as { source?: unknown, id?: unknown }
+    return source === 'palette' && typeof id === 'string' && this.#sourceItems.has(id) ? id : undefined
   }
 
   /** 问题或文案变了时重列问题。 */
@@ -1289,6 +1330,11 @@ export class XhFormDesigner extends XhReactiveElement {
 
   /** 拖到画布上：算出放置位置，能放下时画插入线。 */
   #dragOver(point: { readonly x: number, readonly y: number }, payload: unknown): { accept: boolean } {
+    const sourceItem = this.#sourceItemOf(payload)
+    if (sourceItem !== undefined && this.readonly !== true && (this.mode ?? 'design') === 'design') {
+      this.#showDrop(this.#canvas.dropAt(point))
+      return { accept: true }
+    }
     const subject = dragSubject(payload, this)
     if (subject === undefined || this.readonly === true || (this.mode ?? 'design') !== 'design') {
       this.#showDrop(undefined)
@@ -1324,6 +1370,13 @@ export class XhFormDesigner extends XhReactiveElement {
 
   #drop(point: { readonly x: number, readonly y: number }, payload: unknown): void {
     this.#showDrop(undefined)
+    const sourceItem = this.#sourceItemOf(payload)
+    if (sourceItem !== undefined && this.readonly !== true && (this.mode ?? 'design') === 'design') {
+      // 物料来源的条目交给来源按落点插入
+      this.#paletteView?.insert(sourceItem, this.#context(), this.#canvas.dropAt(point).target)
+      this.#parts?.canvas.focus({ preventScroll: true })
+      return
+    }
     const subject = dragSubject(payload, this)
     if (subject === undefined || this.readonly === true || (this.mode ?? 'design') !== 'design')
       return
@@ -1567,7 +1620,11 @@ export class XhFormDesigner extends XhReactiveElement {
   /** 点按物料：在缺省位置新建或插入片段并选中，滚到它。 */
   readonly #onPaletteActivate = (event: Event): void => {
     event.stopPropagation()
-    const subject = paletteSubject((event as DesignerPaletteEventMap['item-activate']).detail.payload)
+    const { id, payload } = (event as DesignerPaletteEventMap['item-activate']).detail
+    // 物料来源的条目交给来源插入，内置的种类与片段照旧
+    if (this.#paletteView?.insert(id, this.#context()) === true)
+      return
+    const subject = paletteSubject(payload)
     if (subject === undefined)
       return
     const fragment = 'kind' in subject ? undefined : this.#fragment(subject.clipboard)
