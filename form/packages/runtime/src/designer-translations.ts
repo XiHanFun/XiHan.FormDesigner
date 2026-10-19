@@ -45,6 +45,22 @@ export interface FormHistoryTranslations {
   readonly editExtensionData: (id: string) => string
 }
 
+/** 新手引导里表单自己的几步：标题与说明。 */
+export interface FormTourTranslations {
+  /** 顶栏的插入钮。 */
+  readonly insertTitle: string
+  readonly insertDescription: string
+  /** 页面结构面板。 */
+  readonly outlineTitle: string
+  readonly outlineDescription: string
+  /** 属性面板里的校验规则与联动规则两页。 */
+  readonly rulesTitle: string
+  readonly rulesDescription: string
+  /** 工具栏的预览。 */
+  readonly previewTitle: string
+  readonly previewDescription: string
+}
+
 /** 表单设计器的文案：无参的是字符串，带参的是函数。 */
 export interface FormDesignerTranslations {
   /** 设计器的可访问名。 */
@@ -171,6 +187,8 @@ export interface FormDesignerTranslations {
   readonly outlineRegion: (n: number) => string
   /** 撤销历史里各步的说明。 */
   readonly history: FormHistoryTranslations
+  /** 新手引导里表单自己的几步。 */
+  readonly tour: FormTourTranslations
   /** 问题列表里结构问题的来源小标签。 */
   readonly sourceStructure: string
   /** 问题列表里数据绑定问题的来源小标签。 */

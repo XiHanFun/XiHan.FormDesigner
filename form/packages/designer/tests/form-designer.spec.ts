@@ -40,6 +40,8 @@ function sample(): { document: FormDocument, name: FieldNode, card: ContainerNod
 
 async function mount(setup: (designer: XhFormDesigner) => void): Promise<XhFormDesigner> {
   const designer = window.document.createElement(FORM_DESIGNER_TAG)
+  // 新手引导会把焦点拿走，这里的用例不要它自动开始
+  designer.autoTour = false
   setup(designer)
   window.document.body.append(designer)
   mounted.push(designer)

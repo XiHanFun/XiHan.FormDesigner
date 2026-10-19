@@ -107,6 +107,7 @@ onDesigner('issues-change', event => writeDesigner(`issues-change ${event.detail
 onDesigner('dirty-change', event => writeDesigner(`dirty-change ${event.detail.dirty}`))
 onDesigner('mode-change', event => writeDesigner(`mode-change ${event.detail.mode}`))
 onDesigner('save', () => writeDesigner('save'))
+onDesigner('tour-end', event => writeDesigner(`tour-end ${event.detail.reason} ${event.detail.step ?? ''}`))
 
 designer.loadOptions = loadOptions
 designer.extensions = [fragmentLibrary]

@@ -16,7 +16,7 @@ import type { XhFormDesigner } from './form-designer'
 import type { FormDesignerInternals } from './internals'
 import { findNode, findRegion, mergeTableCells, removeTableLine } from '@xihan-form/core'
 import { designerHistoryCommands, designerPanelCommands, designerShellCommands } from '@xihan-ui/designer-shell'
-import { AlignLeftIcon, ArrowDownIcon, ArrowUpIcon, CalendarIcon, CircleDotIcon, CircleHelpIcon, ClipboardIcon, CopyIcon, CopyPlusIcon, CornerLeftUpIcon, EraserIcon, EyeIcon, HashIcon, MonitorIcon, PanelLeftIcon, PencilIcon, RedoIcon, SaveIcon, ScissorsIcon, SettingsIcon, SmartphoneIcon, SquareChevronDownIcon, SquareDashedIcon, TableCellsMergeIcon, TableCellsSplitIcon, TableColumnInsertLeftIcon, TableColumnInsertRightIcon, TableColumnRemoveIcon, TableRowInsertAboveIcon, TableRowInsertBelowIcon, TableRowRemoveIcon, TabletIcon, TrashIcon, TypeIcon, UndoIcon } from '@xihan-ui/icons'
+import { AlignLeftIcon, ArrowDownIcon, ArrowUpIcon, CalendarIcon, CircleDotIcon, CircleHelpIcon, ClipboardIcon, CopyIcon, CopyPlusIcon, CornerLeftUpIcon, EraserIcon, EyeIcon, HashIcon, MapIcon, MonitorIcon, PanelLeftIcon, PencilIcon, RedoIcon, SaveIcon, ScissorsIcon, SettingsIcon, SmartphoneIcon, SquareChevronDownIcon, SquareDashedIcon, TableCellsMergeIcon, TableCellsSplitIcon, TableColumnInsertLeftIcon, TableColumnInsertRightIcon, TableColumnRemoveIcon, TableRowInsertAboveIcon, TableRowInsertBelowIcon, TableRowRemoveIcon, TabletIcon, TrashIcon, TypeIcon, UndoIcon } from '@xihan-ui/icons'
 import { internalsOf } from './internals'
 
 /** 命令、面板与扩展装上时拿到的上下文。 */
@@ -314,7 +314,8 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
     frame: context => context.frame,
     openSettings: ({ designer }) => designer.openSettings(),
     helpUrl: () => FORM_DESIGNER_HELP_URL,
-    icons: { panels: PanelLeftIcon, settings: SettingsIcon, help: CircleHelpIcon },
+    startTour: ({ designer }) => designer.startTour(),
+    icons: { panels: PanelLeftIcon, settings: SettingsIcon, help: CircleHelpIcon, startTour: MapIcon },
   }),
   // 页面结构与历史记录是内置扩展登记的面板，它们的开关命令随扩展面板一起生成
   ...designerPanelCommands<FormDesignerContext>({ panels: [FORM_DESIGNER_PANELS.palette, FORM_DESIGNER_PANELS.properties, FORM_DESIGNER_PANELS.issues], frame: context => context.frame }),

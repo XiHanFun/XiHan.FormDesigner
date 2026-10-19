@@ -164,6 +164,16 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 <<< @/examples/snippets/settings.ts#storage
 
+## 新手引导
+
+第一次打开设计器时，画布铺好后自动开始一遍新手引导，一步高亮一处：先是工具栏、物料、画布、属性、问题列表、状态栏与设置，再是表单自己的四步——顶栏的插入钮、页面结构、属性面板的「校验规则」「联动规则」两页，以及工具栏的预览。目标面板隐藏、工具栏上没有那条命令时那一步跳过；只读时不讲插入与校验联动两步。进入一步前，设计器把那块面板亮出来：展开收起的栏或标题条，窄屏时打开抽屉。
+
+- 走完、跳过（含按 Esc）或关掉时，设计器派发 `tour-end`：`reason` 是 `complete`、`skip` 或 `close`，`step` 是收起时那一步的 id。同时在设置里记下 `help.tourDone`，照常派发 `settings-change`；宿主把设置存好，下次就不再自动开始。
+- `autoTour` 写 `false`（特性写 `auto-tour="false"`）就不自动开始。`startTour()` 随时从头开始，没有能走的步骤时返回 `false`。命令 `start-tour` 做同一件事，缺省不在工具栏上，要放就写进 `commandLayout`。
+- 扩展用 `tourSteps` 加自己的步骤，见[扩展](./extensions#引导步骤)。
+
+本站的示例都关掉了自动开始。
+
 ## 保存
 
 设计器不存模板，只告诉宿主什么时候变了、用户想什么时候存：
@@ -184,7 +194,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
 ```
 
-内置命令的 id：`undo`、`redo`、`clear-history`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`，以及 designer-shell 内置的 `panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`settings`、`help` 与各面板的开关命令 `panel:palette`、`panel:outline`、`panel:properties`、`panel:history`、`panel:issues`；顶栏的插入钮是 `insert:text`、`insert:textarea`、`insert:number`、`insert:date`、`insert:select`、`insert:radio-group`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
+内置命令的 id：`undo`、`redo`、`clear-history`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`，以及 designer-shell 内置的 `panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`settings`、`help`、`start-tour` 与各面板的开关命令 `panel:palette`、`panel:outline`、`panel:properties`、`panel:history`、`panel:issues`；顶栏的插入钮是 `insert:text`、`insert:textarea`、`insert:number`、`insert:date`、`insert:select`、`insert:radio-group`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
 
 ## 示例
 
