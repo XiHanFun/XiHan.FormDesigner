@@ -160,6 +160,10 @@ type FormDesignerCommand = DesignerCommand<FormDesignerContext>
 
 右键菜单落在哪类对象上：节点、区域、表格布局的单元格，或空白处。取值：`node`、`region`、`cell`、`blank`。
 
+### FormSelectionSubject {#formselectionsubject}
+
+选中工具条落在哪类选中上：眼下只有单个节点。取值：`node`。
+
 ## 文案
 
 ### FormDesignerTranslations {#formdesignertranslations}
@@ -338,10 +342,12 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 | `FORM_DESIGNER_HELP_URL` | 常量 | 表单文档站上设计器的一页，工具栏的「帮助」在新窗口打开它。 |
 | `FORM_DESIGNER_PANELS` | 常量 | 设计器的面板 id：宿主写 defaultLayout、settingsPolicy（layout.panels.&lt;面板 id&gt;）时用；每块面板有一条开关命令 panel:&lt;面板 id&gt;。 |
 | `FORM_MENU_LAYOUTS` | 常量 | 右键菜单各主体的缺省排列；commandLayout 没写 menu:&lt;主体&gt; 时用它。 |
+| `FORM_SELECTION_LAYOUTS` | 常量 | 选中工具条（命令落点 selection:&lt;主体&gt;）的缺省排列：选父级、上移、下移，创建副本、删除。 |
 | `FORM_TOOLBAR_LAYOUT` | 常量 | 工具栏的缺省排列；commandLayout 没写 toolbar 时用它，再把 placement 含 toolbar 的扩展命令追加成一组。 |
 | `FormDesignerCommand` | 类型 | 设计器的命令。 |
 | `FormDesignerContext` | 接口 | 命令、面板与扩展装上时拿到的上下文。 |
 | `FormMenuSubject` | 类型 | 右键菜单落在哪类对象上：节点、区域、表格布局的单元格，或空白处。 |
+| `FormSelectionSubject` | 类型 | 选中工具条落在哪类选中上：眼下只有单个节点。 |
 
 ### editor
 

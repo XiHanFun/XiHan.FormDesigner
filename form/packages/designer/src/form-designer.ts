@@ -9,7 +9,6 @@
 
 import type { FormDocument, FormNode, FormOperation, FormSchemaIssue, RuleList } from '@xihan-form/core'
 import type { FileUploader, FormDesignerTranslations, FormRendererTranslations, OptionLoader, XhFormRenderer } from '@xihan-form/runtime'
-import type { IconRecord } from '@xihan-ui/core'
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { VisualEnvironmentStorageError } from '@xihan-ui/core/visual-environment'
 import type { ExecuteOptions, ExtensionHost } from '@xihan-ui/designer-kit'
@@ -32,15 +31,15 @@ import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
 import { commandForShortcut, createExtensionHost, HISTORY_NUDGE_MERGE_WITHIN, nudgeMergeKey } from '@xihan-ui/designer-kit'
 import { applyToolbarCustomization, arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolveSettings, runCommand, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
-import { ArrowDownIcon, ArrowUpIcon, CircleAlertIcon, CopyPlusIcon, CornerLeftUpIcon, LayoutGridIcon, SlidersHorizontalIcon, TrashIcon } from '@xihan-ui/icons'
+import { CircleAlertIcon, LayoutGridIcon, SlidersHorizontalIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
 import { onXhConfigChange } from '@xihan-ui/web-components'
-import { BOOLEAN_CONVERTER, createAuthoredElement, emitEvent, registerElement, setAttributes, setText, SVG_NS, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
+import { BOOLEAN_CONVERTER, createAuthoredElement, emitEvent, registerElement, setAttributes, setText, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { defineXhElement, XhButtonElement, XhContextMenuElement, XhExpressionInputElement, XhIconElement, XhMenuElement, XhToolbarElement, XhTooltipElement } from '@xihan-ui/web-components/define'
 import { createDialogService } from '@xihan-ui/web-components/services'
 import { DesignCanvas, spanColumns } from './canvas'
 import { checkFormClipboard, readFormClipboard, writeFormClipboard } from './clipboard'
-import { FORM_MENU_LAYOUTS, FORM_TOOLBAR_LAYOUT, menuSubject } from './commands'
+import { FORM_MENU_LAYOUTS, FORM_SELECTION_LAYOUTS, FORM_TOOLBAR_LAYOUT, menuSubject } from './commands'
 import { createFormEditor } from './editor'
 import { createFormDesignerModel, FORM_DESIGNER_EXTENSION } from './extensions'
 import { describeFormOperations } from './history-labels'
@@ -113,8 +112,6 @@ function isTextEntry(target: EventTarget | null): boolean {
 
 const NO_EXTENSIONS: readonly FormDesignerExtension[] = Object.freeze([])
 
-type NodeAction = 'parent' | 'up' | 'down' | 'duplicate' | 'delete'
-
 type InspectorTab = 'properties' | RuleList
 
 const INSPECTOR_TABS: readonly InspectorTab[] = ['properties', 'validation', 'linkage']
@@ -124,18 +121,6 @@ const TAB_LABELS: Readonly<Record<InspectorTab, 'propertiesTab' | 'validationTab
   validation: 'validationTab',
   linkage: 'linkageTab',
 }
-
-/** 选中节点右下角小工具条上的按钮：选父级、上移、下移、创建副本、删除；图标与名字和同名命令一致。 */
-const NODE_ACTIONS: readonly { readonly action: NodeAction, readonly icon: IconRecord, readonly label: (t: FormDesignerTranslations, commands: DesignerCommandsTranslations) => string, readonly tone?: 'danger' }[] = [
-  { action: 'parent', icon: CornerLeftUpIcon, label: t => t.selectParent },
-  { action: 'up', icon: ArrowUpIcon, label: t => t.moveUp },
-  { action: 'down', icon: ArrowDownIcon, label: t => t.moveDown },
-  { action: 'duplicate', icon: CopyPlusIcon, label: (_, commands) => commands.duplicate },
-  { action: 'delete', icon: TrashIcon, label: (_, commands) => commands.delete, tone: 'danger' },
-]
-
-/** 节点小工具条上提示的锚点：工具条里的每颗按钮。 */
-const NODE_ACTION_ANCHORS = 'button[data-xh-part=\'item\']'
 
 /** 设计器的各个部件；面板与画布按 slot 放进外框的同名区。 */
 interface DesignerParts {
@@ -151,7 +136,9 @@ interface DesignerParts {
   readonly catalog: XhDesignerPaletteElement
   readonly dropIndicator: HTMLElement
   /** 选中一个节点时挂进它的外框，没有时不在文档里。 */
+  /** 选中节点右下角的选中工具条：外层是挂进节点外框的那一块，里面是命令工具栏。 */
   readonly nodeToolbar: HTMLElement
+  readonly selectionBar: CommandToolbar<FormDesignerContext>
   /** 属性区：属性、校验规则、联动规则三个页签，页签那一排紧贴在卡片的面板头下面。 */
   readonly inspectorTabs: HTMLElement & { value?: string, requestUpdate?: () => void }
   readonly tabTriggers: Readonly<Record<InspectorTab, HTMLButtonElement>>
@@ -770,7 +757,7 @@ export class XhFormDesigner extends XhReactiveElement {
     settings.addEventListener('settings-change', this.#onSettingsChange)
     this.replaceChildren(frame, settings)
     const panels = createPanelHost<FormDesignerContext>(frame)
-    this.#parts = { frame, panels, toolbar, commandBar, headerBar, canvas, palette, catalog, dropIndicator, nodeToolbar: this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings, selectionStatus, widthStatus }
+    this.#parts = { frame, panels, toolbar, commandBar, headerBar, canvas, palette, catalog, dropIndicator, ...this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings, selectionStatus, widthStatus }
     this.#prepareMenu(this.#parts)
     panels.assign(this.#model.extensions, this.#context())
     return this.#parts
@@ -923,91 +910,40 @@ export class XhFormDesigner extends XhReactiveElement {
     frame.regions = regions
   }
 
-  #buildNodeToolbar(doc: Document): HTMLElement {
-    const items = NODE_ACTIONS.map(({ action, icon, tone }) => {
-      const svg = doc.createElementNS(SVG_NS, 'svg')
-      svg.setAttribute('data-xh-part', 'root')
-      const glyph = doc.createElementNS(SVG_NS, 'g')
-      glyph.setAttribute('data-xh-part', 'glyph')
-      svg.append(glyph)
-      const mark: HTMLElement & { icon?: IconRecord } = createAuthoredElement(doc, 'xh-icon', { size: 'sm' }, [svg])
-      mark.icon = icon
-      return createAuthoredElement(doc, 'button', { 'data-xh-part': 'item', 'type': 'button', 'value': action, 'data-tone': tone }, [mark])
+  /** 选中工具条：一条命令工具栏，包在挂进节点外框的那一块里；里面的按键、点击与按下不冒到画布上。 */
+  #buildNodeToolbar(doc: Document): { readonly nodeToolbar: HTMLElement, readonly selectionBar: CommandToolbar<FormDesignerContext> } {
+    const selectionBar = createCommandToolbar<FormDesignerContext>(doc, { platform: this.#kbdPlatform() })
+    const nodeToolbar = createAuthoredElement(doc, 'div', { 'data-part': 'node-toolbar' }, [selectionBar.element])
+    // 点了一条命令以后焦点回到画布，删掉节点时工具条随之拿掉，焦点也不丢
+    nodeToolbar.addEventListener('click', (event) => {
+      event.stopPropagation()
+      if ((event.target as Element | null)?.closest('button[value]'))
+        this.#parts?.canvas.focus({ preventScroll: true })
     })
-    const root = createAuthoredElement(doc, 'div', { 'data-xh-part': 'root' }, [createAuthoredElement(doc, 'div', { 'data-xh-part': 'group' }, items)])
-    // 一个委托模式的提示管整条：悬停或键盘聚焦到按钮时显示按钮的名字，与命令工具栏同一种提示
-    const tooltip = createAuthoredElement(doc, 'xh-tooltip', { delegate: NODE_ACTION_ANCHORS }, [
-      createAuthoredElement(doc, 'div', { 'data-xh-part': 'trigger' }, [createAuthoredElement(doc, 'xh-toolbar', { size: 'sm' }, [root])]),
-      createAuthoredElement(doc, 'div', { 'data-xh-part': 'positioner' }, [
-        createAuthoredElement(doc, 'div', { 'data-xh-part': 'content' }, [createAuthoredElement(doc, 'div', { 'data-xh-part': 'arrow' })]),
-      ]),
-    ])
-    const toolbar = createAuthoredElement(doc, 'div', { 'data-part': 'node-toolbar' }, [tooltip])
-    toolbar.addEventListener('click', this.#onNodeToolbarClick)
     for (const type of ['pointerdown', 'dblclick', 'keydown', 'contextmenu'])
-      toolbar.addEventListener(type, event => event.stopPropagation())
-    return toolbar
+      nodeToolbar.addEventListener(type, event => event.stopPropagation())
+    return { nodeToolbar, selectionBar }
   }
 
-  /** 只选中一个节点、可编辑且在设计态时，把小工具条挂进它的外框，按它在同层的位置启用按钮。 */
+  /**
+   * 选中工具条：只选中一个节点、可编辑且在设计态时，按 selection:node 的排列（宿主经 commandLayout 改，
+   * 扩展命令写上这个落点就追加成一组）铺命令，挂进节点的外框；排列为空时不放。命令的可用与文字每次刷新。
+   */
   #syncNodeToolbar(t: FormDesignerTranslations): void {
-    const toolbar = this.#ensureParts().nodeToolbar
+    const { nodeToolbar, selectionBar } = this.#ensureParts()
     const selection = this.#editor.selection
     const id = selection.nodes.length === 1 && (selection.regions?.length ?? 0) === 0 ? selection.nodes[0] : undefined
     const found = id === undefined || this.readonly === true || (this.mode ?? 'design') !== 'design' ? undefined : findNode(this.#editor.document, id)
     const host = found === undefined ? undefined : this.#canvas.nodeElement(found.node.id)
-    if (found === undefined || host === undefined) {
-      toolbar.remove()
+    const { commands } = this.#model
+    const groups = host === undefined ? [] : arrangeCommands('selection:node', commands, FORM_SELECTION_LAYOUTS.node, this.commandLayout)
+    if (found === undefined || host === undefined || groups.every(group => group.length === 0)) {
+      nodeToolbar.remove()
       return
     }
-    if (toolbar.parentElement !== host)
-      host.append(toolbar)
-    const count = (found.region === null ? this.#editor.document.children : found.region.children).length
-    const enabled: Readonly<Record<NodeAction, boolean>> = {
-      parent: found.region !== null,
-      up: found.index > 0,
-      down: found.index < count - 1,
-      duplicate: true,
-      delete: true,
-    }
-    setAttributes(toolbar.querySelector<HTMLElement>('[data-xh-part="root"]')!, { 'aria-label': t.nodeTag(found.node.kind, found.node.type === 'static' ? undefined : found.node.key) })
-    const commands = this.#commandTexts()
-    for (const button of toolbar.querySelectorAll<HTMLButtonElement>('button[value]')) {
-      const entry = NODE_ACTIONS.find(item => item.action === button.value)!
-      const label = entry.label(t, commands)
-      setAttributes(button, { 'aria-label': label })
-      if (button.disabled !== !enabled[entry.action])
-        button.disabled = !enabled[entry.action]
-    }
-  }
-
-  readonly #onNodeToolbarClick = (event: MouseEvent): void => {
-    event.stopPropagation()
-    const button = (event.target as Element | null)?.closest<HTMLButtonElement>('button[value]')
-    const id = this.#editor.selection.nodes[0]
-    if (!button || button.disabled || id === undefined)
-      return
-    switch (button.value as NodeAction) {
-      case 'parent': {
-        const parent = this.#parentOf({ nodes: [id] })
-        if (parent !== undefined)
-          this.#editor.select({ nodes: [parent] })
-        break
-      }
-      case 'up':
-        this.#moveBy(id, -1)
-        break
-      case 'down':
-        this.#moveBy(id, 1)
-        break
-      case 'duplicate':
-        this.duplicate()
-        break
-      case 'delete':
-        this.deleteSelection()
-        break
-    }
-    this.#parts?.canvas.focus({ preventScroll: true })
+    selectionBar.update(groups, commands, this.#context(t), t.nodeTag(found.node.kind, found.node.type === 'static' ? undefined : found.node.key))
+    if (nodeToolbar.parentElement !== host)
+      host.append(nodeToolbar)
   }
 
   /**

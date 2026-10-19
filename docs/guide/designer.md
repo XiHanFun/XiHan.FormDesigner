@@ -30,7 +30,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 | 工具栏 | 撤销、重做；删除、创建副本；设计与预览；预览宽度三档；末组是面板、设置与帮助 |
 | 物料（左） | 卡片。按分类列出可以放进表单的种类：每组一行组名，下面直接列出条目，全部展开；可搜索 |
 | 页面结构（左，物料下面） | 卡片。按树列出模板里的节点，见[页面结构](#页面结构) |
-| 画布（中） | 按模板排出的表单，所见即所得；选中的节点带一条小工具栏：选中上一级、上移、下移、创建副本、删除 |
+| 画布（中） | 按模板排出的表单，所见即所得；只选中一个节点时它的右下角带一条选中工具条：选中上一级、上移、下移、创建副本、删除 |
 | 属性（右） | 卡片。副标题写当前编辑的对象，面板头下面一排三个页签：属性、校验规则、联动规则。没有选中时编辑表单设置，选中区域时编辑区域属性 |
 | 问题（画布下方） | 卡片。模板自检出的问题，面板头上是错误数与警告数，兼作筛选开关；点一条就选中并滚到出问题的节点 |
 | 状态栏 | 左边写选中的字段种类与字段名，选中区域写它所在的容器，多选写个数，什么都没选写字段数；右边是预览宽度，点一下回到全宽 |
@@ -76,7 +76,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 **选择**：点节点选中它，按住 Shift、Ctrl 或 ⌘ 再点是追加或取消。也可以选中容器里的区域：栅格的一列、标签页的一页、折叠面板的一项、表格布局的单元格。
 
-**移动**：把画布上的节点拖到新位置，或用小工具栏、右键菜单与快捷键上移下移。
+**移动**：把画布上的节点拖到新位置，或用选中工具条、右键菜单与快捷键上移下移。
 
 **右键菜单**按选中的东西给出命令：节点有剪切、复制、粘贴、创建副本、选中上一级、上移、下移与删除；表格布局的单元格另有合并、拆分、插入与删除行列。菜单键或 Shift + F10 也能打开。
 
@@ -171,7 +171,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 ## 工具栏与菜单的排列
 
-`commandLayout` 按位置写命令 id 的分组：`header` 是顶栏的插入钮，`toolbar` 是工具栏，`menu:node`、`menu:region`、`menu:cell`、`menu:blank` 是选中节点、区域、表格单元格与空白处的右键菜单。写了某个位置就只显示列出的命令；没写的位置用内置的排列 `FORM_TOOLBAR_LAYOUT` 与 `FORM_MENU_LAYOUTS`，顶栏没写时列出登记在 `header` 的命令。写成 `{ header: [] }` 就没有顶栏。示例在内置的工具栏末尾加了保存：
+`commandLayout` 按位置写命令 id 的分组：`header` 是顶栏的插入钮，`toolbar` 是工具栏，`menu:node`、`menu:region`、`menu:cell`、`menu:blank` 是选中节点、区域、表格单元格与空白处的右键菜单，`selection:node` 是只选中一个节点时浮在它右下角的选中工具条。写了某个位置就只显示列出的命令；没写的位置用内置的排列 `FORM_TOOLBAR_LAYOUT`、`FORM_MENU_LAYOUTS` 与 `FORM_SELECTION_LAYOUTS`，再把登记在这个位置的扩展命令追加成一组；顶栏没写时列出登记在 `header` 的命令。写成 `{ header: [] }` 就没有顶栏，写成 `{ 'selection:node': [] }` 就没有选中工具条。示例在内置的工具栏末尾加了保存：
 
 ```ts
 designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
