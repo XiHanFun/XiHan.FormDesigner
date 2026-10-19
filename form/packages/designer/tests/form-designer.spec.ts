@@ -594,6 +594,21 @@ describe('<xh-form-designer>：属性面板', () => {
 })
 
 describe('<xh-form-designer>：物料面板', () => {
+  it('物料是简单分组：每组一行组名，下面直接列出条目，全部展开、不能折叠；搜索框留着', async () => {
+    const designer = await mount(() => {})
+    const catalog = designer.querySelector('xh-designer-palette')!
+    await catalog.updateComplete
+    expect(catalog.querySelector('xh-accordion')).toBeNull()
+    expect(catalog.querySelector<HTMLElement>('[data-part="search"]')!.hidden).toBe(false)
+    const sections = [...catalog.querySelectorAll<HTMLElement>('[data-part="group"]')]
+    expect(sections.map(section => section.querySelector('[data-part="group-label"]')!.textContent)).toEqual(catalog.groups!.map(group => group.label))
+    for (const [index, section] of sections.entries()) {
+      expect([...section.querySelectorAll<HTMLButtonElement>('button[data-part="item"]')].map(button => button.dataset.id)).toEqual(catalog.groups![index]!.items.map(item => item.id))
+      for (let element: HTMLElement | null = section; element && element !== catalog; element = element.parentElement)
+        expect(element.hidden).toBe(false)
+    }
+  })
+
   it('物料按分类列出；点按物料新建到缺省位置并选中，只读时点了没反应', async () => {
     const { document, name } = sample()
     const designer = await mount((element) => {
