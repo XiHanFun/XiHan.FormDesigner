@@ -112,6 +112,7 @@ const locale: FormLocale = {
       removeRegions: count => `Удалить ${count} ${plural(count, 'область', 'области', 'областей')}`,
       moveRegion: name => `Переместить область в «${name}»`,
       editExtensionData: id => `Изменить данные расширения «${id}»`,
+      replaceDocument: 'Редактировать JSON',
     },
     tour: {
       insertTitle: 'Быстрая вставка',

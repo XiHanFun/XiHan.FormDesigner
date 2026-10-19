@@ -13,7 +13,7 @@ import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { VisualEnvironmentStorageError } from '@xihan-ui/core/visual-environment'
 import type { ExecuteOptions, ExtensionHost, HistorySnapshot } from '@xihan-ui/designer-kit'
 import type { PropertySwatchOption } from '@xihan-ui/designer-kit/properties'
-import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerHistoryTranslations, DesignerIssuesEventMap, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, DesignerTourEventMap, PanRequestDetail } from '@xihan-ui/designer-shell'
+import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerHistoryTranslations, DesignerIssueItem, DesignerIssuesEventMap, DesignerJsonEditorEventMap, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, DesignerTourEventMap, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PointerSession } from '@xihan-ui/pointer'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
@@ -29,7 +29,7 @@ import { createDocument, findNode, findRegion, kindLabel, PROPERTY_GROUPS, valid
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
 import { commandForShortcut, createExtensionHost, HISTORY_NUDGE_MERGE_WITHIN, nudgeMergeKey, snapshotHistory } from '@xihan-ui/designer-kit'
-import { applyToolbarCustomization, arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_COMMON_KEYS, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, DESIGNER_SHELL_COMMANDS, DESIGNER_TOUR_DONE_KEY, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolveSettings, resolveTourSteps, runCommand, shortcutSettingsSource, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, tourDoneOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement, XhDesignerTourElement } from '@xihan-ui/designer-shell'
+import { applyToolbarCustomization, arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_COMMON_KEYS, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, DESIGNER_SHELL_COMMANDS, DESIGNER_TOUR_DONE_KEY, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolveSettings, resolveTourSteps, runCommand, shortcutSettingsSource, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, tourDoneOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerJsonEditorElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement, XhDesignerTourElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { CircleAlertIcon, LayoutGridIcon, SlidersHorizontalIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
@@ -174,6 +174,8 @@ interface DesignerParts {
   readonly settings: XhDesignerSettingsElement
   /** 新手引导：外框的兄弟节点。 */
   readonly tour: XhDesignerTourElement
+  /** JSON 编辑框：外框的兄弟节点。 */
+  readonly jsonEditor: XhDesignerJsonEditorElement
   /** 状态栏左段：选中的对象，没选中时是字段数。 */
   readonly selectionStatus: DesignerStatusItem
   /** 状态栏右段：预览宽度，点了回到全宽。 */
@@ -706,6 +708,18 @@ export class XhFormDesigner extends XhReactiveElement {
     return parts.tour.start()
   }
 
+  /**
+   * 打开 JSON 编辑框，写出此刻的整份模板。改一次就按 validate() 同一套检查一次，有错误时不能应用；应用后整份换上，
+   * 作为一步进撤销栈。只读或预览态时只能看、能复制，不能应用。
+   */
+  openJsonEditor(): void {
+    const { jsonEditor } = this.#ensureParts()
+    jsonEditor.value = this.#editor.document as unknown as JsonValue
+    jsonEditor.validate = this.#validateJson
+    jsonEditor.readonly = this.readonly === true || (this.mode ?? 'design') !== 'design'
+    jsonEditor.show()
+  }
+
   /** 打开设置对话框，给了分区 id 就显示那一页：基础是 general，扩展的分区用它们自己的 id。 */
   openSettings(section?: string): void {
     this.#ensureParts().settings.show(section)
@@ -887,10 +901,12 @@ export class XhFormDesigner extends XhReactiveElement {
     settings.addEventListener('settings-command', this.#onSettingsCommand)
     const tour = createAuthoredElement(doc, 'xh-designer-tour', { 'data-part': 'tour' })
     tour.addEventListener('tour-end', this.#onTourEnd)
-    this.replaceChildren(frame, settings, tour)
+    const jsonEditor = createAuthoredElement(doc, 'xh-designer-json-editor', { 'data-part': 'json-editor' })
+    jsonEditor.addEventListener('json-apply', this.#onJsonApply)
+    this.replaceChildren(frame, settings, tour, jsonEditor)
     // 面板头的命令（如历史记录的清空）按设计器此刻的命令表铺
     const panels = createPanelHost<FormDesignerContext>(frame, { commands: () => this.#model.commands })
-    this.#parts = { frame, panels, toolbar, commandBar, headerBar, canvas, palette, catalog, dropIndicator, ...this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings, tour, selectionStatus, widthStatus }
+    this.#parts = { frame, panels, toolbar, commandBar, headerBar, canvas, palette, catalog, dropIndicator, ...this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings, tour, jsonEditor, selectionStatus, widthStatus }
     this.#prepareMenu(this.#parts)
     panels.assign(this.#model.extensions, this.#context())
     return this.#parts
@@ -979,6 +995,25 @@ export class XhFormDesigner extends XhReactiveElement {
     dialog.help = help
     dialog.shortcuts = shortcuts
     dialog.about = about
+  }
+
+  /**
+   * JSON 编辑框里的校验：与 validate() 同一套（扩展与表达式引擎），问题的说明照问题列表取；编辑框里的文字可能不成形，
+   * 不按树去找问题所在的节点，条目只带说明，点一条由编辑框跳到它在文字里的位置。
+   */
+  readonly #validateJson = (value: JsonValue): readonly DesignerIssueItem[] => {
+    const t = this.#t()
+    return validateDocument(value, { extensions: this.#extensions, expressionEngine: this.#engine() })
+      .map(issue => ({ issue, message: this.#describe(issue, t) }))
+  }
+
+  /** JSON 编辑框按了「应用」：整份换上，作为一步进撤销栈；只读或预览态时不换。 */
+  readonly #onJsonApply = (event: Event): void => {
+    event.stopPropagation()
+    if (this.readonly === true || (this.mode ?? 'design') !== 'design')
+      return
+    const { value } = (event as DesignerJsonEditorEventMap['json-apply']).detail
+    this.execute([{ type: 'replaceDocument', document: value as unknown as FormDocument }])
   }
 
   /** 设置对话框里点了跑命令的钮（帮助页的开始引导、打开文档）：关上对话框，再跑这条命令。 */
@@ -1818,6 +1853,7 @@ export function defineFormDesigner(): void {
   defineDesignerShellElement('xh-designer-issues', XhDesignerIssuesElement)
   defineDesignerShellElement('xh-designer-settings', XhDesignerSettingsElement)
   defineDesignerShellElement('xh-designer-tour', XhDesignerTourElement)
+  defineDesignerShellElement('xh-designer-json-editor', XhDesignerJsonEditorElement)
   registerElement(FORM_DESIGNER_TAG, XhFormDesigner)
 }
 

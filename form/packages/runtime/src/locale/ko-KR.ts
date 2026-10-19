@@ -101,6 +101,7 @@ const locale: FormLocale = {
       removeRegions: count => `영역 ${count}개 삭제`,
       moveRegion: name => `'${name}'의 영역 이동`,
       editExtensionData: id => `확장 '${id}'의 데이터 수정`,
+      replaceDocument: 'JSON 편집',
     },
     tour: {
       insertTitle: '빠른 삽입',

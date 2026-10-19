@@ -181,6 +181,29 @@ describe('编辑操作：区域', () => {
   })
 })
 
+describe('编辑操作：整份替换', () => {
+  it('换上另一份文档，逆操作换回原来那一份；换上的是冻结的副本，与原文档一样时不算变化', () => {
+    const { registry, ids, document } = sample()
+    const other = documentOf([fieldOf(registry, ids, 'text', 'title')])
+    roundTrip(document, [{ type: 'replaceDocument', document: other }])
+    const result = applyOperation(document, { type: 'replaceDocument', document: other })
+    expect(result.document).toEqual(other)
+    expect(result.document).not.toBe(other)
+    expect(Object.isFrozen(result.document.children[0])).toBe(true)
+    expect(result.inverse).toEqual([{ type: 'replaceDocument', document }])
+    expect(applyOperation(document, { type: 'replaceDocument', document: JSON.parse(JSON.stringify(document)) as FormDocument })).toEqual({ document, inverse: [] })
+  })
+
+  it('不是对象、children 不是数组或不是 JSON 时报载荷不对，id 重复时报重复', () => {
+    const { registry, ids, document, name } = sample()
+    expect(errorCode(() => applyOperation(document, { type: 'replaceDocument', document: null as never }))).toBe('XH_FORM_OP_INVALID_PAYLOAD')
+    expect(errorCode(() => applyOperation(document, { type: 'replaceDocument', document: { ...document, children: {} } as never }))).toBe('XH_FORM_OP_INVALID_PAYLOAD')
+    expect(errorCode(() => applyOperation(document, { type: 'replaceDocument', document: { ...document, settings: { at: new Date() } } as never }))).toBe('XH_FORM_OP_INVALID_PAYLOAD')
+    const copy = { ...fieldOf(registry, ids, 'text', 'copy'), id: name.id }
+    expect(errorCode(() => applyOperation(document, { type: 'replaceDocument', document: documentOf([name, copy]) }))).toBe('XH_FORM_OP_DUPLICATE_ID')
+  })
+})
+
 describe('编辑操作：批量与不可变', () => {
   it('批量的逆操作是各操作逆操作按反序拼接', () => {
     const { document, name } = sample()

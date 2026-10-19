@@ -142,9 +142,9 @@ describe('内置命令与右键菜单', () => {
     expect(states('cell', context(document, { nodes: [], regions: [c01!, c10!] }))).toMatchObject({ 'merge-cells': false })
   })
 
-  it('什么都没选：只有粘贴', () => {
+  it('什么都没选：粘贴与编辑 JSON', () => {
     const { document } = sample()
     expect(menuSubject(document, { nodes: [] })).toBe('blank')
-    expect(states('blank', context(document, { nodes: [] }, { canPaste: true }))).toEqual({ paste: true })
+    expect(states('blank', context(document, { nodes: [] }, { canPaste: true }))).toEqual({ 'paste': true, 'edit-json': true })
   })
 })

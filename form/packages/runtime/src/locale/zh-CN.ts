@@ -101,6 +101,7 @@ const locale: FormLocale = {
       removeRegions: count => `删除 ${count} 个区域`,
       moveRegion: name => `移动「${name}」的区域`,
       editExtensionData: id => `修改扩展「${id}」的数据`,
+      replaceDocument: '编辑 JSON',
     },
     tour: {
       insertTitle: '快速插入',

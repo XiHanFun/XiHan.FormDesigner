@@ -19,6 +19,8 @@ export type RuleList = 'validation' | 'linkage'
  * 编辑操作。`parent` 是区域 id，`null` 表示文档顶层；`index` 是操作完成后的位置。
  * `value` 缺省表示删除该属性。所有操作都是普通数据，可以 JSON 序列化。
  * `setExtensionData` 写某个扩展在文档（`nodeId` 为 `null`）或节点上的数据，`data` 缺省表示去掉这一块。
+ * `replaceDocument` 整份换上另一份文档（如在 JSON 编辑框里改完应用），逆操作是换回原来那一份；换上的文档只查形状与 id 不重复，
+ * 内容由调用方先用 `validateDocument` 校验。
  */
 export type FormOperation
   = | { readonly type: 'insertNode', readonly parent: string | null, readonly index: number, readonly node: FormNode }
@@ -36,6 +38,7 @@ export type FormOperation
     | { readonly type: 'removeRegion', readonly regionId: string }
     | { readonly type: 'moveRegion', readonly regionId: string, readonly index: number }
     | { readonly type: 'setExtensionData', readonly nodeId: string | null, readonly id: string, readonly data?: JsonObject }
+    | { readonly type: 'replaceDocument', readonly document: FormDocument }
 
 /** 操作的结果：新文档与逆操作；没有带来变化时返回同一个文档、逆操作为空。 */
 export interface OperationResult {
@@ -158,6 +161,22 @@ function requireFreshIds(document: FormDocument, payload: unknown): void {
       fail('XH_FORM_OP_DUPLICATE_ID', { id })
     seen.add(id)
   }
+}
+
+/** 换上的整份文档：普通 JSON 对象、children 是数组、里面的 id 不重复；返回冻结的副本。 */
+function requireDocument(value: unknown): FormDocument {
+  if (!isJsonValue(value) || !isPlainObject(value) || !Array.isArray(value.children))
+    fail('XH_FORM_OP_INVALID_PAYLOAD')
+  const ids: string[] = []
+  for (const child of value.children)
+    collectIds(child, ids)
+  const seen = new Set<string>()
+  for (const id of ids) {
+    if (seen.has(id))
+      fail('XH_FORM_OP_DUPLICATE_ID', { id })
+    seen.add(id)
+  }
+  return deepFreeze(cloneJson(value)) as unknown as FormDocument
 }
 
 function clonePayload<T>(value: T): T {
@@ -486,6 +505,12 @@ export function applyOperation(document: FormDocument, operation: FormOperation)
         document: operation.nodeId === null ? withExtensions(document, next) : updateNode(document, operation.nodeId, current => withExtensions(current, next)),
         inverse: [inverse],
       }
+    }
+    case 'replaceDocument': {
+      const next = requireDocument(operation.document)
+      if (jsonEquals(document as unknown as JsonValue, next as unknown as JsonValue))
+        return unchanged(document)
+      return { document: next, inverse: [{ type: 'replaceDocument', document }] }
     }
     default:
       return fail('XH_FORM_OP_UNKNOWN_TYPE', { type: String((operation as { type?: unknown }).type) })

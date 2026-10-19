@@ -107,6 +107,8 @@ export function describeFormOperations(translations: () => FormDesignerTranslati
       const { id } = operations[0]!
       return sameName(operations.map(operation => operation.id)) ? say(history => history.editExtensionData(id)) : undefined
     }
+    if (allOf(operations, 'replaceDocument'))
+      return say(history => history.replaceDocument)
     if (allOf(operations, 'removeRegion') && operations.length > 1)
       return say(history => history.removeRegions(operations.length))
     if (operations.length !== 1)

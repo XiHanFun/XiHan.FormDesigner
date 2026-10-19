@@ -101,6 +101,7 @@ const locale: FormLocale = {
       removeRegions: count => `Excluir ${count} áreas`,
       moveRegion: name => `Mover área em “${name}”`,
       editExtensionData: id => `Editar dados da extensão “${id}”`,
+      replaceDocument: 'Editar JSON',
     },
     tour: {
       insertTitle: 'Inserção rápida',
