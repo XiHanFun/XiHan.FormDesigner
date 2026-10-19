@@ -373,8 +373,10 @@ describe('<xh-form-designer>：面板与模式', () => {
       ['properties', 'end', true],
       ['issues', 'bottom', true],
       ['outline', 'start', true],
+      ['history', 'end', true],
     ])
-    expect(frame.resolvedLayout.docks).toMatchObject({ start: ['palette', 'outline'], end: ['properties'], bottom: ['issues'] })
+    expect(frame.resolvedLayout.docks).toMatchObject({ start: ['palette', 'outline'], end: ['properties', 'history'], bottom: ['issues'] })
+    expect(entries.find(entry => entry.name === 'history')!.shown).toBe(false)
     expect(entries.find(entry => entry.name === 'outline')!.label).toBe('Structure')
   })
 
@@ -538,7 +540,7 @@ describe('<xh-form-designer>：面板卡片', () => {
     type MenuHost = HTMLElement & { open?: boolean, anchor?: HTMLElement | null, collection?: readonly { value: string }[], checkboxValue?: readonly string[] }
     const menu = designer.querySelector<MenuHost>('[data-part="command-bar"] xh-menu')!
     expect([menu.open, menu.anchor]).toEqual([true, button])
-    expect(menu.collection!.map(item => item.value).filter(value => value.startsWith('item:'))).toEqual(['item:palette', 'item:properties', 'item:issues', 'item:outline'])
+    expect(menu.collection!.map(item => item.value).filter(value => value.startsWith('item:'))).toEqual(['item:palette', 'item:properties', 'item:issues', 'item:outline', 'item:history'])
     expect(menu.checkboxValue).toEqual(['item:palette', 'item:properties', 'item:issues', 'item:outline'])
     const changes = events(designer, 'settings-change')
     const hidden = (): readonly string[] | undefined => (designer.settings?.[DESIGNER_SETTING_KEYS.layout] as { hidden?: readonly string[] } | undefined)?.hidden
@@ -546,11 +548,11 @@ describe('<xh-form-designer>：面板卡片', () => {
     await settle(designer)
     expect(changes.map(change => change.key)).toEqual([DESIGNER_SETTING_KEYS.layout])
     expect(changes[0]!.settings).toBe(designer.settings)
-    expect(hidden()).toEqual(['palette'])
+    expect(hidden()).toEqual(['history', 'palette'])
     expect(menu.checkboxValue).toEqual(['item:properties', 'item:issues', 'item:outline'])
     window.document.querySelector<HTMLElement>('[data-scope="menu"][data-part="item"][data-value="item:palette"]')!.click()
     await settle(designer)
-    expect(hidden()).toEqual([])
+    expect(hidden()).toEqual(['history'])
   })
 
   it('每块面板一条开关命令 panel:<面板 id>，可以排进工具栏；扩展的面板也有', async () => {
@@ -574,7 +576,7 @@ describe('<xh-form-designer>：面板卡片', () => {
     })
     const frame = designer.querySelector('xh-designer-frame')!
     expect(frame.showsPanel('issues')).toBe(false)
-    expect(frame.panelEntries().map(entry => entry.name)).toEqual(['palette', 'properties', 'outline'])
+    expect(frame.panelEntries().map(entry => entry.name)).toEqual(['palette', 'properties', 'outline', 'history'])
     expect(designer.querySelector<HTMLButtonElement>('[data-region="palette"] [data-part="panel-close"]')!.hidden).toBe(false)
     designer.settingsPolicy = { 'layout.panels': 'locked' }
     await settle(designer)
@@ -597,12 +599,12 @@ describe('<xh-form-designer>：面板卡片', () => {
     designer.querySelector<HTMLButtonElement>('[data-region="issues"] [data-part="panel-close"]')!.click()
     await settle(designer)
     const saved = designer.settings!
-    expect(saved[DESIGNER_SETTING_KEYS.layout]).toMatchObject({ hidden: ['palette', 'issues'] })
+    expect(saved[DESIGNER_SETTING_KEYS.layout]).toMatchObject({ hidden: ['history', 'palette', 'issues'] })
     const again = await mount((element) => {
       element.settings = saved
     })
     const restored = again.querySelector('xh-designer-frame')!
-    expect(['palette', 'properties', 'issues'].filter(name => restored.showsPanel(name))).toEqual(['properties'])
+    expect(['palette', 'properties', 'issues', 'history'].filter(name => restored.showsPanel(name))).toEqual(['properties'])
   })
 })
 
