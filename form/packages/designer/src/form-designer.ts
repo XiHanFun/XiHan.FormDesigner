@@ -709,11 +709,14 @@ export class XhFormDesigner extends XhReactiveElement {
     return this.#editor.selection
   }
 
-  /** 开始新手引导，从第一步起；没有能走的步骤时返回 false。引导收起时派发 tour-end，并在设置里记下 help.tourDone。 */
+  /**
+   * 开始新手引导，从第一步起；同一页别的设计器的引导开着时先收起它。没有能走的步骤时返回 false。
+   * 引导收起时派发 tour-end，并在设置里记下 help.tourDone。命令 start-tour 与设置对话框帮助页的「开始引导」都走这里。
+   */
   startTour(): boolean {
     const parts = this.#ensureParts()
     this.#syncTour(parts, this.#t())
-    return parts.tour.start()
+    return parts.tour.start({ force: true })
   }
 
   /**

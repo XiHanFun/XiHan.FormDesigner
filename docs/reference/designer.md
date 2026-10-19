@@ -55,7 +55,7 @@
 | `addNode(kind: string, target?: FormDropTarget): FormNode \| undefined` | 按种类新建节点并选中它；目标缺省为选中节点之后，没有选中时为末尾。目标不收时返回 undefined。 |
 | `select(selection: Partial<FormSelection>): void` | 选中节点或区域：给了非空的 regions 就选区域，否则选 nodes。 |
 | `getSelection(): FormSelection` | 当前的选择。 |
-| `startTour(): boolean` | 开始新手引导，从第一步起；没有能走的步骤时返回 false。引导收起时派发 tour-end，并在设置里记下 help.tourDone。 |
+| `startTour(): boolean` | 开始新手引导，从第一步起；同一页别的设计器的引导开着时先收起它。没有能走的步骤时返回 false。引导收起时派发 tour-end，并在设置里记下 help.tourDone。命令 start-tour 与设置对话框帮助页的「开始引导」都走这里。 |
 | `openJsonEditor(): void` | 打开 JSON 编辑框，写出此刻的整份模板。改一次就按 validate() 同一套检查一次，有错误时不能应用；应用后整份换上，作为一步进撤销栈。只读或预览态时只能看、能复制，不能应用。 |
 | `openSettings(section?: string): void` | 打开设置对话框，给了分区 id 就显示那一页：基础是 general，扩展的分区用它们自己的 id。 |
 | `deleteSelection(): boolean` | 删除选中的节点或区域；只读或什么都没删时返回 false。 |

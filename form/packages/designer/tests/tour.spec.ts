@@ -128,4 +128,19 @@ describe('新手引导', () => {
     expect(tour.running).toBe(true)
     tour.stop()
   })
+
+  it('同一页别的设计器的引导开着时自动开始不抢；startTour()、命令 start-tour 与帮助页的「开始引导」先收起那一个再开始', async () => {
+    const first = await show(await mount())
+    expect(tourOf(first).running).toBe(true)
+    const second = await show(await mount())
+    expect(tourOf(second).running).toBe(false)
+    expect(second.startTour()).toBe(true)
+    expect([tourOf(first).running, tourOf(second).running]).toEqual([false, true])
+    const command = FORM_COMMANDS.find(item => item.id === 'start-tour')!
+    command.run?.({ designer: first } as FormDesignerContext)
+    expect([tourOf(first).running, tourOf(second).running]).toEqual([true, false])
+    second.querySelector('xh-designer-settings')!.dispatchEvent(new CustomEvent('settings-command', { detail: { command: 'start-tour' } }))
+    expect([tourOf(first).running, tourOf(second).running]).toEqual([false, true])
+    tourOf(second).stop()
+  })
 })
