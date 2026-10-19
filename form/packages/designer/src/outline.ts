@@ -11,7 +11,7 @@ import type { FormDesignerTranslations } from '@xihan-form/runtime'
 import type { IconRecord } from '@xihan-ui/core'
 import type { DesignerOutlineAdapter, DesignerOutlineMove, DesignerOutlineNode } from '@xihan-ui/designer-shell'
 import type { FormDesignerContext } from './commands'
-import type { FormDropTarget } from './editor'
+import type { FormDropTarget, FormSelection } from './editor'
 import { findNode, findRegion } from '@xihan-form/core'
 import { createOutlinePanel } from '@xihan-ui/designer-shell'
 import { ListTreeIcon } from '@xihan-ui/icons'
@@ -102,7 +102,22 @@ export function formOutlineTarget(document: FormDocument, registry: KindRegistry
   return { parent, index: next === undefined ? siblings.length : siblings.indexOf(next) }
 }
 
-/** 表单的页面结构适配器：选中区域时选区域，否则选节点；删除先选中再走设计器的删除；挪动经编辑模型判定并执行。 */
+/**
+ * 树上要换成的选中换成表单的选择：节点与区域不混选，区域只在同一个容器里。新选上的行里有节点就选节点；
+ * 只新选上了区域就选和新选上的最后一个同在一个容器里的区域；没有新选上的（只取消了几行）照原来的种类留下剩下的。
+ */
+export function formOutlineSelection(document: FormDocument, current: FormSelection, ids: readonly string[]): FormSelection {
+  const before = [...current.nodes, ...(current.regions ?? [])]
+  const added = ids.filter(id => !before.includes(id))
+  const regionOf = (id: string): ReturnType<typeof findRegion> => findRegion(document, id)
+  const byRegion = added.length === 0 ? (current.regions?.length ?? 0) > 0 : added.every(id => regionOf(id) !== undefined)
+  if (!byRegion)
+    return { nodes: ids.filter(id => regionOf(id) === undefined) }
+  const owner = regionOf(added.at(-1) ?? ids[0] ?? '')?.container.id
+  return { nodes: [], regions: ids.filter(id => regionOf(id)?.container.id === owner) }
+}
+
+/** 表单的页面结构适配器：选择照 formOutlineSelection 换，新选上的第一个亮出来；删除先选中再走设计器的删除；挪动经编辑模型判定并执行。 */
 export const FORM_OUTLINE_ADAPTER: DesignerOutlineAdapter<FormDesignerContext> = {
   nodes: ({ designer, translations }) => {
     const internals = internalsOf(designer)
@@ -113,16 +128,18 @@ export const FORM_OUTLINE_ADAPTER: DesignerOutlineAdapter<FormDesignerContext> =
     return (selection.regions?.length ?? 0) > 0 ? selection.regions! : selection.nodes
   },
   select: ({ designer }, ids) => {
-    const first = ids[0]
-    if (first === undefined)
+    const current = designer.getSelection()
+    const next = formOutlineSelection(designer.schema, current, ids)
+    designer.select(next)
+    const before = [...current.nodes, ...(current.regions ?? [])]
+    const regions = next.regions ?? []
+    const reveal = [...regions, ...next.nodes].find(id => !before.includes(id))
+    if (reveal === undefined)
       return
-    if (findRegion(designer.schema, first) !== undefined) {
-      designer.select({ regions: [...ids] })
-      internalsOf(designer).revealRegion(first)
-      return
-    }
-    designer.select({ nodes: [...ids] })
-    designer.revealNode(first)
+    if (regions.includes(reveal))
+      internalsOf(designer).revealRegion(reveal)
+    else
+      designer.revealNode(reveal)
   },
   highlight: ({ designer }, id) => internalsOf(designer).highlight(id),
   remove: ({ designer }, ids) => {
