@@ -30,7 +30,7 @@ import { createDocument, findNode, findRegion, kindLabel, PROPERTY_GROUPS, valid
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
 import { commandForShortcut, createExtensionHost, HISTORY_NUDGE_MERGE_WITHIN, nudgeMergeKey } from '@xihan-ui/designer-kit'
-import { arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolveSettings, runCommand, startDrag, toolbarDisplayOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement } from '@xihan-ui/designer-shell'
+import { applyToolbarCustomization, arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolveSettings, runCommand, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { ArrowDownIcon, ArrowUpIcon, CircleAlertIcon, CopyPlusIcon, CornerLeftUpIcon, LayoutGridIcon, SlidersHorizontalIcon, TrashIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
@@ -296,6 +296,8 @@ export class XhFormDesigner extends XhReactiveElement {
   #settingsSectionsKey = ''
   #settingsSectionList: readonly DesignerSettingsSection[] = []
   #settingsDialogKey = ''
+  /** 上次交给设置对话框「工具栏」页的按钮表数据：内容没变就不重设，免得按钮表重铺。 */
+  #toolbarSourceKey = ''
   /** 此刻生效的设置：各分区没写的条目取了缺省值。 */
   #resolvedSettings: DesignerSettings = {}
   #fragments = new WeakMap<object, { readonly extensions: readonly FormDesignerExtension[] | undefined, readonly clipboard: FormClipboard | undefined }>()
@@ -820,6 +822,8 @@ export class XhFormDesigner extends XhReactiveElement {
       dialog.sections = this.#settingsSectionList
     if (dialog.settings !== this.settings)
       dialog.settings = this.settings
+    if (dialog.frame !== parts.frame)
+      dialog.frame = parts.frame
   }
 
   /** 设置对话框里改了一条：换成新的 settings，给了存储键就存起来，再派发 settings-change。 */
@@ -893,7 +897,7 @@ export class XhFormDesigner extends XhReactiveElement {
 
   /**
    * 外框的区：工具栏与画布带上本地化的区名（分隔条的无障碍名称要用）；物料、属性与问题画成卡片，面板头写标题、图标与帮助，
-   * 属性面板的副标题是当前编辑的对象；后面接扩展面板的区。设置里关了状态栏时不登记状态栏；预览态只登记顶栏、工具栏、画布与状态栏，
+   * 属性面板的副标题是当前编辑的对象；后面接扩展面板的区。设置里关了状态栏或工具栏时不登记它们；预览态只登记顶栏、工具栏、画布与状态栏，
    * 面板的内容留在外框下面，布局不动。内容没变、外框手上也还是上次给的那一份时不重设。
    */
   #syncRegions(frame: XhDesignerFrameElement, t: FormDesignerTranslations, mode: FormDesignerMode): void {
@@ -905,7 +909,8 @@ export class XhFormDesigner extends XhReactiveElement {
       issues: { title: t.issues, icon: CircleAlertIcon, help: t.issuesHelp },
     }
     const statusBar = this.#statusBarOn()
-    const kept = (region: DesignerFrameRegion): boolean => (region.name !== 'status' || statusBar) && (mode === 'design' || PREVIEW_REGIONS.has(region.name))
+    const toolbar = toolbarVisibleOf(this.settings)
+    const kept = (region: DesignerFrameRegion): boolean => (region.name !== 'status' || statusBar) && (region.name !== 'toolbar' || toolbar) && (mode === 'design' || PREVIEW_REGIONS.has(region.name))
     const regions: DesignerFrameRegion[] = [
       ...DESIGNER_FRAME_REGIONS.filter(kept).map(region => ({ ...region, ...described[region.name] })),
       ...(mode === 'design' ? this.#model.extensions.flatMap(extension => (extension.panels ?? []).map(panel => panel.region)) : []),
@@ -1006,15 +1011,23 @@ export class XhFormDesigner extends XhReactiveElement {
   }
 
   /**
-   * 工具栏按 commandLayout 或缺省排列铺命令，显示方式取设置里的 general.toolbarDisplay，文字、可用与选中状态每次刷新；
+   * 工具栏按 commandLayout 或缺省排列排出分组，再套用户在设置「工具栏」页的定制（toolbar.layout），显示方式取 toolbar.display，
+   * 文字、可用与选中状态每次刷新；同一份缺省排列连同各命令此刻的文字交给设置对话框，「工具栏」页据此列出按钮表。
    * 顶栏铺 placement 为 header 的命令，一条也没有时从外框里拿掉，顶栏随之收起。
    */
   #syncToolbar(t: FormDesignerTranslations): void {
     const { commands } = this.#model
     const context = this.#context(t)
-    const { commandBar, headerBar, frame } = this.#ensureParts()
-    commandBar.setDisplay(toolbarDisplayOf(this.#resolvedSettings))
-    commandBar.update(arrangeCommands('toolbar', commands, FORM_TOOLBAR_LAYOUT, this.commandLayout), commands, context, context.commands.toolbar)
+    const { commandBar, headerBar, frame, settings } = this.#ensureParts()
+    const arranged = arrangeCommands('toolbar', commands, FORM_TOOLBAR_LAYOUT, this.commandLayout)
+    commandBar.setDisplay(toolbarDisplayOf(this.settings))
+    commandBar.update(applyToolbarCustomization(arranged, toolbarCustomizationOf(this.settings)), commands, context, context.commands.toolbar)
+    const source = toolbarSettingsSource(arranged, commands, context)
+    const sourceKey = JSON.stringify(source)
+    if (sourceKey !== this.#toolbarSourceKey) {
+      this.#toolbarSourceKey = sourceKey
+      settings.toolbar = source
+    }
     const header = arrangeCommands('header', commands, [], this.commandLayout)
     if (header.length > 0) {
       headerBar.update(header, commands, context, t.insertToolbar)

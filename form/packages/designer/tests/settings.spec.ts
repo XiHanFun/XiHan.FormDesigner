@@ -4,7 +4,7 @@ import type { FormDesignerContext, FormDesignerExtension, XhFormDesigner } from 
 import { DesignerExtensionError } from '@xihan-ui/designer-kit'
 import { defineXhElements } from '@xihan-ui/web-components/define'
 import { afterEach, describe, expect, it } from 'vitest'
-import { defineFormDesigner, FORM_DESIGNER_TAG } from '../src'
+import { defineFormDesigner, FORM_DESIGNER_TAG, FORM_TOOLBAR_LAYOUT } from '../src'
 
 defineXhElements()
 defineFormDesigner()
@@ -50,12 +50,15 @@ function pages(): string[] {
 }
 
 describe('<xh-form-designer>：设置', () => {
-  it('openSettings 打开设置对话框：只有基础一页，列出主题、工具栏显示方式与状态栏', async () => {
+  it('openSettings 打开设置对话框：基础、布局、工具栏三页；基础列出主题与状态栏，工具栏页列出按钮显示方式、显示工具栏与按钮表', async () => {
     const designer = await mount()
     designer.openSettings()
     await settle(designer)
-    expect(pages()).toEqual(['general'])
-    expect(['theme', 'toolbarDisplay', 'statusBar'].map(id => row(`general.${id}`) !== null)).toEqual([true, true, true])
+    expect(pages()).toEqual(['general', 'layout', 'toolbar'])
+    expect(['general.theme', 'general.statusBar', 'general.toolbarDisplay'].map(key => row(key) !== null)).toEqual([true, true, false])
+    designer.openSettings('toolbar')
+    await settle(designer)
+    expect(['toolbar.display', 'toolbar.visible', 'toolbar.layout'].map(key => row(key) !== null)).toEqual([true, true, true])
     expect(designer.querySelector('xh-designer-frame + xh-designer-settings')).not.toBeNull()
   })
 
@@ -126,7 +129,7 @@ describe('<xh-form-designer>：设置', () => {
     })
     designer.openSettings('acme')
     await settle(designer)
-    expect(pages()).toEqual(['general', 'acme'])
+    expect(pages()).toEqual(['general', 'layout', 'toolbar', 'acme'])
     expect(row('acme.token')!.querySelector('xh-password-input')).not.toBeNull()
     designer.querySelector<HTMLButtonElement>('[data-part="command-bar"] button[value="acme.read"]')!.click()
     expect(seen).toEqual([{ 'acme.token': 'k', 'acme.dense': false }])
@@ -137,16 +140,36 @@ describe('<xh-form-designer>：设置', () => {
     expect(designer.extensions).toBe(before)
   })
 
-  it('工具栏显示方式取设置里的 general.toolbarDisplay，缺省只显示图标', async () => {
+  it('工具栏的按钮显示方式取设置里的 toolbar.display，缺省只显示图标', async () => {
     const designer = await mount()
     const shell = (): Element => designer.querySelector('[data-part="command-bar"] xh-tooltip[data-scope="designer-commands"]')!
     expect(shell().getAttribute('data-display')).toBe('icon')
-    designer.settings = { 'general.toolbarDisplay': 'both' }
+    designer.settings = { 'toolbar.display': 'both' }
     await designer.updateComplete
     expect(shell().getAttribute('data-display')).toBe('both')
-    designer.settings = { 'general.toolbarDisplay': 'text' }
+    designer.settings = { 'toolbar.display': 'text' }
     await designer.updateComplete
     expect(shell().getAttribute('data-display')).toBe('text')
+  })
+
+  it('工具栏按设置「工具栏」页的定制排：换了先后、藏起的不在工具栏上；对话框拿到缺省排列与各命令的文字；toolbar.visible 为 false 时不登记工具栏', async () => {
+    const designer = await mount()
+    const values = (): string[] => Array.from(designer.querySelectorAll<HTMLButtonElement>('[data-part="command-bar"] button[data-xh-part="item"][value]'), button => button.value)
+    const dialog = designer.querySelector<HTMLElement & { toolbar?: { defaults: string[][], commands: { id: string, label: string }[] } }>('xh-designer-settings')!
+    expect(dialog.toolbar!.defaults).toEqual(FORM_TOOLBAR_LAYOUT.map(group => [...group]))
+    expect(dialog.toolbar!.commands[0]).toMatchObject({ id: 'undo', label: 'Undo' })
+    expect(values().slice(0, 3)).toEqual(['undo', 'redo', 'delete'])
+    const [first, second, ...rest] = FORM_TOOLBAR_LAYOUT
+    designer.settings = { 'toolbar.layout': { groups: [[...second!], [first![1]!, first![0]!], ...rest.map(group => [...group])], hidden: ['delete'] } }
+    await settle(designer)
+    expect(values().slice(0, 3)).toEqual(['duplicate', 'redo', 'undo'])
+    expect(values()).not.toContain('delete')
+    const frame = designer.querySelector<HTMLElement & { showsPanel: (name: string) => boolean, updateComplete: Promise<unknown> }>('xh-designer-frame')!
+    expect(frame.showsPanel('toolbar')).toBe(true)
+    designer.settings = { 'toolbar.visible': false }
+    await settle(designer)
+    await frame.updateComplete
+    expect(frame.showsPanel('toolbar')).toBe(false)
   })
 
   it('设置里关掉状态栏：外框不登记它；这时关掉一块面板，设置里两条都在，再打开状态栏照样出现', async () => {

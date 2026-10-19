@@ -64,7 +64,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 ### 工具栏
 
-工具栏缺省只显示图标，设置里的「工具栏显示方式」可以换成只显示文字或图标加文字（见[设置](#设置)）。按钮的名字与快捷键报给读屏，悬停或键盘聚焦到按钮时提示命令的文字与快捷键；会删掉内容的命令按危险色显示。宽度不够时，放不下的按钮收进末尾的「更多」菜单。
+工具栏缺省只显示图标，设置「工具栏」页的「按钮显示方式」可以换成只显示文字或图标加文字，那一页还能隐藏整条工具栏、调按钮的先后与分组、藏起不用的按钮（见[设置](#设置)）。按钮的名字与快捷键报给读屏，悬停或键盘聚焦到按钮时提示命令的文字与快捷键；会删掉内容的命令按危险色显示。宽度不够时，放不下的按钮收进末尾的「更多」菜单。
 
 末组是 designer-shell 内置的三条命令：「面板」点开一张菜单，列出能开关的面板，勾选的显示，后面是全部显隐、还原显隐与恢复默认布局；「设置」打开设置对话框（同 `openSettings()`）；「帮助」在新窗口打开本站的这一页，地址是包入口导出的 `FORM_DESIGNER_HELP_URL`。宿主不要哪一条，用 `commandLayout` 排掉，见[工具栏与菜单的排列](#工具栏与菜单的排列)。
 
@@ -136,7 +136,9 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 设置是用户偏好，每人每机一份，不随模板保存。工具栏末组的「设置」或 `openSettings(section?)` 打开设置对话框，左边一个分区一页：
 
-- 「基础」（`general`）：主题（跟随页面、跟随系统、亮色、暗色）、主题色、工具栏显示方式与状态栏。
+- 「基础」（`general`）：主题（跟随页面、跟随系统、亮色、暗色）、主题色与状态栏。
+- 「布局」（`layout`）：一张面板表，逐块面板一行，显示开关、停在哪一栏（或浮动）、上移下移与收成标题条，表下「恢复默认布局」；和面板头的「更多」菜单一样，不靠拖动也能改布局，改的就是 `layout.panels`（见[卡片与面板](#卡片与面板)）。
+- 「工具栏」（`toolbar`）：按钮显示方式（`toolbar.display`）、显示工具栏（`toolbar.visible`），以及一张按钮表（`toolbar.layout`）：一组一块，组头三态勾选框，每个按钮一行，可以勾掉、拖动换先后或挪到别的组，表下「恢复默认」。只管顶部工具栏：顶栏的插入钮、右键菜单与选中工具条不在这里改，由宿主的 `commandLayout` 排。
 - 扩展登记的分区，排在后面。分区 id 与 `general` 或别的扩展重名时，给 `extensions` 赋值就抛 `DesignerExtensionError`。
 
 表单没有自己的设置分区：预览宽度是正在看的视图，不是偏好，仍是 `previewWidth` 与工具栏上的三档。
@@ -148,7 +150,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 <<< @/examples/snippets/settings.ts#host
 
 - **主题只作用于设计器**：主题与主题色写在 `<xh-form-designer>` 自己的 `data-theme`、`data-brand` 上，页面其余部分不变；设置对话框、菜单这些浮层跟着设计器变。主题色的预设由宿主给 `brands`（品牌 id 与色板格子的颜色，品牌 id 可以用 `@xihan-ui/tokens` 的 `BRAND_PRESETS`）；给了 `registerBrand`（形状同 `@xihan-ui/tokens` 的 `registerBrand`）才许自定义颜色。两样都不给时没有主题色这一项。
-- **工具栏显示方式**：只显示图标（缺省）、只显示文字、图标加文字。只显示图标时按钮的名字照样报给读屏，悬停或聚焦时提示文字。
+- **工具栏**：按钮显示方式有只显示图标（缺省）、只显示文字、图标加文字，只显示图标时按钮的名字照样报给读屏，悬停或聚焦时提示文字。关掉「显示工具栏」只是不显示那一条，命令照样能经快捷键与右键菜单执行。按钮表的缺省排列是宿主 `commandLayout` 的 `toolbar`（没写时是 `FORM_TOOLBAR_LAYOUT`）再追加扩展的那一组，用户的定制套在它上面：后装的扩展命令放到缺省排列里挨着的位置，已经没有的命令跳过。宿主不让用户改时用 `settingsPolicy` 锁定或藏掉 `toolbar.layout`。
 - **扩展读设置**：命令、面板与扩展从上下文的 `settings` 读值，各分区没写的条目已经取了缺省值，如 `context.settings['acme.dense']`。
 
 独立使用、没有宿主替你存时，给 `settingsStorageKey`：连上文档时若没赋 `settings` 就从根所在窗口的 localStorage 读，用户改了设置就写回去；标了 `secret` 的文本条目（如密钥）不存。读写失败派发 `settings-storage-error`，设置留在内存里。不给就不读写存储。
