@@ -81,6 +81,9 @@ const locale: FormLocale = {
     insertColumnRight: 'Spalte rechts einfügen',
     removeRow: 'Zeile löschen',
     removeColumn: 'Spalte löschen',
+    outlineColumn: n => `Spalte ${n}`,
+    outlineCell: (row, column) => `Zeile ${row}, Spalte ${column}`,
+    outlineRegion: n => `Bereich ${n}`,
     history: {
       addNode: name => `„${name}“ hinzufügen`,
       addNodes: count => `${count} Elemente hinzufügen`,

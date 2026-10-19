@@ -81,6 +81,9 @@ const locale: FormLocale = {
     insertColumnRight: '오른쪽에 열 삽입',
     removeRow: '행 삭제',
     removeColumn: '열 삭제',
+    outlineColumn: n => `${n}열`,
+    outlineCell: (row, column) => `${row}행 ${column}열`,
+    outlineRegion: n => `영역 ${n}`,
     history: {
       addNode: name => `'${name}' 추가`,
       addNodes: count => `요소 ${count}개 추가`,

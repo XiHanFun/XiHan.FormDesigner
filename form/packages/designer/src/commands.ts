@@ -45,6 +45,7 @@ export const FORM_DESIGNER_HELP_URL = 'https://form.docs.xihanfun.com/guide/desi
 /** 设计器的面板 id：宿主写 defaultLayout、settingsPolicy（layout.panels.<面板 id>）时用；每块面板有一条开关命令 panel:<面板 id>。 */
 export const FORM_DESIGNER_PANELS = {
   palette: 'palette',
+  outline: 'outline',
   properties: 'properties',
   issues: 'issues',
 } as const
@@ -303,5 +304,6 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
     helpUrl: () => FORM_DESIGNER_HELP_URL,
     icons: { panels: PanelLeftIcon, settings: SettingsIcon, help: CircleHelpIcon },
   }),
-  ...designerPanelCommands<FormDesignerContext>({ panels: Object.values(FORM_DESIGNER_PANELS), frame: context => context.frame }),
+  // 页面结构是内置扩展登记的面板，它的开关命令随扩展面板一起生成
+  ...designerPanelCommands<FormDesignerContext>({ panels: [FORM_DESIGNER_PANELS.palette, FORM_DESIGNER_PANELS.properties, FORM_DESIGNER_PANELS.issues], frame: context => context.frame }),
 ] satisfies FormDesignerCommand[])

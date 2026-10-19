@@ -163,6 +163,12 @@ export interface FormDesignerTranslations {
   readonly removeRow: string
   /** 表格布局右键菜单：删除列。 */
   readonly removeColumn: string
+  /** 页面结构里栅格的一列，n 从 1 起。 */
+  readonly outlineColumn: (n: number) => string
+  /** 页面结构里表格布局的一格，行与列从 1 起。 */
+  readonly outlineCell: (row: number, column: number) => string
+  /** 页面结构里没有标题的区域，n 从 1 起。 */
+  readonly outlineRegion: (n: number) => string
   /** 撤销历史里各步的说明。 */
   readonly history: FormHistoryTranslations
   /** 问题列表里结构问题的来源小标签。 */

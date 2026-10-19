@@ -160,6 +160,27 @@ describe('<xh-form-designer>：编辑', () => {
     expect(button('redo').getAttribute('aria-label')).toBe('Redo: Delete “Single-line text · name”')
   })
 
+  it('只是选择变了时不重排画布：切到第二页的标签页停在那一页；换语言才重排', async () => {
+    const tabs = createNode(registry, 'tabs', createIdAllocator('t')) as ContainerNode
+    const designer = await mount((element) => {
+      element.schema = { ...createDocument(), children: [tabs] }
+    })
+    const host = (): HTMLElement & { value?: unknown } => designer.querySelector<HTMLElement & { value?: unknown }>(`[data-node-id="${tabs.id}"] xh-tabs`)!
+    const first = host()
+    first.value = tabs.regions[1]!.id
+    designer.select({ regions: [tabs.regions[1]!.id] })
+    await settle(designer)
+    expect([host() === first, host().value]).toEqual([true, tabs.regions[1]!.id])
+    setXhConfig(formZhCN)
+    try {
+      await settle(designer)
+      expect(host() === first).toBe(false)
+    }
+    finally {
+      setXhConfig({})
+    }
+  })
+
   it('新建节点后画布重排；撤销重做；dirty 与 markSaved', async () => {
     const designer = await mount(() => {})
     const dirty = events(designer, 'dirty-change')
@@ -343,7 +364,7 @@ describe('<xh-form-designer>：面板与模式', () => {
     expect(changes).toEqual([])
   })
 
-  it('面板登记带图标与缺省的栏：物料在左栏、属性在右栏、问题在下栏', async () => {
+  it('面板登记带图标与缺省的栏：物料与页面结构在左栏（页面结构在物料下面）、属性在右栏、问题在下栏', async () => {
     const designer = await mount(() => {})
     const frame = designer.querySelector('xh-designer-frame')!
     const entries = frame.panelEntries()
@@ -351,7 +372,10 @@ describe('<xh-form-designer>：面板与模式', () => {
       ['palette', 'start', true],
       ['properties', 'end', true],
       ['issues', 'bottom', true],
+      ['outline', 'start', true],
     ])
+    expect(frame.resolvedLayout.docks).toMatchObject({ start: ['palette', 'outline'], end: ['properties'], bottom: ['issues'] })
+    expect(entries.find(entry => entry.name === 'outline')!.label).toBe('Structure')
   })
 
   it('工具栏：内置命令带图标、缺省只显示图标，名字与快捷键写在按钮上，共用命令取 xh-designer-commands 的文案，删除带危险语气', async () => {
@@ -506,7 +530,7 @@ describe('<xh-form-designer>：面板卡片', () => {
     }
   })
 
-  it('「面板」点开一张锚在按钮上的菜单，列出物料、属性与问题，勾选的显示；点一项开关它，布局写进设置并派发 settings-change', async () => {
+  it('「面板」点开一张锚在按钮上的菜单，列出物料、属性、问题与页面结构，勾选的显示；点一项开关它，布局写进设置并派发 settings-change', async () => {
     const designer = await mount(() => {})
     const button = designer.querySelector<HTMLButtonElement>('[data-part="command-bar"] button[value="panels"]')!
     button.click()
@@ -514,8 +538,8 @@ describe('<xh-form-designer>：面板卡片', () => {
     type MenuHost = HTMLElement & { open?: boolean, anchor?: HTMLElement | null, collection?: readonly { value: string }[], checkboxValue?: readonly string[] }
     const menu = designer.querySelector<MenuHost>('[data-part="command-bar"] xh-menu')!
     expect([menu.open, menu.anchor]).toEqual([true, button])
-    expect(menu.collection!.map(item => item.value).filter(value => value.startsWith('item:'))).toEqual(['item:palette', 'item:properties', 'item:issues'])
-    expect(menu.checkboxValue).toEqual(['item:palette', 'item:properties', 'item:issues'])
+    expect(menu.collection!.map(item => item.value).filter(value => value.startsWith('item:'))).toEqual(['item:palette', 'item:properties', 'item:issues', 'item:outline'])
+    expect(menu.checkboxValue).toEqual(['item:palette', 'item:properties', 'item:issues', 'item:outline'])
     const changes = events(designer, 'settings-change')
     const hidden = (): readonly string[] | undefined => (designer.settings?.[DESIGNER_SETTING_KEYS.layout] as { hidden?: readonly string[] } | undefined)?.hidden
     window.document.querySelector<HTMLElement>('[data-scope="menu"][data-part="item"][data-value="item:palette"]')!.click()
@@ -523,7 +547,7 @@ describe('<xh-form-designer>：面板卡片', () => {
     expect(changes.map(change => change.key)).toEqual([DESIGNER_SETTING_KEYS.layout])
     expect(changes[0]!.settings).toBe(designer.settings)
     expect(hidden()).toEqual(['palette'])
-    expect(menu.checkboxValue).toEqual(['item:properties', 'item:issues'])
+    expect(menu.checkboxValue).toEqual(['item:properties', 'item:issues', 'item:outline'])
     window.document.querySelector<HTMLElement>('[data-scope="menu"][data-part="item"][data-value="item:palette"]')!.click()
     await settle(designer)
     expect(hidden()).toEqual([])
@@ -550,7 +574,7 @@ describe('<xh-form-designer>：面板卡片', () => {
     })
     const frame = designer.querySelector('xh-designer-frame')!
     expect(frame.showsPanel('issues')).toBe(false)
-    expect(frame.panelEntries().map(entry => entry.name)).toEqual(['palette', 'properties'])
+    expect(frame.panelEntries().map(entry => entry.name)).toEqual(['palette', 'properties', 'outline'])
     expect(designer.querySelector<HTMLButtonElement>('[data-region="palette"] [data-part="panel-close"]')!.hidden).toBe(false)
     designer.settingsPolicy = { 'layout.panels': 'locked' }
     await settle(designer)

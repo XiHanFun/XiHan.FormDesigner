@@ -81,6 +81,9 @@ const locale: FormLocale = {
     insertColumnRight: '在右侧插入列',
     removeRow: '删除行',
     removeColumn: '删除列',
+    outlineColumn: n => `第 ${n} 列`,
+    outlineCell: (row, column) => `第 ${row} 行第 ${column} 列`,
+    outlineRegion: n => `区域 ${n}`,
     history: {
       addNode: name => `添加「${name}」`,
       addNodes: count => `添加 ${count} 个组件`,
