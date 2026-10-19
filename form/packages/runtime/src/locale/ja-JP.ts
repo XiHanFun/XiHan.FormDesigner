@@ -101,6 +101,7 @@ const locale: FormLocale = {
       removeRegions: count => `${count} 個の領域を削除`,
       moveRegion: name => `「${name}」の領域を移動`,
       editExtensionData: id => `拡張機能「${id}」のデータを変更`,
+      replaceDocument: 'JSON を編集',
     },
     tour: {
       insertTitle: 'クイック挿入',

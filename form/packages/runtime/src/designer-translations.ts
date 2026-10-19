@@ -43,6 +43,8 @@ export interface FormHistoryTranslations {
   readonly moveRegion: (name: string) => string
   /** 改了某个扩展的数据；id 是扩展的 id。 */
   readonly editExtensionData: (id: string) => string
+  /** 在 JSON 编辑框里改完、整份换上。 */
+  readonly replaceDocument: string
 }
 
 /** 新手引导里表单自己的几步：标题与说明。 */

@@ -798,7 +798,9 @@ describe('<xh-form-designer>：问题列表', () => {
     await settle(designer)
     const filter = (): HTMLElement => designer.querySelector<HTMLElement>('[data-region="issues"] [data-part="panel-actions"] > [data-part="filter"]')!
     expect(filter().querySelector('button[value="error"]')!.textContent).toBe('1 error')
-    expect(designer.querySelector('xh-designer-issues [data-part="filter"]')).toBeNull()
+    // JSON 编辑框里另有一份问题列表，自己画头部；这里只看问题面板那一份
+    expect(designer.querySelector('xh-designer-issues[data-part="problems"]')).not.toBeNull()
+    expect(designer.querySelector('xh-designer-issues[data-part="problems"] [data-part="filter"]')).toBeNull()
     for (let round = 0; round < 2; round++) {
       designer.extensions = [...(designer.extensions ?? [])]
       await settle(designer)
@@ -1030,7 +1032,7 @@ describe('<xh-form-designer>：右键菜单', () => {
     block(designer, name.id).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
     const menu = designer.querySelector('xh-context-menu') as HTMLElement & { updateComplete: Promise<unknown> }
     await menu.updateComplete
-    expect([...menu.querySelectorAll('[data-xh-part="item"]')].map(item => item.getAttribute('value'))).toEqual(['paste'])
+    expect([...menu.querySelectorAll('[data-xh-part="item"]')].map(item => item.getAttribute('value'))).toEqual(['paste', 'edit-json'])
   })
 })
 

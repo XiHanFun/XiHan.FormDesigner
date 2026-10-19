@@ -79,7 +79,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 **移动**：把画布上的节点拖到新位置，或用选中工具条、右键菜单与快捷键上移下移。
 
-**右键菜单**按选中的东西给出命令：节点有剪切、复制、粘贴、创建副本、选中上一级、上移、下移与删除；表格布局的单元格另有合并、拆分、插入与删除行列。菜单键或 Shift + F10 也能打开。
+**右键菜单**按选中的东西给出命令：节点有剪切、复制、粘贴、创建副本、选中上一级、上移、下移与删除；表格布局的单元格另有合并、拆分、插入与删除行列；画布空白处有粘贴与编辑 JSON。菜单键或 Shift + F10 也能打开。
 
 **复制粘贴**走系统剪贴板：复制的节点以表单自己的格式与 JSON 文本两种写进剪贴板，可以粘贴到另一个设计器、另一个页签，也可以粘贴一段 JSON 文本。粘贴时 id 全部换新，与目标作用域冲突的数据键改成新的键；剪贴板里的内容不是合法的表单节点时不粘贴。
 
@@ -95,6 +95,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 | Ctrl / ⌘ + S | 派发 `save` |
 | Ctrl / ⌘ + \ | 显示或隐藏所有面板 |
 | Ctrl / ⌘ + Shift + \ | 还原面板显隐 |
+| Ctrl / ⌘ + Shift + J | 打开 JSON 编辑框 |
 
 不带 Ctrl / ⌘ 的单键只在焦点在画布里时认，物料与属性面板里的列表、开关照常用这些键：
 
@@ -128,6 +129,15 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 清空历史（`clear-history`）丢掉全部撤销与重做的步骤，模板不变；它在历史记录面板的面板头上，不上工具栏，执行时先弹确认框，也可以经 `commandLayout` 排进工具栏或右键菜单。只读时撤销、重做与清空历史都不可用，`undo()`、`redo()` 返回 `false`。
 
 宿主也能读写撤销历史：`historyState` 是此刻的快照（各步的说明、位置号、当前位置与起点），`goToHistory(position)` 一次跳到某一步或起点（只读、预览或拖动中返回 `false`），`clearHistory()` 清空撤销与重做；历史有任何变化（执行、撤销、重做、跳转、装载、清空、保存）都派发 `history-change`，载荷就是 `historyState`。撤销步数上限是 `historyLimit`（同名特性 `history-limit`），缺省 100，下一次给 `schema` 赋值时生效。
+
+## 编辑 JSON
+
+画布空白处右键菜单里的「编辑 JSON」、快捷键 Ctrl / ⌘ + Shift + J 或 `openJsonEditor()` 打开 JSON 编辑框，写出此刻的整份模板，缩进两格：
+
+- 每改一次都重新解析，并按 `validate()` 同一套检查：扩展登记的种类与规则都认，给了 `expressionEngine` 时也查表达式。问题列在编辑框下面，说明与问题列表一样；点一条，光标跳到它在文字里的位置。解析不了或有错误级问题时「应用」不可用。
+- 按「应用」整份换上，作为一步进撤销栈，历史里写「编辑 JSON」，撤销就回到原来那一份；派发的 `schema-change` 里是一条 `replaceDocument` 操作。
+- 只读或预览态时只能看、格式化与复制，不能应用。
+- 命令 id 是 `edit-json`，缺省不上工具栏，要放就写进 `commandLayout`。
 
 ## 问题列表
 
@@ -197,7 +207,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
 ```
 
-内置命令的 id：`undo`、`redo`、`clear-history`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`，以及 designer-shell 内置的 `panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`settings`、`help`、`start-tour` 与各面板的开关命令 `panel:palette`、`panel:outline`、`panel:properties`、`panel:history`、`panel:issues`；顶栏的插入钮是 `insert:text`、`insert:textarea`、`insert:number`、`insert:date`、`insert:select`、`insert:radio-group`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
+内置命令的 id：`undo`、`redo`、`clear-history`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`，以及 designer-shell 内置的 `panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`settings`、`help`、`start-tour`、`edit-json` 与各面板的开关命令 `panel:palette`、`panel:outline`、`panel:properties`、`panel:history`、`panel:issues`；顶栏的插入钮是 `insert:text`、`insert:textarea`、`insert:number`、`insert:date`、`insert:select`、`insert:radio-group`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
 
 ## 示例
 

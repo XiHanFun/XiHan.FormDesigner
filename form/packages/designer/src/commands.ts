@@ -16,7 +16,7 @@ import type { XhFormDesigner } from './form-designer'
 import type { FormDesignerInternals } from './internals'
 import { findNode, findRegion, mergeTableCells, removeTableLine } from '@xihan-form/core'
 import { designerHistoryCommands, designerPanelCommands, designerShellCommands } from '@xihan-ui/designer-shell'
-import { AlignLeftIcon, ArrowDownIcon, ArrowUpIcon, CalendarIcon, CircleDotIcon, CircleHelpIcon, ClipboardIcon, CopyIcon, CopyPlusIcon, CornerLeftUpIcon, EraserIcon, EyeIcon, HashIcon, MapIcon, MonitorIcon, PanelLeftIcon, PencilIcon, RedoIcon, SaveIcon, ScissorsIcon, SettingsIcon, SmartphoneIcon, SquareChevronDownIcon, SquareDashedIcon, TableCellsMergeIcon, TableCellsSplitIcon, TableColumnInsertLeftIcon, TableColumnInsertRightIcon, TableColumnRemoveIcon, TableRowInsertAboveIcon, TableRowInsertBelowIcon, TableRowRemoveIcon, TabletIcon, TrashIcon, TypeIcon, UndoIcon } from '@xihan-ui/icons'
+import { AlignLeftIcon, ArrowDownIcon, ArrowUpIcon, CalendarIcon, CircleDotIcon, CircleHelpIcon, ClipboardIcon, CopyIcon, CopyPlusIcon, CornerLeftUpIcon, EraserIcon, EyeIcon, FileCodeIcon, HashIcon, MapIcon, MonitorIcon, PanelLeftIcon, PencilIcon, RedoIcon, SaveIcon, ScissorsIcon, SettingsIcon, SmartphoneIcon, SquareChevronDownIcon, SquareDashedIcon, TableCellsMergeIcon, TableCellsSplitIcon, TableColumnInsertLeftIcon, TableColumnInsertRightIcon, TableColumnRemoveIcon, TableRowInsertAboveIcon, TableRowInsertBelowIcon, TableRowRemoveIcon, TabletIcon, TrashIcon, TypeIcon, UndoIcon } from '@xihan-ui/icons'
 import { internalsOf } from './internals'
 
 /** 命令、面板与扩展装上时拿到的上下文。 */
@@ -78,7 +78,7 @@ export const FORM_MENU_LAYOUTS: Readonly<Record<FormMenuSubject, readonly (reado
   node: [['cut', 'copy', 'paste', 'duplicate'], ['select-parent', 'move-up', 'move-down'], ['delete']],
   region: [['paste'], ['select-parent'], ['delete']],
   cell: [['paste'], ['select-parent'], ['merge-cells', 'split-cell'], ['insert-row-above', 'insert-row-below', 'insert-column-left', 'insert-column-right'], ['remove-row', 'remove-column']],
-  blank: [['paste']],
+  blank: [['paste'], ['edit-json']],
 }
 
 /** 选中工具条落在哪类选中上：眼下只有单个节点。 */
@@ -315,7 +315,8 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
     openSettings: ({ designer }) => designer.openSettings(),
     helpUrl: () => FORM_DESIGNER_HELP_URL,
     startTour: ({ designer }) => designer.startTour(),
-    icons: { panels: PanelLeftIcon, settings: SettingsIcon, help: CircleHelpIcon, startTour: MapIcon },
+    openJsonEditor: ({ designer }) => designer.openJsonEditor(),
+    icons: { panels: PanelLeftIcon, settings: SettingsIcon, help: CircleHelpIcon, startTour: MapIcon, editJson: FileCodeIcon },
   }),
   // 页面结构与历史记录是内置扩展登记的面板，它们的开关命令随扩展面板一起生成
   ...designerPanelCommands<FormDesignerContext>({ panels: [FORM_DESIGNER_PANELS.palette, FORM_DESIGNER_PANELS.properties, FORM_DESIGNER_PANELS.issues], frame: context => context.frame }),

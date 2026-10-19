@@ -79,6 +79,7 @@ export const ENGLISH_DESIGNER_LOCALE: FormDesignerLocale = {
     removeRegions: count => `Delete ${count} regions`,
     moveRegion: name => `Move region in “${name}”`,
     editExtensionData: id => `Edit data of extension “${id}”`,
+    replaceDocument: 'Edit JSON',
   },
   tour: {
     insertTitle: 'Quick insert',
