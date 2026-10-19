@@ -100,6 +100,9 @@ const CLIPBOARD_EVENTS = ['copy', 'cut', 'paste'] as const
 /** 撤销步数上限的缺省值。 */
 const DEFAULT_HISTORY_LIMIT = 100
 
+/** 选中工具条往行尾挪的量，样式里加在 inset-inline-end 上。 */
+const NODE_TOOLBAR_SHIFT = '--xh-form-node-toolbar-shift'
+
 /** 预览态登记的区：只留顶栏、工具栏、画布与状态栏。 */
 const PREVIEW_REGIONS: ReadonlySet<string> = new Set(['header', 'toolbar', 'canvas', 'status'])
 
@@ -308,6 +311,8 @@ export class XhFormDesigner extends XhReactiveElement {
   /** 刚连上文档或所在处的配置（语言、文案）变了：画布与物料要按新配置重排；只是选择变了时不重排。 */
   #configStale = true
   #releaseConfigWatch: (() => void) | undefined
+  /** 画布或选中工具条的尺寸变了、工具条换了位置重新观察时，重新摆选中工具条。 */
+  #canvasResize: ResizeObserver | undefined
 
   constructor() {
     super()
@@ -495,6 +500,12 @@ export class XhFormDesigner extends XhReactiveElement {
       leave: () => this.#showDrop(undefined),
     })
     this.#host.assign(this.#extensions ?? NO_EXTENSIONS)
+    const Observer = this.ownerDocument.defaultView?.ResizeObserver
+    if (Observer !== undefined && this.#canvasResize === undefined) {
+      this.#canvasResize = new Observer(() => this.#placeNodeToolbar())
+      this.#canvasResize.observe(parts.canvas)
+      this.#canvasResize.observe(parts.nodeToolbar)
+    }
     this.requestUpdate()
   }
 
@@ -502,6 +513,8 @@ export class XhFormDesigner extends XhReactiveElement {
     super.disconnectedCallback()
     for (const type of CLIPBOARD_EVENTS)
       this.removeEventListener(type, this.#onClipboard)
+    this.#canvasResize?.disconnect()
+    this.#canvasResize = undefined
     this.#releaseDropTarget?.()
     this.#releaseDropTarget = undefined
     this.#releaseConfigWatch?.()
@@ -978,6 +991,32 @@ export class XhFormDesigner extends XhReactiveElement {
     selectionBar.update(groups, commands, this.#context(t), t.nodeTag(found.node.kind, found.node.type === 'static' ? undefined : found.node.key))
     if (nodeToolbar.parentElement !== host)
       host.append(nodeToolbar)
+    this.#placeNodeToolbar()
+    // 重新观察工具条：下一帧按里面按钮排好后的尺寸再摆一次
+    this.#canvasResize?.unobserve(nodeToolbar)
+    this.#canvasResize?.observe(nodeToolbar)
+  }
+
+  /**
+   * 选中工具条从节点的行尾往行首伸：伸出画布内容区的行首边时往行尾挪回来，挪的量写进 --xh-form-node-toolbar-shift；
+   * 工具条不在画布里或画布还没排版时清掉。
+   */
+  #placeNodeToolbar(): void {
+    const { nodeToolbar, canvas } = this.#ensureParts()
+    nodeToolbar.style.removeProperty(NODE_TOOLBAR_SHIFT)
+    const view = this.ownerDocument.defaultView
+    if (view === null || !canvas.contains(nodeToolbar) || canvas.clientWidth === 0)
+      return
+    const style = view.getComputedStyle(canvas)
+    const inset = Number.parseFloat(style.getPropertyValue('padding-inline-start')) || 0
+    const box = canvas.getBoundingClientRect()
+    const bar = nodeToolbar.getBoundingClientRect()
+    const start = box.left + canvas.clientLeft
+    const overflow = style.direction === 'rtl'
+      ? bar.right - (start + canvas.clientWidth - inset)
+      : start + inset - bar.left
+    if (overflow > 0)
+      nodeToolbar.style.setProperty(NODE_TOOLBAR_SHIFT, `${overflow}px`)
   }
 
   /**

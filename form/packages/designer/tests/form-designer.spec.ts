@@ -884,6 +884,29 @@ describe('<xh-form-designer>：选中工具条', () => {
     buttonOf(designer, '@acme/ping.node').click()
     expect(pinged).toEqual([name.id])
   })
+
+  it('伸出画布内容区的行首边时往行尾挪回来，挪的量写进 --xh-form-node-toolbar-shift；伸不出时不写', async () => {
+    const { document, name, card } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    const box = (left: number, width: number): DOMRect => ({ top: 0, bottom: 28, left, right: left + width, width, height: 28, x: left, y: 0, toJSON: () => ({}) })
+    const canvas = designer.querySelector<HTMLElement>('[data-part="canvas"]')!
+    canvas.getBoundingClientRect = () => box(100, 300)
+    Object.defineProperty(canvas, 'clientWidth', { configurable: true, value: 300 })
+    designer.select({ nodes: [name.id] })
+    await settle(designer)
+    const toolbar = toolbarOf(designer)!
+    let left = 80
+    toolbar.getBoundingClientRect = () => box(left, 150)
+    designer.select({ nodes: [card.id] })
+    await settle(designer)
+    expect(toolbar.style.getPropertyValue('--xh-form-node-toolbar-shift')).toBe('20px')
+    left = 120
+    designer.select({ nodes: [name.id] })
+    await settle(designer)
+    expect(toolbar.style.getPropertyValue('--xh-form-node-toolbar-shift')).toBe('')
+  })
 })
 
 describe('<xh-form-designer>：栅格跨度', () => {
