@@ -501,7 +501,7 @@ function describeControl(control, name) {
       }).join('、')
     case 'options':
       return `[选项](./schema#options)数组`
-    case 'tree-options':
+    case 'treeOptions':
       return `[选项](./schema#options)树，每项可带 ${code('children')} 与 ${code('hasChildren')}`
     default:
       throw new Error(`[gen-reference] unknown property control kind: ${control.kind}`)
@@ -710,7 +710,7 @@ function schemaPage() {
       sections.push(parts.filter(Boolean).join('\n\n'))
     }
   }
-  const optionControls = packageSource('core', 'src', 'registry', 'properties.ts')
+  const builtinFields = packageSource('core', 'src', 'registry', 'builtin-fields.ts')
   return page('模板类型', [
     `表单文档 ${code('FormDocument')} 的全部类型，按 ${code('@xihan-form/core')} 的源码列出。当前结构版本 ${code('FORM_SCHEMA_VERSION')} 为 ${code(constantValue(path, 'FORM_SCHEMA_VERSION'))}。`,
     '各种类的属性包里有哪些属性见[种类与属性](./kinds)。',
@@ -718,7 +718,7 @@ function schemaPage() {
     '## 文档、节点与规则',
     ...sections,
     '## 选项 {#options}',
-    blockDoc(jsdoc(declaration(optionControls, 'FORM_CONTROLS').statement)),
+    blockDoc(jsdoc(declaration(builtinFields, 'OPTIONS').statement)),
   ])
 }
 

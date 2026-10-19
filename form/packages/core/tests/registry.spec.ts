@@ -128,21 +128,22 @@ describe('属性取值校验', () => {
     expect(isValidPropertyValue(descriptor, bad)).toBe(false)
   })
 
-  it('问题码：内建编辑方式取 designer-kit 的码（含选项列表），选项树结构不符为 invalid-value，不是 JSON 值为 invalid-type', () => {
+  it('问题码：内建编辑方式取 designer-kit 的码（含选项列表与选项树），不是 JSON 值为 invalid-type', () => {
     expect(checkFormPropertyValue({ kind: 'number', integer: true }, 1.5)).toBe('not-integer')
     expect(checkFormPropertyValue({ kind: 'number', max: 1 }, 2)).toBe('out-of-range')
     expect(checkFormPropertyValue({ kind: 'select', options: [{ value: 'a' }] }, 'b')).toBe('invalid-option')
     expect(checkFormPropertyValue({ kind: 'options', requireLabel: true }, [{ value: 'a' }])).toBe('required')
-    expect(checkFormPropertyValue({ kind: 'tree-options' }, [{ value: 'a' }])).toBe('invalid-value')
+    expect(checkFormPropertyValue({ kind: 'treeOptions', requireLabel: true }, [{ value: 'a' }])).toBe('required')
+    expect(checkFormPropertyValue({ kind: 'tree-options' }, [{ value: 'a' }])).toBe('unknown-control')
     expect(checkFormPropertyValue({ kind: 'json' }, () => 1)).toBe('invalid-type')
     expect(checkFormPropertyValue({ kind: 'text' }, 'a')).toBeUndefined()
   })
 
-  it('问题落在值里的哪一处：选项列表落在那一项的那个键上，选项树与别的编辑方式落在值本身', () => {
+  it('问题落在值里的哪一处：选项列表落在那一项的那个键上，选项树落在那一层那一项的那个键上，别的编辑方式落在值本身', () => {
     const options = [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }, { value: '', label: '丙' }]
     expect(findFormPropertyValueIssue({ kind: 'options', requireLabel: true }, options)).toEqual({ code: 'required', path: [2, 'value'] })
     expect(findFormPropertyValueIssue({ kind: 'options', requireLabel: true }, [{ value: 'a', label: '甲' }, { value: 'a', label: '乙' }])).toEqual({ code: 'duplicate-value', path: [1, 'value'] })
-    expect(findFormPropertyValueIssue({ kind: 'tree-options' }, [{ value: 'a' }])).toEqual({ code: 'invalid-value', path: [] })
+    expect(findFormPropertyValueIssue({ kind: 'treeOptions', requireLabel: true }, [{ value: 'a', label: '甲', children: [{ value: 'b' }] }])).toEqual({ code: 'required', path: [0, 'children', 0, 'label'] })
     expect(findFormPropertyValueIssue({ kind: 'number', max: 1 }, 2)).toEqual({ code: 'out-of-range', path: [] })
     expect(findFormPropertyValueIssue({ kind: 'text' }, 'a')).toBeUndefined()
   })
@@ -162,11 +163,11 @@ describe('属性取值校验', () => {
     expect(isValidPropertyValue(options, [{ value: 'a', label: 'A', tone: 'danger', description: '已停用' }])).toBe(true)
     expect(isValidPropertyValue(options, [{ value: 'a', label: 'A', tone: 'red' }])).toBe(false)
     expect(isValidPropertyValue(options, [{ value: 'a', label: 'A', hasChildren: true }])).toBe(false)
-    expect(isValidPropertyValue(of({ kind: 'tree-options' }), [{ value: 'a', label: 'A', hasChildren: false }])).toBe(true)
+    expect(isValidPropertyValue(of({ kind: 'treeOptions', requireLabel: true }), [{ value: 'a', label: 'A', hasChildren: false }])).toBe(true)
   })
 
   it('树形选项可以嵌套，各层 value 各自不重复', () => {
-    const tree = of({ kind: 'tree-options' })
+    const tree = of({ kind: 'treeOptions', requireLabel: true })
     const value = [{ value: 'zj', label: '浙江', children: [{ value: 'hz', label: '杭州' }, { value: 'nb', label: '宁波' }] }]
     expect(isValidPropertyValue(tree, value)).toBe(true)
     expect(isValidPropertyValue(tree, [{ value: 'zj', label: '浙江', children: [{ value: 'hz', label: 'A' }, { value: 'hz', label: 'B' }] }])).toBe(false)

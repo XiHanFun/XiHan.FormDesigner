@@ -21,8 +21,15 @@ const LABEL_HIDDEN: FormPropertyDescriptor = { path: ['labelHidden'], control: {
 const SIZE: FormPropertyDescriptor = { path: ['size'], control: { kind: 'select', options: [{ value: 'sm' }, { value: 'md' }, { value: 'lg' }] }, default: 'md' }
 /** 放在子表里作一列时这一列的最小宽度（px）：各列下限加起来超过子表宽时，子表的表格区横向滚动。 */
 const COLUMN_MIN_WIDTH: FormPropertyDescriptor = { path: ['columnMinWidth'], control: { kind: 'number', integer: true, min: 48, max: 1024, unit: 'px' } }
+/**
+ * 选项：选项列表用 designer-kit 的内建编辑方式 `options`，选项树用 `treeOptions`，都要求 label。
+ * 每项是 `{ value: string, label: string, disabled?: boolean, tone?: Tone, description?: string }`，
+ * 选项树的项另可带 `children`（下一层的选项）与 `hasChildren`（有子项但还没给出，首次展开时向宿主要）。
+ * 按 `@xihan-ui/core/options` 的 `findOptionViolation` 严格检查：不许多余的键，`value` 不为空、同一层里不重复，选项树最多 32 层；
+ * 问题落在那一项的那个键上，如 `[2, "value"]`、`[0, "children", 1, "label"]`。
+ */
 const OPTIONS: FormPropertyDescriptor = { path: ['options'], control: { kind: 'options', requireLabel: true }, default: [] }
-const TREE_OPTIONS: FormPropertyDescriptor = { path: ['options'], control: { kind: 'tree-options' }, default: [] }
+const TREE_OPTIONS: FormPropertyDescriptor = { path: ['options'], control: { kind: 'treeOptions', requireLabel: true }, default: [] }
 const OPTION_SOURCE: FormPropertyDescriptor = { path: ['optionSource'], control: { kind: 'text' } }
 const OPTION_DEPENDENCIES: FormPropertyDescriptor = { path: ['optionDependencies'], control: { kind: 'tags' } }
 const MULTIPLE: FormPropertyDescriptor = { path: ['multiple'], control: { kind: 'boolean' }, default: false }
