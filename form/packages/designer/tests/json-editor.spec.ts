@@ -94,10 +94,11 @@ describe('<xh-form-designer>：JSON 编辑框', () => {
     expect(designer.schema).toEqual(before)
   })
 
-  it('命令 edit-json（Mod+Shift+J）打开编辑框，排在画布空白处右键菜单的末组', async () => {
+  it('命令 edit-json（Mod+Shift+J）打开编辑框，排在画布空白处右键菜单的末组；只在开发者模式开着时有', async () => {
     const designer = await mount()
     const command = FORM_COMMANDS.find(item => item.id === 'edit-json')!
     expect(command.shortcut).toEqual(['Mod', 'Shift', 'J'])
+    expect([false, true].map(developer => command.visible?.({ designer, settings: { 'general.developer': developer } } as unknown as FormDesignerContext))).toEqual([false, true])
     expect(FORM_MENU_LAYOUTS.blank.at(-1)).toEqual(['edit-json'])
     command.run?.({ designer } as FormDesignerContext)
     expect(editorOf(designer).open).toBe(true)
