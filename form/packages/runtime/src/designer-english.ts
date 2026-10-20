@@ -84,8 +84,7 @@ export const ENGLISH_DESIGNER_LOCALE: FormDesignerLocale = {
     rulesTitle: 'Validation and linkage',
     rulesDescription: 'Select a field, then add rules to it on the Validation and Linkage tabs of the properties panel.',
     previewTitle: 'Preview',
-    previewDescription: 'Fill in the form as your users will. The preview width can be switched to tablet or phone.',
-    previewMenubarDescription: 'Fill in the form as your users will. The preview width can be switched to tablet or phone. Design, preview and the preview widths are also in the View menu.',
+    previewDescription: 'Fill in the form as your users will. The preview width can be switched to tablet or phone. Design, preview and the preview widths are also in the View menu.',
   },
   help: {
     product: 'XiHan Form Designer',

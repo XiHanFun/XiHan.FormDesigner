@@ -55,7 +55,7 @@ const TABLE_KIND = 'table'
 
 /**
  * 工具栏的缺省排列；commandLayout 没写 toolbar 时用它，再把 placement 含 toolbar 的扩展命令追加成一组。
- * 设置与帮助在菜单栏里，末组只留面板；菜单栏关掉时的变化见 formToolbarLayout。
+ * 设置与帮助在菜单栏里，末组只留面板。
  */
 export const FORM_TOOLBAR_LAYOUT: readonly (readonly string[])[] = [
   ['undo', 'redo'],
@@ -64,11 +64,6 @@ export const FORM_TOOLBAR_LAYOUT: readonly (readonly string[])[] = [
   ['pan-tool', 'width-full', 'width-tablet', 'width-phone'],
   ['panels'],
 ]
-
-/** 工具栏此刻的缺省排列：菜单栏关掉（menubar 为假）时 FORM_TOOLBAR_LAYOUT 的末组放回设置与帮助，它们才有入口。 */
-export function formToolbarLayout(menubar: boolean): (readonly string[])[] {
-  return menubar ? [...FORM_TOOLBAR_LAYOUT] : [...FORM_TOOLBAR_LAYOUT.slice(0, -1), [...FORM_TOOLBAR_LAYOUT.at(-1)!, 'settings', 'help']]
-}
 
 /** 右键菜单各主体的缺省排列；commandLayout 没写 menu:<主体> 时用它。 */
 export const FORM_MENU_LAYOUTS: Readonly<Record<FormMenuSubject, readonly (readonly string[])[]>> = {
@@ -290,7 +285,7 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
   { id: 'width-full', label: text('widthFull'), icon: MonitorIcon, placement: ['menubar:view'], checked: ({ designer }) => (designer.previewWidth ?? 'full') === 'full', run: ({ designer }) => void (designer.previewWidth = 'full') },
   { id: 'width-tablet', label: text('widthTablet'), icon: TabletIcon, placement: ['menubar:view'], checked: ({ designer }) => designer.previewWidth === 'tablet', run: ({ designer }) => void (designer.previewWidth = 'tablet') },
   { id: 'width-phone', label: text('widthPhone'), icon: SmartphoneIcon, placement: ['menubar:view'], checked: ({ designer }) => designer.previewWidth === 'phone', run: ({ designer }) => void (designer.previewWidth = 'phone') },
-  // designer-shell 内置的保存、面板、拖动、设置、快捷键、关于、帮助、引导、编辑 JSON，以及收着工具栏、状态栏、菜单栏三条显示开关的外观，
+  // designer-shell 内置的保存、面板、拖动、设置、快捷键、关于、帮助、引导、编辑 JSON，以及收着工具栏、状态栏两条显示开关的外观，
   // 文案取共用的那一桶，缺省落在菜单栏的各张菜单里；每块面板另有一条开关命令
   ...designerShellCommands<FormDesignerContext>({
     translations: context => context.commands,

@@ -106,8 +106,7 @@ const locale: FormLocale = {
       rulesTitle: '検証と連動',
       rulesDescription: 'フィールドを選択し、プロパティパネルの「検証ルール」「連動ルール」タブでルールを追加します。',
       previewTitle: 'プレビュー',
-      previewDescription: '入力する人と同じようにフォームを試せます。プレビューの幅はタブレットやスマートフォンに切り替えられます。',
-      previewMenubarDescription: '入力する人と同じようにフォームを試せます。プレビューの幅はタブレットやスマートフォンに切り替えられます。デザインとプレビューの切り替え、プレビューの幅は「表示」メニューにもあります。',
+      previewDescription: '入力する人と同じようにフォームを試せます。プレビューの幅はタブレットやスマートフォンに切り替えられます。デザインとプレビューの切り替え、プレビューの幅は「表示」メニューにもあります。',
     },
     help: {
       product: 'XiHan Form Designer',

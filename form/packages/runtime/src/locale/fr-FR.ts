@@ -110,8 +110,7 @@ const locale: FormLocale = {
       rulesTitle: 'Validation et logique conditionnelle',
       rulesDescription: 'Sélectionnez un champ, puis ajoutez-lui des règles dans les onglets Validation et Logique conditionnelle du panneau des propriétés.',
       previewTitle: 'Aperçu',
-      previewDescription: 'Remplissez le formulaire comme le feront vos utilisateurs. La largeur de l’aperçu peut passer en tablette ou en téléphone.',
-      previewMenubarDescription: 'Remplissez le formulaire comme le feront vos utilisateurs. La largeur de l’aperçu peut passer en tablette ou en téléphone. La conception, l’aperçu et les largeurs d’aperçu sont aussi dans le menu Affichage.',
+      previewDescription: 'Remplissez le formulaire comme le feront vos utilisateurs. La largeur de l’aperçu peut passer en tablette ou en téléphone. La conception, l’aperçu et les largeurs d’aperçu sont aussi dans le menu Affichage.',
     },
     help: {
       product: 'XiHan Form Designer',
