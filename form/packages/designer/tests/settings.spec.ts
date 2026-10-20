@@ -54,12 +54,12 @@ function pages(): string[] {
 }
 
 describe('<xh-form-designer>：设置', () => {
-  it('openSettings 打开设置对话框：基础、语言、布局、工具栏、帮助、快捷键与关于七页；基础列出主题与状态栏，工具栏页列出按钮显示方式、显示工具栏与按钮表', async () => {
+  it('openSettings 打开设置对话框：基础、语言、布局、工具栏、帮助、快捷键与关于七页；基础列出主题、主题色与状态栏，工具栏页列出按钮显示方式、显示工具栏与按钮表', async () => {
     const designer = await mount()
     designer.openSettings()
     await settle(designer)
     expect(pages()).toEqual(['general', 'language', 'layout', 'toolbar', 'help', 'shortcuts', 'about'])
-    expect(['general.theme', 'general.statusBar', 'general.toolbarDisplay'].map(key => row(key) !== null)).toEqual([true, true, false])
+    expect(['general.theme', 'general.brand', 'general.statusBar', 'general.toolbarDisplay'].map(key => row(key) !== null)).toEqual([true, true, true, false])
     designer.openSettings('language')
     await settle(designer)
     expect(row('language.locale')).not.toBeNull()
@@ -94,11 +94,11 @@ describe('<xh-form-designer>：设置', () => {
     expect(designer.hasAttribute('data-theme')).toBe(false)
   })
 
-  it('主题与主题色落在设计器元素上：亮暗写 data-theme，预设主题色写 data-brand，跟随页面时去掉', async () => {
+  it('主题与主题色落在设计器元素上：亮暗写 data-theme，预设主题色写 data-brand（主题色内置，宿主不传预设），跟随页面时去掉', async () => {
     const designer = await mount((element) => {
-      element.brands = [{ value: 'green', color: '#16a34a' }]
       element.settings = { 'general.theme': 'dark' }
     })
+    expect(['brands', 'registerBrand'].some(name => name in designer)).toBe(false)
     expect(designer.getAttribute('data-theme')).toBe('dark')
     designer.settings = { 'general.brand': 'green' }
     await designer.updateComplete
