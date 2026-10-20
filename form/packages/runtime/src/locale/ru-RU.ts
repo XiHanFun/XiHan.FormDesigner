@@ -53,7 +53,6 @@ const locale: FormLocale = {
     selectParent: 'Выбрать родительский элемент',
     moveUp: 'Переместить вверх',
     moveDown: 'Переместить вниз',
-    save: 'Сохранить',
     clear: 'Очистить',
     previewWidth: 'Ширина предпросмотра',
     widthFull: 'Во всю ширину',

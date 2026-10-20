@@ -22,28 +22,29 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 ## 界面
 
-设计器的外框从上到下是工具栏、中间一行与状态栏。中间一行左边是物料与页面结构，中间是画布，右边是属性，画布下方是问题列表。
+设计器的外框从上到下是菜单栏、工具栏、中间一行与状态栏。中间一行左边是物料与页面结构，中间是画布，右边是属性，画布下方是问题列表。
 
 | 区域 | 内容 |
 | --- | --- |
-| 工具栏 | 撤销、重做；删除、创建副本；设计与预览；拖动与预览宽度三档；末组是面板、设置与帮助 |
+| 菜单栏 | 文件、编辑、视图、帮助四张菜单，右边一段放宿主的内容，见[菜单栏](#菜单栏) |
+| 工具栏 | 撤销、重做；删除、创建副本；设计与预览；拖动与预览宽度三档；末组是面板 |
 | 物料（左） | 卡片。按分类列出可以放进表单的种类：每组一行组名，下面是方形小卡片，图标在上、种类名在下，按面板宽度排成几列，悬停显示全名；全部展开，可搜索。拖到画布上放进想要的位置，点一下插到选中节点之后，没有选中时放到末尾。扩展可以经[物料来源](./extensions#物料来源)在后面加几组 |
 | 页面结构（左，物料下面） | 卡片。按树列出模板里的节点，见[页面结构](#页面结构) |
 | 画布（中） | 按模板排出的表单，所见即所得；只选中一个节点时它的右下角带一条选中工具条：选中上一级、上移、下移、创建副本、删除 |
-| 历史记录（右，属性下面） | 卡片，缺省隐藏，从工具栏的「面板」菜单打开。按先后列出撤销历史的每一步，见[撤销与历史记录](#撤销与历史记录) |
+| 历史记录（右，属性下面） | 卡片，缺省隐藏，从工具栏或「视图」菜单的「面板」打开。按先后列出撤销历史的每一步，见[撤销与历史记录](#撤销与历史记录) |
 | 属性（右） | 卡片。副标题写当前编辑的对象，面板头下面一排三个页签：属性、校验规则、联动规则。没有选中时编辑表单设置，选中区域时编辑区域属性 |
 | 问题（画布下方） | 卡片。模板自检出的问题，面板头上是错误数与警告数，兼作筛选开关；点一条就选中并滚到出问题的节点 |
 | 状态栏 | 左边写选中的字段种类与字段名，选中区域写它所在的容器，多选写个数，什么都没选写字段数；右边是预览宽度，点一下回到全宽 |
 
-预览态的外框不显示面板，只留工具栏与状态栏，画布换成渲染器，见[预览](#预览)。
+预览态的外框不显示面板，只留菜单栏、工具栏与状态栏，画布换成渲染器，见[预览](#预览)。
 
 ### 卡片与面板
 
 物料、页面结构、属性、历史记录与问题列表各是一块面板，画成一张卡片：面板头写图标与标题，「?」弹出这块面板的说明，右边依次是收起、「更多」与关闭。面板停在左、右、下三栏，缺省物料与页面结构在左栏（页面结构在物料下面）、属性与历史记录在右栏（历史记录缺省隐藏）、问题在下栏；可以换栏、调先后、收成标题条，也可以浮出成小窗再吸回：
 
 - 按住面板头拖到另一栏或两块面板之间就停在那里，拖到画布上就地浮出；不用拖的话，「更多」菜单里有移到左栏、右栏、下栏，上移、下移，浮出与停靠，键盘与读屏也靠它。
-- 「×」隐藏这块面板，工具栏的「面板」菜单里勾回来再显示。菜单里还有「显示 / 隐藏所有面板」（Ctrl / ⌘ + \）、「还原面板显隐」（Ctrl / ⌘ + Shift + \）与「恢复默认布局」。
-- 每块面板另有一条开关命令 `panel:<面板 id>`，可以排进工具栏或右键菜单。
+- 「×」隐藏这块面板，工具栏或「视图」菜单的「面板」里勾回来再显示。菜单里还有「显示 / 隐藏所有面板」（Ctrl / ⌘ + \）、「还原面板显隐」（Ctrl / ⌘ + Shift + \）与「恢复默认布局」。
+- 每块面板另有一条开关命令 `panel:<面板 id>`，可以排进工具栏、菜单栏或右键菜单。
 
 挪了面板、改了显隐或大小，设计器把整份布局写进设置的 `layout.panels`（`DESIGNER_SETTING_KEYS.layout`），并像改了别的设置一样派发 `settings-change`，宿主存下来、下次随 `settings` 赋回即可，见[设置](#设置)。宿主要换掉内置的缺省布局时给 `defaultLayout`：用户还没存过布局时用它，「恢复默认布局」也回到它，写了的字段整项覆盖内置缺省。面板 id 用包入口导出的 `FORM_DESIGNER_PANELS`（`palette`、`outline`、`properties`、`issues`、`history`）。`settingsPolicy` 也管布局：`layout.panels.<面板 id>` 写 `hidden` 就没有这块面板，写 `locked` 就固定它；`layout.panels` 锁定整份布局。
 
@@ -63,13 +64,28 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 扩展登记的面板给了标题也画成卡片，同样能挪动、浮出与隐藏，见[扩展](./extensions#面板)。画布总在。状态栏只受设置里的「状态栏」开关控制。
 
+### 菜单栏
+
+最上一条是菜单栏，放通用的功能，四张菜单与四款设计器一致：
+
+- 「文件」：保存（Ctrl / ⌘ + S，派发 `save`，见[保存](#保存)）、设置（Ctrl / ⌘ + ,，同 `openSettings()`）。
+- 「编辑」：撤销、重做，剪切、复制、粘贴、删除、创建副本，全选，编辑 JSON（Ctrl / ⌘ + Shift + J，见[编辑 JSON](#编辑-json)）。
+- 「视图」：设计、预览，拖动，「面板」子菜单（逐块面板一项，勾上的显示），预览宽度三档，工具栏、状态栏、菜单栏三个显示开关（改的是设置）。
+- 「帮助」：开始引导、帮助（在新窗口打开本站的这一页，地址是包入口导出的 `FORM_DESIGNER_HELP_URL`）、快捷键（打开设置的快捷键页），关于（打开设置的关于页）。
+
+按 F10 把焦点交给菜单栏，左右键在菜单之间走，下键、Enter 或 Space 展开；再按 F10，或在菜单栏上按 Esc，回到原来的地方。窄屏时菜单栏收成行首一颗「菜单」钮，各张菜单是它的子菜单。设置里关掉「显示菜单栏」时整条不显示，设置与帮助回到工具栏末组，菜单里的命令照样能用快捷键。
+
+宿主自己的操作（新建、发布、返回列表）写成一个扩展的命令，`placement` 写 `menubar:file` 就进「文件」菜单，排在设置之前，写了 `toolbar` 也上工具栏；模板标题与保存状态写成设计器的子元素 `slot="menubar-end"`，显示在菜单栏右边，后来加的也一样。这样设计器外面不必另起一条操作条。扩展还能登记自己的菜单，见[扩展](./extensions#命令)。
+
+<<< @/examples/snippets/host.ts#menubar
+
 ### 工具栏
 
 工具栏缺省只显示图标，设置「工具栏」页的「按钮显示方式」可以换成只显示文字或图标加文字，那一页还能隐藏整条工具栏、调按钮的先后与分组、藏起不用的按钮（见[设置](#设置)）。按钮的名字与快捷键报给读屏，悬停或键盘聚焦到按钮时提示命令的文字与快捷键；会删掉内容的命令按危险色显示。宽度不够时，放不下的按钮收进末尾的「更多」菜单。
 
-末组是 designer-shell 内置的三条命令：「面板」点开一张菜单，列出能开关的面板，勾选的显示，后面是全部显隐、还原显隐与恢复默认布局；「设置」打开设置对话框（同 `openSettings()`）；「帮助」在新窗口打开本站的这一页，地址是包入口导出的 `FORM_DESIGNER_HELP_URL`。宿主不要哪一条，用 `commandLayout` 排掉，见[工具栏与菜单的排列](#工具栏与菜单的排列)。
+末组是 designer-shell 内置的「面板」：点开一张菜单，列出能开关的面板，勾选的显示，后面是全部显隐、还原显隐与恢复默认布局。设置与帮助在菜单栏里，关掉菜单栏时回到末组。宿主不要哪一条，用 `commandLayout` 排掉，见[工具栏与菜单的排列](#工具栏与菜单的排列)。
 
-撤销、重做、清空历史、剪切、复制、粘贴、创建副本、删除、全选、设计与预览，以及面板、设置、帮助，这些四款设计器共用的命令，文字取 designer-shell 语言包的 `xh-designer-commands`，工具栏的可访问名也在这里；各语言的 `form…` 语言包已经带上。要换这些说法就改这一桶，设计器的 `translations` 属性只覆盖表单自己的文案。
+撤销、重做、清空历史、剪切、复制、粘贴、创建副本、删除、全选、设计与预览，以及保存、面板、拖动、设置、快捷键、关于、帮助与三个显示开关，这些四款设计器共用的命令，文字取 designer-shell 语言包的 `xh-designer-commands`，菜单栏四张菜单的名字、工具栏与菜单栏的可访问名也在这里；各语言的 `form…` 语言包已经带上。要换这些说法就改这一桶，设计器的 `translations` 属性只覆盖表单自己的文案。
 
 ## 编辑
 
@@ -94,10 +110,13 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 | Ctrl / ⌘ + C、X、V | 复制、剪切、粘贴 |
 | Ctrl / ⌘ + D | 创建副本：复制并紧跟着粘贴 |
 | Ctrl / ⌘ + A | 全选 |
-| Ctrl / ⌘ + S | 派发 `save` |
+| Ctrl / ⌘ + S | 保存：派发 `save` |
+| Ctrl / ⌘ + , | 打开设置 |
 | Ctrl / ⌘ + \ | 显示或隐藏所有面板 |
 | Ctrl / ⌘ + Shift + \ | 还原面板显隐 |
 | Ctrl / ⌘ + Shift + J | 打开 JSON 编辑框 |
+
+F10 不论焦点在画布、面板还是工具栏上都认：把焦点交给菜单栏，再按一次回到原来的地方。
 
 不带 Ctrl / ⌘ 的单键只在焦点在画布里时认，物料与属性面板里的列表、开关照常用这些键：
 
@@ -135,12 +154,12 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 ## 编辑 JSON
 
-画布空白处右键菜单里的「编辑 JSON」、快捷键 Ctrl / ⌘ + Shift + J 或 `openJsonEditor()` 打开 JSON 编辑框，写出此刻的整份模板，缩进两格：
+「编辑」菜单或画布空白处右键菜单里的「编辑 JSON」、快捷键 Ctrl / ⌘ + Shift + J 或 `openJsonEditor()` 打开 JSON 编辑框，写出此刻的整份模板，缩进两格：
 
 - 每改一次都重新解析，并按 `validate()` 同一套检查：扩展登记的种类与规则都认，给了 `expressionEngine` 时也查表达式。问题列在编辑框下面，说明与问题列表一样；点一条，光标跳到它在文字里的位置。解析不了或有错误级问题时「应用」不可用。
 - 按「应用」整份换上，作为一步进撤销栈，历史里写「编辑 JSON」，撤销就回到原来那一份；派发的 `schema-change` 里是一条 `replaceDocument` 操作。
 - 只读或预览态时只能看、格式化与复制，不能应用。
-- 命令 id 是 `edit-json`，缺省不上工具栏，要放就写进 `commandLayout`。
+- 命令 id 是 `edit-json`，缺省在「编辑」菜单里、不上工具栏，要放就写进 `commandLayout`。
 
 ## 问题列表
 
@@ -148,23 +167,23 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 ## 预览
 
-工具栏的「预览」或 `mode = 'preview'` 切到预览态：画布换成真实的渲染器，可以填写、校验、看联动，外框不显示面板，回到设计态时面板照原来的布局回来。`previewValues` 是预览用的示例数据，`loadOptions` 是预览时的选项加载函数，`uploadFile` 是预览里文件字段的上传函数，都与渲染器的同名属性一样；不给 `uploadFile` 时，预览里选的文件不会上传，也不会写进字段值。
+工具栏或「视图」菜单的「预览」，或 `mode = 'preview'` 切到预览态：画布换成真实的渲染器，可以填写、校验、看联动，外框不显示面板，菜单栏与工具栏照常在，从那里切回设计态时面板照原来的布局回来。`previewValues` 是预览用的示例数据，`loadOptions` 是预览时的选项加载函数，`uploadFile` 是预览里文件字段的上传函数，都与渲染器的同名属性一样；不给 `uploadFile` 时，预览里选的文件不会上传，也不会写进字段值。
 
 预览宽度有全宽、平板与手机三档（`previewWidth`），设计态的画布也按这个宽度排。
 
 ## 设置
 
-设置是用户偏好，每人每机一份，不随模板保存。工具栏末组的「设置」或 `openSettings(section?)` 打开设置对话框，左边一个分区一页：
+设置是用户偏好，每人每机一份，不随模板保存。「文件」菜单的「设置」（Ctrl / ⌘ + ,）或 `openSettings(section?)` 打开设置对话框，左边一个分区一页：
 
 - 「基础」（`general`）：主题（跟随页面、跟随系统、亮色、暗色）、主题色与状态栏。
 - 「布局」（`layout`）：一张面板表，逐块面板一行，显示开关、停在哪一栏（或浮动）、上移下移与收成标题条，表下「恢复默认布局」；和面板头的「更多」菜单一样，不靠拖动也能改布局，改的就是 `layout.panels`（见[卡片与面板](#卡片与面板)）。
-- 「工具栏」（`toolbar`）：按钮显示方式（`toolbar.display`）、显示工具栏（`toolbar.visible`），以及一张按钮表（`toolbar.layout`）：一组一块，组头三态勾选框，每个按钮一行，可以勾掉、拖动换先后或挪到别的组，表下「恢复默认」。只管顶部工具栏：右键菜单与选中工具条不在这里改，由宿主的 `commandLayout` 排。
+- 「工具栏」（`toolbar`）：按钮显示方式（`toolbar.display`）、显示工具栏（`toolbar.visible`）、显示菜单栏（`toolbar.menubar`），以及一张按钮表（`toolbar.layout`）：一组一块，组头三态勾选框，每个按钮一行，可以勾掉、拖动换先后或挪到别的组，表下「恢复默认」。只管顶部工具栏：右键菜单与选中工具条不在这里改，由宿主的 `commandLayout` 排。
 - 「帮助」（`help`）：表单的几段说明，以及「开始引导」「打开文档」两颗钮；点了先关上对话框，再跑对应的命令（`start-tour`、`help`）。
-- 「快捷键」（`shortcuts`）：按命令表列出，分通用、编辑、本设计器与扩展几组，同一条命令的第二个快捷键写在同一行。「本设计器」那组末尾是表单不是命令的按键：↑ ↓ 选上一个、下一个，Alt + ↑ ↓ 上移、下移，Enter 选中里面第一个，Esc 选中上一级，Shift + F10 打开右键菜单。「通用」组末尾只列表单有的两个按键：Alt + F10（焦点在画布里时，焦点移到选中工具条）与 Esc；表单的画布不能微移，也不能按住空格拖动。
+- 「快捷键」（`shortcuts`）：按命令表列出，分通用、编辑、本设计器与扩展几组，同一条命令的第二个快捷键写在同一行，保存、设置这些外壳命令在「通用」里。「本设计器」那组末尾是表单不是命令的按键：↑ ↓ 选上一个、下一个，Alt + ↑ ↓ 上移、下移，Enter 选中里面第一个，Esc 选中上一级，Shift + F10 打开右键菜单。「通用」组末尾只列表单有的三个按键：F10（进出菜单栏）、Alt + F10（焦点在画布里时，焦点移到选中工具条）与 Esc；表单的画布不能微移，也不能按住空格拖动。
 - 「关于」（`about`）：产品名、版本（包入口导出的 `FORM_DESIGNER_VERSION`）、界面库版本与许可证，后面接各扩展给的几行（见[扩展](./extensions#关于)）。
 - 扩展登记的分区按各自的 `order` 排：基础、布局、工具栏是 0–2，帮助、快捷键、关于是 900–920，没写 `order` 的是 0。分区 id 与内置的或别的扩展重名时，给 `extensions` 赋值就抛 `DesignerExtensionError`。
 
-表单没有自己的设置分区：预览宽度是正在看的视图，不是偏好，仍是 `previewWidth` 与工具栏上的三档。
+表单没有自己的设置分区：预览宽度是正在看的视图，不是偏好，仍是 `previewWidth` 与工具栏、「视图」菜单里的三档。
 
 <<< @/examples/snippets/settings.ts#open
 
@@ -182,11 +201,11 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 ## 新手引导
 
-第一次打开设计器时，画布铺好后自动开始一遍新手引导，一步高亮一处：先是工具栏、物料、画布、属性、问题列表与状态栏，再是表单自己的三步——页面结构、属性面板的「校验规则」「联动规则」两页，以及工具栏的预览，最后是设置。目标面板隐藏、工具栏上没有那条命令时那一步跳过；只读时不讲插入与校验联动两步。进入一步前，设计器把那块面板亮出来：展开收起的栏或标题条，窄屏时打开抽屉。
+第一次打开设计器时，画布铺好后自动开始一遍新手引导，一步高亮一处：先是工具栏、物料、画布、属性、问题列表与状态栏，再是表单自己的三步——页面结构、属性面板的「校验规则」「联动规则」两页，以及工具栏的预览，最后是菜单栏：设置在「文件」菜单里，引导能从「帮助」菜单重新开始。目标面板隐藏、工具栏上没有那条命令时那一步跳过；只读时不讲校验联动那一步。进入一步前，设计器把那块面板亮出来：展开收起的栏或标题条，窄屏时打开抽屉。
 
 - 走完、跳过（含按 Esc）或关掉时，设计器派发 `tour-end`：`reason` 是 `complete`、`skip` 或 `close`，`step` 是收起时那一步的 id。同时在设置里记下 `help.tourDone`，照常派发 `settings-change`；宿主把设置存好，下次就不再自动开始。
 - 引导只铺在设计器的外框里：遮罩与高亮都不出外框，页面别处照常可用。同一页同时只开一个引导：别的设计器的引导开着时，自动开始让开；`startTour()` 与「开始引导」先收起那一个再开始。
-- `autoTour` 写 `false`（特性写 `auto-tour="false"`）就不自动开始。`startTour()` 随时从头开始，没有能走的步骤时返回 `false`。设置对话框「帮助」页的「开始引导」与命令 `start-tour` 做同一件事；命令缺省不在工具栏上，要放就写进 `commandLayout`。
+- `autoTour` 写 `false`（特性写 `auto-tour="false"`）就不自动开始。`startTour()` 随时从头开始，没有能走的步骤时返回 `false`。「帮助」菜单与设置对话框「帮助」页的「开始引导」、命令 `start-tour` 做同一件事；命令缺省不上工具栏，要放就写进 `commandLayout`。
 - 扩展用 `tourSteps` 加自己的步骤，见[扩展](./extensions#引导步骤)。
 
 本站的示例都关掉了自动开始。
@@ -197,7 +216,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 - 每次修改派发 `schema-change`，载荷里是变化后的模板与这一步的操作，可以用来自动保存。拖动跨度这样的手势在松手时派发一次，操作是整个手势的；取消的手势不派发。
 - 有没有未保存的修改变了时派发 `dirty-change`。
-- 用户按 Ctrl / ⌘ + S 或点保存命令时派发 `save`；宿主存好后调用 `markSaved()`，设计器把当前模板记为已保存。
+- 用户按 Ctrl / ⌘ + S 或点「文件」菜单的「保存」（designer-shell 内置的命令 `save`）时派发 `save`；宿主存好后调用 `markSaved()`，设计器把当前模板记为已保存。
 
 <<< @/examples/demos/designer.ts#save
 
@@ -205,16 +224,16 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 ## 工具栏与菜单的排列
 
-`commandLayout` 按位置写命令 id 的分组：`toolbar` 是工具栏，`menu:node`、`menu:region`、`menu:cell`、`menu:blank` 是选中节点、区域、表格单元格与空白处的右键菜单，`selection:node` 是只选中一个节点时浮在它右下角的选中工具条。写了某个位置就只显示列出的命令；没写的位置用内置的排列 `FORM_TOOLBAR_LAYOUT`、`FORM_MENU_LAYOUTS` 与 `FORM_SELECTION_LAYOUTS`，再把登记在这个位置的扩展命令追加成一组。写成 `{ 'selection:node': [] }` 就没有选中工具条。示例在内置的工具栏末尾加了保存：
+`commandLayout` 按位置写命令 id 的分组：`toolbar` 是工具栏，`menubar:file`、`menubar:edit`、`menubar:view`、`menubar:help` 是菜单栏的四张菜单（扩展登记的菜单是 `menubar:<菜单 id>`），`menu:node`、`menu:region`、`menu:cell`、`menu:blank` 是选中节点、区域、表格单元格与空白处的右键菜单，`selection:node` 是只选中一个节点时浮在它右下角的选中工具条。写了某个位置就只显示列出的命令；没写的位置用内置的排列 `FORM_TOOLBAR_LAYOUT`、`FORM_MENU_LAYOUTS` 与 `FORM_SELECTION_LAYOUTS`，菜单栏用 designer-shell 的缺省排列（预览宽度三档经 `placement` 落在「视图」菜单），再把登记在这个位置的扩展命令追加成一组（菜单栏里排在那张菜单收尾的一组之前）。写成 `{ 'selection:node': [] }` 就没有选中工具条，`{ 'menubar:help': [] }` 就没有「帮助」菜单。示例在内置的工具栏末尾加了保存：
 
 ```ts
 designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
 ```
 
-内置命令的 id：`undo`、`redo`、`clear-history`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`，以及 designer-shell 内置的 `panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`pan-tool`、`settings`、`help`、`start-tour`、`edit-json` 与各面板的开关命令 `panel:palette`、`panel:outline`、`panel:properties`、`panel:history`、`panel:issues`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
+内置命令的 id：`undo`、`redo`、`clear-history`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`，以及 designer-shell 内置的 `save`、`panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`pan-tool`、`settings`、`shortcuts`、`about`、`help`、`start-tour`、`edit-json`、`show-toolbar`、`show-status-bar`、`show-menubar` 与各面板的开关命令 `panel:palette`、`panel:outline`、`panel:properties`、`panel:history`、`panel:issues`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
 
 ## 示例
 
-出差申请：点物料加一个字段，状态行显示有未保存的修改；点一下画布再按 Ctrl / ⌘ + S，或点工具栏的保存，状态行显示已保存。
+出差申请：点物料加一个字段，菜单栏右边的状态显示有未保存的修改；点一下画布再按 Ctrl / ⌘ + S，或点「文件」菜单、工具栏的保存，状态显示已保存。
 
 <FormDemo name="designer" fullscreen />

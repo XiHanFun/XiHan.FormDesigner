@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 设计器：打开出差申请，工具栏末尾加上保存；按 Ctrl / ⌘ + S 或点保存时宿主「存」好模板，再告诉设计器已保存。
+// 设计器：打开出差申请，工具栏末尾加上保存，保存状态写在菜单栏右边；按 Ctrl / ⌘ + S 或点保存时宿主「存」好模板，再告诉设计器已保存。
 
 // #region setup
 import type { FormDocument } from '@xihan-form/core'
@@ -19,7 +19,9 @@ defineFormDesigner()
 // #endregion setup
 
 export function mount(host: HTMLElement): () => void {
-  const status = document.createElement('p')
+  // 保存状态是设计器的子元素 slot="menubar-end"，显示在菜单栏右边
+  const status = document.createElement('span')
+  status.slot = 'menubar-end'
   status.textContent = '没有修改'
 
   // #region render
@@ -43,6 +45,7 @@ export function mount(host: HTMLElement): () => void {
   })
   // #endregion save
 
-  host.append(status, designer)
+  designer.append(status)
+  host.append(designer)
   return () => host.replaceChildren()
 }

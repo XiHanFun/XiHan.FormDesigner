@@ -46,7 +46,6 @@ const locale: FormLocale = {
     selectParent: 'Sélectionner le parent',
     moveUp: 'Monter',
     moveDown: 'Descendre',
-    save: 'Enregistrer',
     clear: 'Effacer',
     previewWidth: 'Largeur de l’aperçu',
     widthFull: 'Pleine largeur',

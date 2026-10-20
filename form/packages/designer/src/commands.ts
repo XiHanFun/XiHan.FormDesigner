@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 设计器的内置命令：工具栏、右键菜单与快捷键共用。能不能执行按当前选择、模式与只读判断，表格命令按当前文档试算；
+// 设计器的内置命令：菜单栏、工具栏、右键菜单与快捷键共用。能不能执行按当前选择、模式与只读判断，表格命令按当前文档试算；
 // 右键菜单按选中的是节点、区域、表格布局的单元格还是什么都没选，取不同的缺省排列。
 
 import type { FormDocument, KindRegistry } from '@xihan-form/core'
@@ -15,7 +15,7 @@ import type { XhFormDesigner } from './form-designer'
 import type { FormDesignerInternals } from './internals'
 import { findNode, findRegion, mergeTableCells, removeTableLine } from '@xihan-form/core'
 import { designerHistoryCommands, designerPanelCommands, designerShellCommands } from '@xihan-ui/designer-shell'
-import { ArrowDownIcon, ArrowUpIcon, CircleHelpIcon, ClipboardIcon, CopyIcon, CopyPlusIcon, CornerLeftUpIcon, EraserIcon, EyeIcon, FileCodeIcon, HandIcon, MapIcon, MonitorIcon, PanelLeftIcon, PencilIcon, RedoIcon, SaveIcon, ScissorsIcon, SettingsIcon, SmartphoneIcon, SquareDashedIcon, TableCellsMergeIcon, TableCellsSplitIcon, TableColumnInsertLeftIcon, TableColumnInsertRightIcon, TableColumnRemoveIcon, TableRowInsertAboveIcon, TableRowInsertBelowIcon, TableRowRemoveIcon, TabletIcon, TrashIcon, UndoIcon } from '@xihan-ui/icons'
+import { ArrowDownIcon, ArrowUpIcon, CircleHelpIcon, ClipboardIcon, CopyIcon, CopyPlusIcon, CornerLeftUpIcon, EraserIcon, EyeIcon, FileCodeIcon, HandIcon, InfoIcon, MapIcon, MonitorIcon, PanelLeftIcon, PencilIcon, RedoIcon, SaveIcon, ScissorsIcon, SettingsIcon, SmartphoneIcon, SquareDashedIcon, TableCellsMergeIcon, TableCellsSplitIcon, TableColumnInsertLeftIcon, TableColumnInsertRightIcon, TableColumnRemoveIcon, TableRowInsertAboveIcon, TableRowInsertBelowIcon, TableRowRemoveIcon, TabletIcon, TrashIcon, UndoIcon } from '@xihan-ui/icons'
 import { internalsOf } from './internals'
 
 /** 命令、面板与扩展装上时拿到的上下文。 */
@@ -38,7 +38,7 @@ export type FormDesignerCommand = DesignerCommand<FormDesignerContext>
 /** 右键菜单落在哪类对象上：节点、区域、表格布局的单元格，或空白处。 */
 export type FormMenuSubject = 'node' | 'region' | 'cell' | 'blank'
 
-/** 表单文档站上设计器的一页，工具栏的「帮助」在新窗口打开它。 */
+/** 表单文档站上设计器的一页，帮助菜单的「帮助」在新窗口打开它。 */
 export const FORM_DESIGNER_HELP_URL = 'https://form.docs.xihanfun.com/guide/designer'
 
 /** 设计器的面板 id：宿主写 defaultLayout、settingsPolicy（layout.panels.<面板 id>）时用；每块面板有一条开关命令 panel:<面板 id>。 */
@@ -53,14 +53,22 @@ export const FORM_DESIGNER_PANELS = {
 /** 表格布局容器的种类，表格命令只认它。 */
 const TABLE_KIND = 'table'
 
-/** 工具栏的缺省排列；commandLayout 没写 toolbar 时用它，再把 placement 含 toolbar 的扩展命令追加成一组。 */
+/**
+ * 工具栏的缺省排列；commandLayout 没写 toolbar 时用它，再把 placement 含 toolbar 的扩展命令追加成一组。
+ * 设置与帮助在菜单栏里，末组只留面板；菜单栏关掉时的变化见 formToolbarLayout。
+ */
 export const FORM_TOOLBAR_LAYOUT: readonly (readonly string[])[] = [
   ['undo', 'redo'],
   ['delete', 'duplicate'],
   ['design', 'preview'],
   ['pan-tool', 'width-full', 'width-tablet', 'width-phone'],
-  ['panels', 'settings', 'help'],
+  ['panels'],
 ]
+
+/** 工具栏此刻的缺省排列：菜单栏关掉（menubar 为假）时 FORM_TOOLBAR_LAYOUT 的末组放回设置与帮助，它们才有入口。 */
+export function formToolbarLayout(menubar: boolean): (readonly string[])[] {
+  return menubar ? [...FORM_TOOLBAR_LAYOUT] : [...FORM_TOOLBAR_LAYOUT.slice(0, -1), [...FORM_TOOLBAR_LAYOUT.at(-1)!, 'settings', 'help']]
+}
 
 /** 右键菜单各主体的缺省排列；commandLayout 没写 menu:<主体> 时用它。 */
 export const FORM_MENU_LAYOUTS: Readonly<Record<FormMenuSubject, readonly (readonly string[])[]>> = {
@@ -279,19 +287,25 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
   },
   { id: 'design', label: shared('design'), icon: PencilIcon, checked: ({ designer }) => (designer.mode ?? 'design') === 'design', run: context => stateOf(context).internals.setMode('design') },
   { id: 'preview', label: shared('preview'), icon: EyeIcon, checked: ({ designer }) => designer.mode === 'preview', run: context => stateOf(context).internals.setMode('preview') },
-  { id: 'width-full', label: text('widthFull'), icon: MonitorIcon, checked: ({ designer }) => (designer.previewWidth ?? 'full') === 'full', run: ({ designer }) => void (designer.previewWidth = 'full') },
-  { id: 'width-tablet', label: text('widthTablet'), icon: TabletIcon, checked: ({ designer }) => designer.previewWidth === 'tablet', run: ({ designer }) => void (designer.previewWidth = 'tablet') },
-  { id: 'width-phone', label: text('widthPhone'), icon: SmartphoneIcon, checked: ({ designer }) => designer.previewWidth === 'phone', run: ({ designer }) => void (designer.previewWidth = 'phone') },
-  { id: 'save', label: text('save'), icon: SaveIcon, shortcut: ['Mod', 'S'], run: context => stateOf(context).internals.save() },
-  // designer-shell 内置的面板、设置与帮助，文案取共用的那一桶；每块面板另有一条开关命令
+  { id: 'width-full', label: text('widthFull'), icon: MonitorIcon, placement: ['menubar:view'], checked: ({ designer }) => (designer.previewWidth ?? 'full') === 'full', run: ({ designer }) => void (designer.previewWidth = 'full') },
+  { id: 'width-tablet', label: text('widthTablet'), icon: TabletIcon, placement: ['menubar:view'], checked: ({ designer }) => designer.previewWidth === 'tablet', run: ({ designer }) => void (designer.previewWidth = 'tablet') },
+  { id: 'width-phone', label: text('widthPhone'), icon: SmartphoneIcon, placement: ['menubar:view'], checked: ({ designer }) => designer.previewWidth === 'phone', run: ({ designer }) => void (designer.previewWidth = 'phone') },
+  // designer-shell 内置的保存、面板、拖动、设置、快捷键、关于、帮助、引导、编辑 JSON 与工具栏、状态栏、菜单栏的显示开关，
+  // 文案取共用的那一桶，缺省落在菜单栏的各张菜单里；每块面板另有一条开关命令
   ...designerShellCommands<FormDesignerContext>({
     translations: context => context.commands,
+    save: context => stateOf(context).internals.save(),
     frame: context => context.frame,
-    openSettings: ({ designer }) => designer.openSettings(),
+    openSettings: ({ designer }, section) => designer.openSettings(section),
     helpUrl: () => FORM_DESIGNER_HELP_URL,
     startTour: ({ designer }) => designer.startTour(),
     openJsonEditor: ({ designer }) => designer.openJsonEditor(),
-    icons: { panels: PanelLeftIcon, settings: SettingsIcon, help: CircleHelpIcon, startTour: MapIcon, editJson: FileCodeIcon, panTool: HandIcon },
+    settings: {
+      read: context => context.settings,
+      change: (context, key, value) => stateOf(context).internals.changeSetting(key, value),
+      policy: ({ designer }) => designer.settingsPolicy,
+    },
+    icons: { save: SaveIcon, panels: PanelLeftIcon, settings: SettingsIcon, help: CircleHelpIcon, startTour: MapIcon, editJson: FileCodeIcon, panTool: HandIcon, about: InfoIcon },
   }),
   // 页面结构与历史记录是内置扩展登记的面板，它们的开关命令随扩展面板一起生成
   ...designerPanelCommands<FormDesignerContext>({ panels: [FORM_DESIGNER_PANELS.palette, FORM_DESIGNER_PANELS.properties, FORM_DESIGNER_PANELS.issues], frame: context => context.frame }),

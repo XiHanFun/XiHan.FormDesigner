@@ -61,7 +61,7 @@ aside: false
 
 ### 命令
 
-`commands` 里的命令与内置命令一样：`{ id, label, shortLabel?, icon?, placement?, shortcut?, enabled?, checked?, tone?, run }`。`id` 用扩展 id 加点加名字；`placement` 写 `toolbar`、`menu:node` 或 `selection:node`（选中一个节点时浮在它右下角的选中工具条）等时出现在对应位置的缺省排列末尾；宿主用 `commandLayout` 排列时按 id 引用；`shortcut` 是快捷键：带 `Mod` 的在整个设计器里认（焦点在文字输入里时除外），单键只在焦点在画布里时认，`Mod` 在 macOS 上是 ⌘、其余平台是 Ctrl；`icon` 取 `@xihan-ui/icons` 的图标，工具栏缺省只显示图标，没给图标的命令显示文字（`shortLabel`，没给就是 `label`）；破坏性命令的 `tone` 写 `danger`。`label`、`enabled` 与 `run` 收到的上下文里有设计器实例 `designer`、设计器文案 `translations`，以及四款设计器共用的命令文案 `commands`（如 `commands.undo`）。
+`commands` 里的命令与内置命令一样：`{ id, label, shortLabel?, icon?, placement?, shortcut?, enabled?, checked?, tone?, run }`。`id` 用扩展 id 加点加名字；`placement` 写 `toolbar`、`menubar:file`（菜单栏的「文件」菜单，另有 `menubar:edit`、`menubar:view`、`menubar:help`）、`menu:node` 或 `selection:node`（选中一个节点时浮在它右下角的选中工具条）等时出现在对应位置的缺省排列末尾（菜单栏里排在那张菜单收尾的一组之前）；扩展还能用 `menubarMenus` 往菜单栏上加自己的菜单 `{ id, label, order? }`（`order` 写在 30–80 之间，排在「视图」与「帮助」之间），命令写 `menubar:<菜单 id>` 落进去；宿主用 `commandLayout` 排列时按 id 引用；`shortcut` 是快捷键：带 `Mod` 的在整个设计器里认（焦点在文字输入里时除外），单键只在焦点在画布里时认，`Mod` 在 macOS 上是 ⌘、其余平台是 Ctrl；`icon` 取 `@xihan-ui/icons` 的图标，工具栏缺省只显示图标，没给图标的命令显示文字（`shortLabel`，没给就是 `label`）；破坏性命令的 `tone` 写 `danger`。`label`、`enabled` 与 `run` 收到的上下文里有设计器实例 `designer`、设计器文案 `translations`，以及四款设计器共用的命令文案 `commands`（如 `commands.undo`）。
 
 ## 名字
 

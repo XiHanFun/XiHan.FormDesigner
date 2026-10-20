@@ -351,18 +351,18 @@ describe('<xh-form-designer>：面板与模式', () => {
       element.defaultLayout = { version: 1, hidden: [FORM_DESIGNER_PANELS.palette, FORM_DESIGNER_PANELS.issues] }
     })
     const frame = designer.querySelector('xh-designer-frame')!
-    const shown = (): string[] => ['toolbar', 'palette', 'canvas', 'properties', 'issues', 'status'].filter(name => frame.showsPanel(name))
-    expect(shown()).toEqual(['toolbar', 'canvas', 'properties', 'status'])
+    const shown = (): string[] => ['menubar', 'toolbar', 'palette', 'canvas', 'properties', 'issues', 'status'].filter(name => frame.showsPanel(name))
+    expect(shown()).toEqual(['menubar', 'toolbar', 'canvas', 'properties', 'status'])
     const changes = events(designer, 'settings-change')
     designer.mode = 'preview'
     await settle(designer)
-    expect(shown()).toEqual(['toolbar', 'canvas', 'status'])
+    expect(shown()).toEqual(['menubar', 'toolbar', 'canvas', 'status'])
     designer.mode = 'design'
     await settle(designer)
-    expect(shown()).toEqual(['toolbar', 'canvas', 'properties', 'status'])
+    expect(shown()).toEqual(['menubar', 'toolbar', 'canvas', 'properties', 'status'])
     designer.defaultLayout = undefined
     await settle(designer)
-    expect(shown()).toEqual(['toolbar', 'palette', 'canvas', 'properties', 'issues', 'status'])
+    expect(shown()).toEqual(['menubar', 'toolbar', 'palette', 'canvas', 'properties', 'issues', 'status'])
     expect(changes).toEqual([])
   })
 
@@ -481,7 +481,7 @@ describe('<xh-form-designer>：面板卡片', () => {
     expect([designer.previewWidth, zone('end')]).toEqual(['full', ['Preview width|Full']])
     designer.mode = 'preview'
     await settle(designer)
-    expect(['toolbar', 'palette', 'canvas', 'properties', 'issues', 'status'].filter(region => frame.showsPanel(region))).toEqual(['toolbar', 'canvas', 'status'])
+    expect(['menubar', 'toolbar', 'palette', 'canvas', 'properties', 'issues', 'status'].filter(region => frame.showsPanel(region))).toEqual(['menubar', 'toolbar', 'canvas', 'status'])
   })
 
   it('外框没有顶栏，命令表里没有插入命令：物料只从物料面板拖进来或点一下加进来', async () => {
@@ -491,14 +491,17 @@ describe('<xh-form-designer>：面板卡片', () => {
     expect([...createFormDesignerModel([]).commands.keys()].filter(id => id.startsWith('insert:'))).toEqual([])
     designer.mode = 'preview'
     await settle(designer)
-    expect(['toolbar', 'palette', 'canvas', 'properties', 'issues', 'status'].filter(region => frame.showsPanel(region))).toEqual(['toolbar', 'canvas', 'status'])
+    expect(['menubar', 'toolbar', 'palette', 'canvas', 'properties', 'issues', 'status'].filter(region => frame.showsPanel(region))).toEqual(['menubar', 'toolbar', 'canvas', 'status'])
   })
 
-  it('工具栏末组是 designer-shell 内置的面板、设置与帮助：设置打开设置对话框，帮助在新窗口打开文档站的设计器一页', async () => {
+  it('工具栏末组只留面板，设置与帮助在菜单栏里；关掉菜单栏时它们回到末组：设置打开设置对话框，帮助在新窗口打开文档站的设计器一页', async () => {
     const designer = await mount(() => {})
     const button = (value: string): HTMLButtonElement => designer.querySelector<HTMLButtonElement>(`[data-part="command-bar"] button[value="${value}"]`)!
-    const groups = Array.from(designer.querySelectorAll('[data-part="command-bar"] [data-xh-part="group"]'), group => Array.from(group.querySelectorAll('button'), item => item.value))
-    expect(groups.at(-1)).toEqual(['panels', 'settings', 'help'])
+    const groups = (): string[][] => Array.from(designer.querySelectorAll('[data-part="command-bar"] [data-xh-part="group"]'), group => Array.from(group.querySelectorAll('button'), item => item.value))
+    expect(groups().at(-1)).toEqual(['panels'])
+    designer.settings = { 'toolbar.menubar': false }
+    await settle(designer)
+    expect(groups().at(-1)).toEqual(['panels', 'settings', 'help'])
     expect(['panels', 'settings', 'help'].map(value => [button(value).getAttribute('aria-label'), button(value).hasAttribute('data-icon')])).toEqual([['Panels', true], ['Settings', true], ['Help', true]])
     button('settings').click()
     await designer.updateComplete
@@ -1012,6 +1015,122 @@ describe('<xh-form-designer>：右键菜单', () => {
     const menu = designer.querySelector('xh-context-menu') as HTMLElement & { updateComplete: Promise<unknown> }
     await menu.updateComplete
     expect([...menu.querySelectorAll('[data-xh-part="item"]')].map(item => item.getAttribute('value'))).toEqual(['paste', 'edit-json'])
+  })
+})
+
+describe('<xh-form-designer>：菜单栏', () => {
+  /** 菜单栏的 <xh-menubar>：按数据铺的菜单与勾选。 */
+  interface MenubarNode { value: string, label?: string, items?: MenubarNode[], checkboxValue?: string[] }
+  type MenubarHost = HTMLElement & { collection?: MenubarNode[], checkboxValue?: string[] }
+
+  function menubarOf(designer: XhFormDesigner): MenubarHost {
+    return designer.querySelector<MenubarHost>('xh-menubar')!
+  }
+
+  function items(designer: XhFormDesigner, menu: string): string[] {
+    return menubarOf(designer).collection!.find(node => node.value === menu)!.items!.map(item => item.value.slice(menu.length + 1))
+  }
+
+  function select(designer: XhFormDesigner, menu: string, id: string): void {
+    menubarOf(designer).dispatchEvent(new CustomEvent('item-select', { detail: { menu, value: `${menu}/${id}` } }))
+  }
+
+  function regionNames(designer: XhFormDesigner): string[] {
+    return designer.querySelector('xh-designer-frame')!.regions!.map(region => region.name)
+  }
+
+  it('外框最上一条是菜单栏：文件、编辑、视图、帮助四张；保存与设置在文件里，预览宽度跟在面板后面、显示开关收尾；勾上的是此刻的模式、宽度与显示开关', async () => {
+    const designer = await mount(() => {})
+    const menubar = menubarOf(designer)
+    expect(menubar.closest('[data-region]')!.getAttribute('data-region')).toBe('menubar')
+    expect(regionNames(designer)[0]).toBe('menubar')
+    expect(menubar.collection!.map(node => [node.value, node.label])).toEqual([['file', 'File'], ['edit', 'Edit'], ['view', 'View'], ['help', 'Help']])
+    expect(items(designer, 'file')).toEqual(['save', 'settings'])
+    expect(items(designer, 'edit')).toEqual(['undo', 'redo', 'cut', 'copy', 'paste', 'delete', 'duplicate', 'select-all', 'edit-json'])
+    expect(items(designer, 'view')).toEqual(['design', 'preview', 'pan-tool', 'panels', 'width-full', 'width-tablet', 'width-phone', 'show-toolbar', 'show-status-bar', 'show-menubar'])
+    expect(items(designer, 'help')).toEqual(['start-tour', 'help', 'shortcuts', 'about'])
+    expect(menubar.checkboxValue).toEqual(['view/design', 'view/width-full', 'view/show-toolbar', 'view/show-status-bar', 'view/show-menubar'])
+    const panels = menubar.collection!.find(node => node.value === 'view')!.items!.find(item => item.value === 'view/panels')!
+    expect(panels.checkboxValue).toEqual(['view/panels/item:palette', 'view/panels/item:properties', 'view/panels/item:issues', 'view/panels/item:outline'])
+  })
+
+  it('保存是外壳的 save 命令：文件菜单里点它、画布上按 Ctrl+S 都派发 save；快捷键写在条目上', async () => {
+    const designer = await mount(() => {})
+    const saves = events(designer, 'save')
+    select(designer, 'file', 'save')
+    expect(saves).toHaveLength(1)
+    const canvas = designer.querySelector<HTMLElement>('[data-part="canvas"]')!
+    const press = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 's', code: 'KeyS', ctrlKey: true })
+    canvas.dispatchEvent(press)
+    expect([saves.length, press.defaultPrevented]).toEqual([2, true])
+    const save = createFormDesignerModel([]).commands.get('save')!
+    expect([save.placement, save.shortcut]).toEqual([['menubar:file'], ['Mod', 'S']])
+    const node = menubarOf(designer).collection!.find(item => item.value === 'file')!.items!.find(item => item.value === 'file/save') as { shortcut?: string }
+    expect(node.shortcut).toBeTruthy()
+  })
+
+  it('视图菜单切预览宽度与模式；预览态外框照样登记菜单栏，能从「视图」切回设计', async () => {
+    const designer = await mount(() => {})
+    select(designer, 'view', 'width-phone')
+    await settle(designer)
+    expect([designer.previewWidth, menubarOf(designer).checkboxValue!.includes('view/width-phone')]).toEqual(['phone', true])
+    select(designer, 'view', 'preview')
+    await settle(designer)
+    expect(designer.mode).toBe('preview')
+    expect(regionNames(designer)).toContain('menubar')
+    select(designer, 'view', 'design')
+    await settle(designer)
+    expect(designer.mode).toBe('design')
+  })
+
+  it('显示开关改设置并派发 settings-change：关掉状态栏外框不登记它；关掉菜单栏外框不登记菜单栏，设置与帮助回到工具栏末组', async () => {
+    const designer = await mount(() => {})
+    const changes = events(designer, 'settings-change')
+    select(designer, 'view', 'show-status-bar')
+    await settle(designer)
+    expect([changes.map(change => [change.key, change.value]), regionNames(designer).includes('status')]).toEqual([[['general.statusBar', false]], false])
+    select(designer, 'view', 'show-menubar')
+    await settle(designer)
+    expect([changes.at(-1)!.key, changes.at(-1)!.value, regionNames(designer).includes('menubar')]).toEqual(['toolbar.menubar', false, false])
+    expect(designer.settings).toEqual({ 'general.statusBar': false, 'toolbar.menubar': false })
+    const groups = Array.from(designer.querySelectorAll('[data-part="command-bar"] [data-xh-part="group"]'), group => Array.from(group.querySelectorAll('button'), item => item.value))
+    expect(groups.at(-1)).toEqual(['panels', 'settings', 'help'])
+  })
+
+  it('宿主写在设计器上的 slot="menubar-end" 放到菜单栏右边一段，连上文档前写的、后来加的都一样', async () => {
+    const title = window.document.createElement('span')
+    title.slot = 'menubar-end'
+    title.textContent = '报销单'
+    const designer = await mount(element => element.append(title))
+    expect([title.isConnected, title.parentElement!.getAttribute('data-zone'), title.closest('[data-region]')!.getAttribute('data-region')]).toEqual([true, 'end', 'menubar'])
+    const state = window.document.createElement('span')
+    state.slot = 'menubar-end'
+    designer.append(state)
+    await settle(designer)
+    expect(state.closest('[data-region]')!.getAttribute('data-region')).toBe('menubar')
+  })
+
+  it('画布有焦点时按 F10 把焦点交给菜单栏，再按 F10 回到画布', async () => {
+    const designer = await mount(() => {})
+    const canvas = designer.querySelector<HTMLElement>('[data-part="canvas"]')!
+    canvas.focus()
+    const f10 = (): void => void (window.document.activeElement ?? canvas).dispatchEvent(new KeyboardEvent('keydown', { key: 'F10', bubbles: true, cancelable: true }))
+    f10()
+    expect(menubarOf(designer).contains(window.document.activeElement)).toBe(true)
+    f10()
+    expect(window.document.activeElement).toBe(canvas)
+  })
+
+  it('宿主的命令写 placement: [\'menubar:file\'] 落进文件菜单，排在设置之前；commandLayout 写了 menubar:<菜单> 就只用它', async () => {
+    const extension: FormDesignerExtension = { id: '@acme/host', commands: [{ id: '@acme/host.publish', label: 'Publish', placement: ['menubar:file'], run: () => {} }] }
+    const designer = await mount((element) => {
+      element.extensions = [extension]
+    })
+    expect(items(designer, 'file')).toEqual(['save', '@acme/host.publish', 'settings'])
+    designer.commandLayout = { 'menubar:file': [['@acme/host.publish'], ['save']], 'menubar:help': [] }
+    await settle(designer)
+    expect(items(designer, 'file')).toEqual(['@acme/host.publish', 'save'])
+    expect(menubarOf(designer).collection!.map(node => node.value)).toEqual(['file', 'edit', 'view'])
   })
 })
 
