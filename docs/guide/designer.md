@@ -233,10 +233,12 @@ F10 不论焦点在画布、面板还是工具栏上都认：把焦点交给菜�
 designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
 ```
 
+写了 `toolbar` 就整份照它排：设置里关掉菜单栏时，设计器不会往宿主的排列里放回设置与帮助。要让用户能关掉菜单栏，排列里留着 `settings`、`help`；不想让用户关，就用 `settingsPolicy` 锁住 `toolbar.menubar`。
+
 内置命令的 id：`undo`、`redo`、`clear-history`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`，以及 designer-shell 内置的 `save`、`panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`pan-tool`、`settings`、`shortcuts`、`about`、`help`、`start-tour`、`edit-json`、`appearance`（外观子菜单）、`show-toolbar`、`show-status-bar`、`show-menubar` 与各面板的开关命令 `panel:palette`、`panel:outline`、`panel:properties`、`panel:history`、`panel:issues`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
 
 ## 示例
 
-出差申请：点物料加一个字段，菜单栏右边的状态显示有未保存的修改；点一下画布再按 Ctrl / ⌘ + S，或点「文件」菜单、工具栏的保存，状态显示已保存。
+出差申请：点物料加一个字段，菜单栏右边的状态显示有未保存的修改；点一下画布再按 Ctrl / ⌘ + S，或点「文件」菜单的保存，状态显示已保存。
 
 <FormDemo name="designer" fullscreen />
