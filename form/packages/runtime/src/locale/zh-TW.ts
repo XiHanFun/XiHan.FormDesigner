@@ -42,7 +42,6 @@ const locale: FormLocale = {
     selectParent: '選取上一層',
     moveUp: '上移',
     moveDown: '下移',
-    save: '儲存',
     clear: '清除',
     previewWidth: '預覽寬度',
     widthFull: '全寬',

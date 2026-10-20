@@ -108,8 +108,6 @@ export interface FormDesignerTranslations {
   readonly moveUp: string
   /** 下移命令。 */
   readonly moveDown: string
-  /** 保存命令。 */
-  readonly save: string
   /** 清空命令。 */
   readonly clear: string
   /** 预览宽度这组按钮的可访问名。 */

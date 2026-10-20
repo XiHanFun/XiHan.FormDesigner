@@ -42,7 +42,6 @@ const locale: FormLocale = {
     selectParent: '상위 항목 선택',
     moveUp: '위로 이동',
     moveDown: '아래로 이동',
-    save: '저장',
     clear: '지우기',
     previewWidth: '미리 보기 너비',
     widthFull: '전체 너비',

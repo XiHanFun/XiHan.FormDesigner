@@ -209,12 +209,14 @@ describe('<xh-form-designer>：设置', () => {
     tour.stop()
   })
 
-  it('快捷键页按命令表分组：扩展的命令归「扩展」，「本设计器」那组末尾是表单不是命令的按键；「通用」组末尾只留 Alt+F10 与 Esc', async () => {
+  it('快捷键页按命令表分组：扩展的命令归「扩展」，「本设计器」那组末尾是表单不是命令的按键；保存是外壳命令归「通用」；「通用」组末尾只留 F10、Alt+F10 与 Esc', async () => {
     const extension: FormDesignerExtension = { id: '@acme/keys', commands: [{ id: '@acme/keys.ping', label: 'Ping', shortcut: ['Mod', 'Shift', 'P'], run: () => {} }] }
     const designer = await mount(element => element.extensions = [extension])
     const shortcuts = designer.querySelector<HTMLElement & { shortcuts?: { groups: readonly { id: string, rows: readonly { label: string, keys: readonly (readonly string[])[] }[] }[], commonKeys?: readonly { id: string }[] } }>('xh-designer-settings')!.shortcuts!
-    expect(shortcuts.commonKeys?.map(key => key.id)).toEqual(['selectionToolbar', 'cancel'])
+    expect(shortcuts.commonKeys?.map(key => key.id)).toEqual(['menubar', 'selectionToolbar', 'cancel'])
     const group = (id: string): readonly { label: string, keys: readonly (readonly string[])[] }[] => shortcuts.groups.find(item => item.id === id)?.rows ?? []
+    expect(group('common').find(item => item.label === 'Save')?.keys).toEqual([['Mod', 'S']])
+    expect(shortcuts.groups.filter(item => item.id !== 'common').flatMap(item => item.rows).map(item => item.label)).not.toContain('Save')
     expect(group('extensions')).toEqual([{ label: 'Ping', keys: [['Mod', 'Shift', 'P']] }])
     expect(group('edit').map(item => item.label)).toContain('Delete')
     const keys = DEFAULT_FORM_DESIGNER_TRANSLATIONS.keys

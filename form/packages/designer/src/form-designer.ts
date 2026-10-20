@@ -4,7 +4,7 @@
  */
 
 // <xh-form-designer>：表单设计器。编辑模型在 editor.ts，画布在 canvas.ts；版式交给 <xh-designer-frame>：
-// 物料、属性与问题列表是面板，停靠、显隐与大小按设置里的布局，画布常驻。预览态换成 <xh-form-renderer>，只留工具栏。
+// 最上一条是菜单栏，物料、属性与问题列表是面板，停靠、显隐与大小按设置里的布局，画布常驻。预览态换成 <xh-form-renderer>，只留菜单栏与工具栏。
 // 设置对话框（openSettings()）里是基础分区与各扩展的分区，值经 settings 与 settings-change 交给宿主。
 
 import type { FormDocument, FormNode, FormOperation, FormSchemaIssue, RuleList } from '@xihan-form/core'
@@ -13,7 +13,7 @@ import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { VisualEnvironmentStorageError } from '@xihan-ui/core/visual-environment'
 import type { ExecuteOptions, ExtensionHost, HistorySnapshot } from '@xihan-ui/designer-kit'
 import type { PropertySwatchOption } from '@xihan-ui/designer-kit/properties'
-import type { CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerHistoryTranslations, DesignerIssueItem, DesignerIssuesEventMap, DesignerJsonEditorEventMap, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPaletteGroup, DesignerPaletteItem, DesignerPaletteView, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, DesignerTourEventMap, PanRequestDetail } from '@xihan-ui/designer-shell'
+import type { CommandMenubar, CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerHistoryTranslations, DesignerIssueItem, DesignerIssuesEventMap, DesignerJsonEditorEventMap, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPaletteGroup, DesignerPaletteItem, DesignerPaletteView, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, DesignerTourEventMap, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PointerSession } from '@xihan-ui/pointer'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
@@ -29,9 +29,9 @@ import { createDocument, findNode, findRegion, kindLabel, PROPERTY_GROUPS, valid
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
 import { commandForShortcut, createExtensionHost, HISTORY_NUDGE_MERGE_WITHIN, nudgeMergeKey, snapshotHistory } from '@xihan-ui/designer-kit'
-import { applyToolbarCustomization, arrangeCommands, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_COMMON_KEYS, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, DESIGNER_SHELL_COMMANDS, DESIGNER_TOUR_DONE_KEY, designerLayoutPolicy, registerDropTarget, renderCommandMenu, resolvePaletteSources, resolveSettings, resolveTourSteps, runCommand, shortcutSettingsSource, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, tourDoneOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerJsonEditorElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement, XhDesignerTourElement } from '@xihan-ui/designer-shell'
+import { applyToolbarCustomization, arrangeCommands, arrangeMenubar, createCommandMenubar, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_COMMON_KEYS, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, DESIGNER_SHELL_COMMANDS, DESIGNER_TOUR_DONE_KEY, designerLayoutPolicy, designerMenubarLayout, forwardFrameSlots, menubarVisibleOf, registerDropTarget, renderCommandMenu, resolvePaletteSources, resolveSettings, resolveTourSteps, runCommand, shortcutSettingsSource, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, tourDoneOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerJsonEditorElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement, XhDesignerTourElement } from '@xihan-ui/designer-shell'
 import { createExpressionEngine } from '@xihan-ui/expression'
-import { CircleAlertIcon, LayoutGridIcon, SlidersHorizontalIcon } from '@xihan-ui/icons'
+import { CircleAlertIcon, LayoutGridIcon, MenuIcon, SlidersHorizontalIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
 import { onXhConfigChange } from '@xihan-ui/web-components'
 import { BOOLEAN_CONVERTER, createAuthoredElement, emitEvent, registerElement, setAttributes, setText, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
@@ -39,7 +39,7 @@ import { defineXhElement, XhButtonElement, XhContextMenuElement, XhExpressionInp
 import { createDialogService } from '@xihan-ui/web-components/services'
 import { DesignCanvas, spanColumns } from './canvas'
 import { checkFormClipboard, readFormClipboard, writeFormClipboard } from './clipboard'
-import { FORM_MENU_LAYOUTS, FORM_SELECTION_LAYOUTS, FORM_TOOLBAR_LAYOUT, menuSubject } from './commands'
+import { FORM_MENU_LAYOUTS, FORM_SELECTION_LAYOUTS, formToolbarLayout, menuSubject } from './commands'
 import { createFormEditor } from './editor'
 import { createFormDesignerModel, FORM_DESIGNER_EXTENSION } from './extensions'
 import { describeFormOperations } from './history-labels'
@@ -72,7 +72,7 @@ export interface FormDesignerEventMap {
   'dirty-change': CustomEvent<{ dirty: boolean }>
   /** 模板问题变了；`issues` 是当前全部问题。 */
   'issues-change': CustomEvent<{ issues: readonly FormSchemaIssue[] }>
-  /** 用户要保存：按了 Ctrl / ⌘ + S 或点了保存命令。保存由宿主做，存好后调用 `markSaved()`。 */
+  /** 用户要保存：按了 Ctrl / ⌘ + S 或点了保存命令（designer-shell 内置的 save）。保存由宿主做，存好后调用 `markSaved()`。 */
   'save': CustomEvent<Record<string, never>>
   /** 双击了画布上的节点。 */
   'node-dblclick': CustomEvent<{ id: string }>
@@ -106,14 +106,14 @@ const CLIPBOARD_EVENTS = ['copy', 'cut', 'paste'] as const
 /** 撤销步数上限的缺省值。 */
 const DEFAULT_HISTORY_LIMIT = 100
 
-/** 快捷键页「通用」组末尾里表单有的按键：Alt+F10 到选中工具条、Esc 取消；表单的画布不能微移，也不能按住空格拖动。 */
-const FORM_COMMON_KEYS = DESIGNER_COMMON_KEYS.filter(key => key.id === 'selectionToolbar' || key.id === 'cancel')
+/** 快捷键页「通用」组末尾里表单有的按键：F10 进出菜单栏、Alt+F10 到选中工具条、Esc 取消；表单的画布不能微移，也不能按住空格拖动。 */
+const FORM_COMMON_KEYS = DESIGNER_COMMON_KEYS.filter(key => key.id === 'menubar' || key.id === 'selectionToolbar' || key.id === 'cancel')
 
 /** 选中工具条往行尾挪的量，样式里加在 inset-inline-end 上。 */
 const NODE_TOOLBAR_SHIFT = '--xh-form-node-toolbar-shift'
 
-/** 预览态登记的区：只留工具栏、画布与状态栏。 */
-const PREVIEW_REGIONS: ReadonlySet<string> = new Set(['toolbar', 'canvas', 'status'])
+/** 预览态登记的区：只留菜单栏、工具栏、画布与状态栏。 */
+const PREVIEW_REGIONS: ReadonlySet<string> = new Set(['menubar', 'toolbar', 'canvas', 'status'])
 
 /** 不能输入文字的 input 类型：焦点在这些上面时，撤销、复制这些键仍归设计器。 */
 const NON_TEXT_INPUTS: ReadonlySet<string> = new Set(['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'])
@@ -147,6 +147,8 @@ interface DesignerParts {
   readonly frame: XhDesignerFrameElement
   /** 扩展登记的面板。 */
   readonly panels: DesignerPanelHost<FormDesignerContext>
+  /** 菜单栏：放进外框的菜单栏区，窄屏时收成一颗「菜单」钮。 */
+  readonly menubar: CommandMenubar<FormDesignerContext>
   readonly toolbar: HTMLElement
   readonly commandBar: CommandToolbar<FormDesignerContext>
   readonly canvas: HTMLElement
@@ -230,7 +232,8 @@ export class XhFormDesigner extends XhReactiveElement {
   /** 校验表达式与预览用，缺省为 createExpressionEngine()。 */
   declare expressionEngine: ExpressionEngine | undefined
   /**
-   * 工具栏、右键菜单与选中工具条的排列：位置（toolbar、menu:node、menu:region、menu:cell、menu:blank、selection:node）→ 若干组命令 id，内置命令与扩展命令混排。
+   * 菜单栏、工具栏、右键菜单与选中工具条的排列：位置（menubar:file、menubar:edit、menubar:view、menubar:help 与扩展登记的菜单 menubar:<菜单 id>，
+   * toolbar、menu:node、menu:region、menu:cell、menu:blank、selection:node）→ 若干组命令 id，内置命令与扩展命令混排。
    * 写了某个位置就只显示列出的；没写的位置用内置的缺省排列，再把 placement 含它的扩展命令追加成一组。
    */
   declare commandLayout: DesignerCommandLayout | undefined
@@ -325,6 +328,8 @@ export class XhFormDesigner extends XhReactiveElement {
   #cancelSpanDrag: (() => void) | undefined
   /** 正在用拖动工具平移画布：调用即停在此处。 */
   #cancelPan: (() => void) | undefined
+  /** 把宿主写在设计器上的 slot="menubar-end" 转交给外框：调用即停止转交。 */
+  #releaseSlots: (() => void) | undefined
   /** 清空历史前的确认框，第一次用到时建。 */
   #dialogs: DialogService | undefined
   /** 刚连上文档或所在处的配置（语言、文案）变了：画布与物料要按新配置重排；只是选择变了时不重排。 */
@@ -371,6 +376,7 @@ export class XhFormDesigner extends XhReactiveElement {
       registry: () => this.#editor.registry,
       setMode: mode => this.#setMode(mode),
       save: () => void emitEvent(this, 'save', {}),
+      changeSetting: (key, value) => this.#commitSettings({ key, value, settings: { ...this.settings, [key]: value } }),
       selectParent: () => {
         const parent = this.#parentOf(this.#editor.selection)
         if (parent !== undefined)
@@ -527,6 +533,7 @@ export class XhFormDesigner extends XhReactiveElement {
       this.#configStale = true
     }, this)
     const parts = this.#ensureParts()
+    this.#releaseSlots ??= forwardFrameSlots(this, parts.frame, ['menubar-end'])
     for (const type of CLIPBOARD_EVENTS)
       this.addEventListener(type, this.#onClipboard)
     this.#releaseDropTarget ??= registerDropTarget<unknown>(parts.canvas, {
@@ -559,6 +566,8 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#releaseConfigWatch = undefined
     this.#cancelSpanDrag?.()
     this.#cancelPan?.()
+    this.#releaseSlots?.()
+    this.#releaseSlots = undefined
     this.#host.dispose()
     this.#settingsHost?.dispose()
     this.#settingsHost = undefined
@@ -892,7 +901,9 @@ export class XhFormDesigner extends XhReactiveElement {
     // 问题列表带计数的严重程度开关放进它所在卡片的面板头
     const issueSummary = problems.summary
     issueSummary.slot = 'issues-actions'
-    const frame = createAuthoredElement(doc, 'xh-designer-frame', { 'data-part': 'frame', 'role': 'application' }, [toolbar, palette, canvas, inspectorTabs, issues, issueSummary, selectionStatus.element, widthStatus.element, menu])
+    const menubar = createCommandMenubar<FormDesignerContext>(doc, { platform: this.#kbdPlatform(), menuIcon: MenuIcon })
+    menubar.element.slot = 'menubar'
+    const frame = createAuthoredElement(doc, 'xh-designer-frame', { 'data-part': 'frame', 'role': 'application' }, [menubar.element, toolbar, palette, canvas, inspectorTabs, issues, issueSummary, selectionStatus.element, widthStatus.element, menu])
     // 三个零件只画内容，标题、副标题与帮助由外框画在卡片的面板头上
     catalog.headless = true
     inspector.headless = true
@@ -918,10 +929,12 @@ export class XhFormDesigner extends XhReactiveElement {
     tour.addEventListener('tour-end', this.#onTourEnd)
     const jsonEditor = createAuthoredElement(doc, 'xh-designer-json-editor', { 'data-part': 'json-editor' })
     jsonEditor.addEventListener('json-apply', this.#onJsonApply)
+    // 宿主写在设计器上的 slot="menubar-end"（如模板标题与保存状态）先转进外框，放在菜单栏右边，后来加的跟着转
+    this.#releaseSlots = forwardFrameSlots(this, frame, ['menubar-end'])
     this.replaceChildren(frame, settings, tour, jsonEditor)
     // 面板头的命令（如历史记录的清空）按设计器此刻的命令表铺
     const panels = createPanelHost<FormDesignerContext>(frame, { commands: () => this.#model.commands })
-    this.#parts = { frame, panels, toolbar, commandBar, canvas, palette, catalog, dropIndicator, ...this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings, tour, jsonEditor, selectionStatus, widthStatus }
+    this.#parts = { frame, panels, menubar, toolbar, commandBar, canvas, palette, catalog, dropIndicator, ...this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings, tour, jsonEditor, selectionStatus, widthStatus }
     this.#prepareMenu(this.#parts)
     panels.assign(this.#model.extensions, this.#context())
     return this.#parts
@@ -1110,7 +1123,7 @@ export class XhFormDesigner extends XhReactiveElement {
 
   /**
    * 外框的区：工具栏与画布带上本地化的区名（分隔条的无障碍名称要用）；物料、属性与问题画成卡片，面板头写标题、图标与帮助，
-   * 属性面板的副标题是当前编辑的对象；后面接扩展面板的区。设置里关了状态栏或工具栏时不登记它们；预览态只登记工具栏、画布与状态栏，
+   * 属性面板的副标题是当前编辑的对象；后面接扩展面板的区。设置里关了菜单栏、工具栏或状态栏时不登记它们；预览态只登记菜单栏、工具栏、画布与状态栏，
    * 面板的内容留在外框下面，布局不动。内容没变、外框手上也还是上次给的那一份时不重设。
    */
   #syncRegions(frame: XhDesignerFrameElement, t: FormDesignerTranslations, mode: FormDesignerMode): void {
@@ -1123,7 +1136,9 @@ export class XhFormDesigner extends XhReactiveElement {
     }
     const statusBar = this.#statusBarOn()
     const toolbar = toolbarVisibleOf(this.settings)
-    const kept = (region: DesignerFrameRegion): boolean => (region.name !== 'status' || statusBar) && (region.name !== 'toolbar' || toolbar) && (mode === 'design' || PREVIEW_REGIONS.has(region.name))
+    const menubar = menubarVisibleOf(this.settings)
+    const kept = (region: DesignerFrameRegion): boolean => (region.name !== 'status' || statusBar) && (region.name !== 'toolbar' || toolbar) && (region.name !== 'menubar' || menubar)
+      && (mode === 'design' || PREVIEW_REGIONS.has(region.name))
     const regions: DesignerFrameRegion[] = [
       ...DESIGNER_FRAME_REGIONS.filter(kept).map(region => ({ ...region, ...described[region.name] })),
       ...(mode === 'design' ? this.#model.extensions.flatMap(extension => (extension.panels ?? []).map(panel => panel.region)) : []),
@@ -1199,16 +1214,18 @@ export class XhFormDesigner extends XhReactiveElement {
   }
 
   /**
-   * 工具栏按 commandLayout 或缺省排列排出分组，再套用户在设置「工具栏」页的定制（toolbar.layout），显示方式取 toolbar.display，
-   * 文字、可用与选中状态每次刷新；同一份缺省排列连同各命令此刻的文字交给设置对话框，「工具栏」页据此列出按钮表。
+   * 工具栏按 commandLayout 或缺省排列排出分组（菜单栏关掉时末组放回设置与帮助），再套用户在设置「工具栏」页的定制（toolbar.layout），
+   * 显示方式取 toolbar.display，文字、可用与选中状态每次刷新；同一份缺省排列连同各命令此刻的文字交给设置对话框，「工具栏」页据此列出按钮表。
+   * 菜单栏按 commandLayout 的 menubar:<菜单> 或 designer-shell 四张菜单的缺省排列排出，宽度切换经 placement 落在视图菜单。
    */
   #syncToolbar(t: FormDesignerTranslations): void {
     const { commands } = this.#model
     const context = this.#context(t)
-    const { commandBar, settings } = this.#ensureParts()
-    const arranged = arrangeCommands('toolbar', commands, FORM_TOOLBAR_LAYOUT, this.commandLayout)
+    const { commandBar, menubar, settings } = this.#ensureParts()
+    const arranged = arrangeCommands('toolbar', commands, formToolbarLayout(menubarVisibleOf(this.settings)), this.commandLayout)
     commandBar.setDisplay(toolbarDisplayOf(this.settings))
     commandBar.update(applyToolbarCustomization(arranged, toolbarCustomizationOf(this.settings)), commands, context, context.commands.toolbar)
+    menubar.update(arrangeMenubar(this.#model.menubarMenus, commands, designerMenubarLayout(commands), this.commandLayout), commands, context, context.commands)
     const source = toolbarSettingsSource(arranged, commands, context)
     const sourceKey = JSON.stringify(source)
     if (sourceKey !== this.#toolbarSourceKey) {

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 宿主的几件事：保存模板、离开前提醒、服务端复核模板与提交的数据。
+// 宿主的几件事：保存模板、把自己的操作与模板标题挂进菜单栏、离开前提醒、服务端复核模板与提交的数据。
 
 import type { FormDocument } from '@xihan-form/core'
 import type { XhFormDesigner } from '@xihan-form/designer'
@@ -26,6 +26,22 @@ export async function openTemplate(id: string): Promise<void> {
   })
 }
 // #endregion save
+
+// #region menubar
+export function hostMenubar(name: string): void {
+  designer.extensions = [{
+    id: 'acme.host',
+    commands: [
+      { id: 'acme.new', label: '新建', placement: ['menubar:file'], run: () => location.assign('/forms/new') },
+      { id: 'acme.back', label: '返回列表', placement: ['menubar:file', 'toolbar'], run: () => history.back() },
+    ],
+  }]
+  const title = document.createElement('span')
+  title.slot = 'menubar-end'
+  title.textContent = name
+  designer.append(title)
+}
+// #endregion menubar
 
 // #region leave
 window.addEventListener('beforeunload', (event) => {

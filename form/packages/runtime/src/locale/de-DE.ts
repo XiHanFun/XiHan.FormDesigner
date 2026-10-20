@@ -42,7 +42,6 @@ const locale: FormLocale = {
     selectParent: 'Übergeordnetes Element auswählen',
     moveUp: 'Nach oben',
     moveDown: 'Nach unten',
-    save: 'Speichern',
     clear: 'Leeren',
     previewWidth: 'Vorschaubreite',
     widthFull: 'Volle Breite',

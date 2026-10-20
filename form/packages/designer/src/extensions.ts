@@ -9,13 +9,13 @@ import type { FormDocument, FormRuleContext } from '@xihan-form/core'
 import type { FormRuntimeExtension, FormRuntimeModel } from '@xihan-form/runtime'
 import type { IconRecord } from '@xihan-ui/core'
 import type { PropertyEditorTable } from '@xihan-ui/designer-kit/properties'
-import type { DesignerCommandTable, DesignerPaletteSource, DesignerSettingsSection, DesignerShellExtension, DesignerTourStep } from '@xihan-ui/designer-shell'
+import type { DesignerCommandTable, DesignerMenubarMenu, DesignerPaletteSource, DesignerSettingsSection, DesignerShellExtension, DesignerTourStep } from '@xihan-ui/designer-shell'
 import type { FormDesignerContext } from './commands'
 import type { FormDropTarget } from './editor'
 import type { FormPropertyEditor } from './properties'
 import { createFormRuntimeModel } from '@xihan-form/runtime'
 import { DesignerExtensionError, extensionCommands, extensionEditors } from '@xihan-ui/designer-kit'
-import { collectPaletteSources, collectSettingsSections, collectTourSteps, DESIGNER_FRAME_REGIONS, designerPanelCommands } from '@xihan-ui/designer-shell'
+import { collectMenubarMenus, collectPaletteSources, collectSettingsSections, collectTourSteps, DESIGNER_FRAME_REGIONS, designerMenubarMenus, designerPanelCommands } from '@xihan-ui/designer-shell'
 import { FORM_COMMANDS } from './commands'
 import { FORM_HISTORY_PANEL } from './history-panel'
 import { FORM_KIND_ICONS } from './kind-icons'
@@ -54,6 +54,8 @@ export interface FormDesignerModel {
   readonly tourSteps: readonly DesignerTourStep<FormDesignerContext>[]
   /** 各扩展的物料来源，按 order 排；分组接在内置分组后面。 */
   readonly paletteSources: readonly DesignerPaletteSource<FormDesignerContext, FormDropTarget>[]
+  /** 菜单栏上的菜单：designer-shell 内置的文件、编辑、视图、帮助在前，各扩展登记的在后。 */
+  readonly menubarMenus: readonly DesignerMenubarMenu<FormDesignerContext>[]
 }
 
 /** 内置种类的图标并上各扩展给自己种类的图标；给了别人的种类时抛 TypeError。 */
@@ -101,10 +103,10 @@ function withPanelCommands(commands: DesignerCommandTable<FormDesignerContext>, 
 
 /**
  * 合出设计器用的模型；任何一处重名（设置分区与 general 重名、扩展面板与外框的区重名、扩展面板的开关命令与已有命令重名、
- * 引导步骤重名或用了 shell. 前缀、物料来源重名也算）都抛 DesignerExtensionError。
+ * 引导步骤重名或用了 shell. 前缀、物料来源重名、菜单栏的菜单重名也算）都抛 DesignerExtensionError。
  */
 export function createFormDesignerModel(extensions: readonly FormDesignerExtension[]): FormDesignerModel {
   const runtime = createFormRuntimeModel([FORM_DESIGNER_EXTENSION, ...extensions])
   const all = runtime.extensions as readonly FormDesignerExtension[]
-  return Object.freeze({ extensions: all, runtime, commands: withPanelCommands(extensionCommands(all), all), editors: extensionEditors<FormPropertyEditor>(undefined, all), settings: collectSettingsSections(all), kindIcons: collectKindIcons(all), tourSteps: collectTourSteps(all), paletteSources: collectPaletteSources(all) })
+  return Object.freeze({ extensions: all, runtime, commands: withPanelCommands(extensionCommands(all), all), editors: extensionEditors<FormPropertyEditor>(undefined, all), settings: collectSettingsSections(all), kindIcons: collectKindIcons(all), tourSteps: collectTourSteps(all), paletteSources: collectPaletteSources(all), menubarMenus: collectMenubarMenus(designerMenubarMenus<FormDesignerContext>({ translations: context => context.commands }), all) })
 }

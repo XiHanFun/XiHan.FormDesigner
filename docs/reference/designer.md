@@ -13,7 +13,7 @@
 | 属性 | attribute | 类型 | 说明 |
 | --- | --- | --- | --- |
 | `expressionEngine` | — | `ExpressionEngine \| undefined` | 校验表达式与预览用，缺省为 createExpressionEngine()。 |
-| `commandLayout` | — | `DesignerCommandLayout \| undefined` | 工具栏、右键菜单与选中工具条的排列：位置（toolbar、menu:node、menu:region、menu:cell、menu:blank、selection:node）→ 若干组命令 id，内置命令与扩展命令混排。写了某个位置就只显示列出的；没写的位置用内置的缺省排列，再把 placement 含它的扩展命令追加成一组。 |
+| `commandLayout` | — | `DesignerCommandLayout \| undefined` | 菜单栏、工具栏、右键菜单与选中工具条的排列：位置（menubar:file、menubar:edit、menubar:view、menubar:help 与扩展登记的菜单 menubar:&lt;菜单 id&gt;，toolbar、menu:node、menu:region、menu:cell、menu:blank、selection:node）→ 若干组命令 id，内置命令与扩展命令混排。写了某个位置就只显示列出的；没写的位置用内置的缺省排列，再把 placement 含它的扩展命令追加成一组。 |
 | `previewValues` | — | `Readonly<Record<string, JsonValue>> \| undefined` | 预览的示例数据。 |
 | `loadOptions` | — | `OptionLoader \| undefined` | 预览的选项加载。 |
 | `uploadFile` | — | `FileUploader \| undefined` | 预览里文件字段的上传函数，与渲染器的同名属性一样交给 xh-file-upload；组件自己不发请求。 |
@@ -77,7 +77,7 @@
 | `selection-change` | `FormSelection` | 选择变了。 |
 | `dirty-change` | `{ dirty: boolean }` | 有没有未保存修改的状态变了。 |
 | `issues-change` | `{ issues: readonly FormSchemaIssue[] }` | 模板问题变了；`issues` 是当前全部问题。 |
-| `save` | `Record<string, never>` | 用户要保存：按了 Ctrl / ⌘ + S 或点了保存命令。保存由宿主做，存好后调用 `markSaved()`。 |
+| `save` | `Record<string, never>` | 用户要保存：按了 Ctrl / ⌘ + S 或点了保存命令（designer-shell 内置的 save）。保存由宿主做，存好后调用 `markSaved()`。 |
 | `node-dblclick` | `{ id: string }` | 双击了画布上的节点。 |
 | `node-contextmenu` | `{ id: string, x: number, y: number }` | 要在节点上打开右键菜单，`x`、`y` 是视口坐标；可取消，取消后不打开内建菜单。 |
 | `blank-contextmenu` | `{ x: number, y: number }` | 要在画布空白处打开右键菜单；可取消，取消后不打开内建菜单。 |
@@ -198,7 +198,6 @@ type FormDesignerCommand = DesignerCommand<FormDesignerContext>
 | `selectParent` | `string` | 选中上一级命令。 |
 | `moveUp` | `string` | 上移命令。 |
 | `moveDown` | `string` | 下移命令。 |
-| `save` | `string` | 保存命令。 |
 | `clear` | `string` | 清空命令。 |
 | `previewWidth` | `string` | 预览宽度这组按钮的可访问名。 |
 | `widthFull` | `string` | 全宽。 |
@@ -353,7 +352,7 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 | 名称 | 种类 | 说明 |
 | --- | --- | --- |
 | `FORM_COMMANDS` | 常量 | 内置命令。 |
-| `FORM_DESIGNER_HELP_URL` | 常量 | 表单文档站上设计器的一页，工具栏的「帮助」在新窗口打开它。 |
+| `FORM_DESIGNER_HELP_URL` | 常量 | 表单文档站上设计器的一页，帮助菜单的「帮助」在新窗口打开它。 |
 | `FORM_DESIGNER_PANELS` | 常量 | 设计器的面板 id：宿主写 defaultLayout、settingsPolicy（layout.panels.&lt;面板 id&gt;）时用；每块面板有一条开关命令 panel:&lt;面板 id&gt;。 |
 | `FORM_MENU_LAYOUTS` | 常量 | 右键菜单各主体的缺省排列；commandLayout 没写 menu:&lt;主体&gt; 时用它。 |
 | `FORM_SELECTION_LAYOUTS` | 常量 | 选中工具条（命令落点 selection:&lt;主体&gt;）的缺省排列：选父级、上移、下移，创建副本、删除。 |
@@ -382,7 +381,7 @@ declare function createFormEditor(options: FormEditorOptions): FormEditor
 
 | 名称 | 种类 | 说明 |
 | --- | --- | --- |
-| `createFormDesignerModel` | 函数 | 合出设计器用的模型；任何一处重名（设置分区与 general 重名、扩展面板与外框的区重名、扩展面板的开关命令与已有命令重名、引导步骤重名或用了 shell. 前缀、物料来源重名也算）都抛 DesignerExtensionError。 |
+| `createFormDesignerModel` | 函数 | 合出设计器用的模型；任何一处重名（设置分区与 general 重名、扩展面板与外框的区重名、扩展面板的开关命令与已有命令重名、引导步骤重名或用了 shell. 前缀、物料来源重名、菜单栏的菜单重名也算）都抛 DesignerExtensionError。 |
 | `FORM_DESIGNER_EXTENSION` | 常量 | 设计器的内置扩展：内置命令、页面结构与历史记录两块面板，以及引导里表单自己的几步。 |
 | `FormDesignerExtension` | 接口 | 表单设计器层的扩展：运行时层的全部字段，加上属性编辑器、命令、面板、物料来源、导入导出与 setup。 |
 | `FormDesignerModel` | 接口 | 一组设计器扩展合出的东西：运行时模型、命令表、属性编辑器表与设置分区。 |

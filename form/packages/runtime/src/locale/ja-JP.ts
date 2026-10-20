@@ -42,7 +42,6 @@ const locale: FormLocale = {
     selectParent: '親を選択',
     moveUp: '上へ移動',
     moveDown: '下へ移動',
-    save: '保存',
     clear: 'クリア',
     previewWidth: 'プレビューの幅',
     widthFull: '全幅',

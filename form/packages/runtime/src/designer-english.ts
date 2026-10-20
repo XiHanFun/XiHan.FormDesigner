@@ -20,7 +20,6 @@ export const ENGLISH_DESIGNER_LOCALE: FormDesignerLocale = {
   selectParent: 'Select parent',
   moveUp: 'Move up',
   moveDown: 'Move down',
-  save: 'Save',
   clear: 'Clear',
   previewWidth: 'Preview width',
   widthFull: 'Full',

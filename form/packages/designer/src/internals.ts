@@ -7,6 +7,7 @@
 
 import type { FormDocument, FormOperation, KindRegistry } from '@xihan-form/core'
 import type { IconRecord } from '@xihan-ui/core'
+import type { JsonValue } from '@xihan-ui/core/json'
 import type { History, TableAxis } from '@xihan-ui/designer-kit'
 import type { DesignerHistoryConfirm, DesignerHistoryTranslations } from '@xihan-ui/designer-shell'
 import type { FormEditor } from './editor'
@@ -22,6 +23,8 @@ export interface FormDesignerInternals {
   readonly setMode: (mode: FormDesignerMode) => void
   /** 派发 save。 */
   readonly save: () => void
+  /** 改一条设置：换成新的 settings，给了存储键就存起来，再派发 settings-change。 */
+  readonly changeSetting: (key: string, value: JsonValue) => void
   /** 选中所选节点或区域所在的容器。 */
   readonly selectParent: () => void
   /** 把唯一选中的节点在同一层里上移（-1）或下移（1）一位。 */
