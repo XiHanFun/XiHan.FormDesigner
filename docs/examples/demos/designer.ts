@@ -3,12 +3,12 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 设计器：打开出差申请，工具栏末尾加上保存，保存状态写在菜单栏右边；按 Ctrl / ⌘ + S 或点保存时宿主「存」好模板，再告诉设计器已保存。
+// 设计器：打开出差申请，保存状态写在菜单栏右边；按 Ctrl / ⌘ + S 或点「文件」菜单的保存时宿主「存」好模板，再告诉设计器已保存。
 
 // #region setup
 import type { FormDocument } from '@xihan-form/core'
 import type { FormDesignerEventMap } from '@xihan-form/designer'
-import { defineFormDesigner, FORM_TOOLBAR_LAYOUT } from '@xihan-form/designer'
+import { defineFormDesigner } from '@xihan-form/designer'
 import { schema, values } from '../templates/travel'
 import '@xihan-ui/styles/index.css'
 import '@xihan-ui/designer-shell/style.css'
@@ -28,7 +28,6 @@ export function mount(host: HTMLElement): () => void {
   const designer = document.createElement('xh-form-designer')
   designer.schema = schema
   designer.previewValues = values
-  designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
   // #endregion render
   // 文档页里不自动开始新手引导
   designer.autoTour = false
