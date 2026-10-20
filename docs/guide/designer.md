@@ -176,22 +176,24 @@ F10 不论焦点在画布、面板还是工具栏上都认：把焦点交给菜�
 设置是用户偏好，每人每机一份，不随模板保存。「文件」菜单的「设置」（Ctrl / ⌘ + ,）或 `openSettings(section?)` 打开设置对话框，左边一个分区一页：
 
 - 「基础」（`general`）：主题（跟随页面、跟随系统、亮色、暗色）、主题色与状态栏。
+- 「语言」（`language`）：跟随页面（缺省）、跟随系统，或在十种语言里选一种，名字是各自的本名（简体中文、繁體中文、English、日本語……）。
 - 「布局」（`layout`）：一张面板表，逐块面板一行，显示开关、停在哪一栏（或浮动）、上移下移与收成标题条，表下「恢复默认布局」；和面板头的「更多」菜单一样，不靠拖动也能改布局，改的就是 `layout.panels`（见[卡片与面板](#卡片与面板)）。
 - 「工具栏」（`toolbar`）：按钮显示方式（`toolbar.display`）、显示工具栏（`toolbar.visible`），以及一张按钮表（`toolbar.layout`）：一组一块，组头三态勾选框，每个按钮一行，可以勾掉、拖动换先后或挪到别的组，表下「恢复默认」。只管顶部工具栏：右键菜单与选中工具条不在这里改，由宿主的 `commandLayout` 排。
 - 「帮助」（`help`）：表单的几段说明，以及「开始引导」「打开文档」两颗钮；点了先关上对话框，再跑对应的命令（`start-tour`、`help`）。
 - 「快捷键」（`shortcuts`）：按命令表列出，分通用、编辑、本设计器与扩展几组，同一条命令的第二个快捷键写在同一行，保存、设置这些外壳命令在「通用」里。「本设计器」那组末尾是表单不是命令的按键：↑ ↓ 选上一个、下一个，Alt + ↑ ↓ 上移、下移，Enter 选中里面第一个，Esc 选中上一级，Shift + F10 打开右键菜单。「通用」组末尾只列表单有的三个按键：F10（进出菜单栏）、Alt + F10（焦点在画布里时，焦点移到选中工具条）与 Esc；表单的画布不能微移，也不能按住空格拖动。
 - 「关于」（`about`）：产品名、版本（包入口导出的 `FORM_DESIGNER_VERSION`）、界面库版本与许可证，后面接各扩展给的几行（见[扩展](./extensions#关于)）。
-- 扩展登记的分区按各自的 `order` 排：基础、布局、工具栏是 0–2，帮助、快捷键、关于是 900–920，没写 `order` 的是 0。分区 id 与内置的或别的扩展重名时，给 `extensions` 赋值就抛 `DesignerExtensionError`。
+- 扩展登记的分区按各自的 `order` 排：基础、语言、布局、工具栏是 0–3，帮助、快捷键、关于是 900–920，没写 `order` 的是 0。分区 id 与内置的或别的扩展重名时，给 `extensions` 赋值就抛 `DesignerExtensionError`。
 
 表单没有自己的设置分区：预览宽度是正在看的视图，不是偏好，仍是 `previewWidth` 与工具栏、「视图」菜单里的三档。
 
 <<< @/examples/snippets/settings.ts#open
 
-值是扁平的键值，键是「分区 id.条目 id」，如 `general.theme`，没写的键取缺省值；基础分区的键用 designer-shell 导出的 `DESIGNER_SETTING_KEYS`，不手写字符串。`settings` 赋值即生效；用户在对话框里改了一条，设计器换成新的一份并派发 `settings-change`，宿主存起来、下次赋回。`settingsPolicy` 隐藏或锁定条目，键是条目键或分区 id：`hidden` 不显示，一个分区的条目全藏了就没有这一页；`locked` 只读，说明换成「由所在系统管理」。
+值是扁平的键值，键是「分区 id.条目 id」，如 `general.theme`、`language.locale`，没写的键取缺省值；基础、语言、布局、工具栏几个分区的键用 designer-shell 导出的 `DESIGNER_SETTING_KEYS`，不手写字符串。`settings` 赋值即生效；用户在对话框里改了一条，设计器换成新的一份并派发 `settings-change`，宿主存起来、下次赋回。`settingsPolicy` 隐藏或锁定条目，键是条目键或分区 id：`hidden` 不显示，一个分区的条目全藏了就没有这一页；`locked` 只读，说明换成「由所在系统管理」。
 
 <<< @/examples/snippets/settings.ts#host
 
 - **主题只作用于设计器**：主题与主题色写在 `<xh-form-designer>` 自己的 `data-theme`、`data-brand` 上，页面其余部分不变；设置对话框、菜单这些浮层跟着设计器变。主题色的预设由宿主给 `brands`（品牌 id 与色板格子的颜色，品牌 id 可以用 `@xihan-ui/tokens` 的 `BRAND_PRESETS`）；给了 `registerBrand`（形状同 `@xihan-ui/tokens` 的 `registerBrand`）才许自定义颜色。两样都不给时没有主题色这一项。
+- **语言只作用于设计器**：设置里选了语言，`<xh-form-designer>` 把这一语言的 UI、designer-shell 与表单语言包作为自己的 `xhConfig` 交出去，设计器、里面的元素（含预览里的渲染器与日期选择这些 UI 元素）与它弹出的浮层都换成这种语言，页面别处不变。跟随系统按浏览器的语言偏好挑最接近的一种，挑不到用英文；语言包第一次用到时才加载。跟随页面时 `xhConfig` 是空对象，照页面的全局配置。
 - **工具栏**：按钮显示方式有只显示图标（缺省）、只显示文字、图标加文字，只显示图标时按钮的名字照样报给读屏，悬停或聚焦时提示文字。关掉「显示工具栏」只是不显示那一条，命令照样能经快捷键与右键菜单执行。按钮表的缺省排列是宿主 `commandLayout` 的 `toolbar`（没写时是 `FORM_TOOLBAR_LAYOUT`）再追加扩展的那一组，用户的定制套在它上面：后装的扩展命令放到缺省排列里挨着的位置，已经没有的命令跳过。宿主不让用户改时用 `settingsPolicy` 锁定或藏掉 `toolbar.layout`。
 - **扩展读设置**：命令、面板与扩展从上下文的 `settings` 读值，各分区没写的条目已经取了缺省值，如 `context.settings['acme.dense']`。
 
