@@ -49,9 +49,6 @@ export interface FormHistoryTranslations {
 
 /** 新手引导里表单自己的几步：标题与说明。 */
 export interface FormTourTranslations {
-  /** 顶栏的插入钮。 */
-  readonly insertTitle: string
-  readonly insertDescription: string
   /** 页面结构面板。 */
   readonly outlineTitle: string
   readonly outlineDescription: string
@@ -127,10 +124,6 @@ export interface FormDesignerTranslations {
   readonly statusFields: (count: number) => string
   /** 状态栏：选中多项时写已选的个数。 */
   readonly statusSelected: (count: number) => string
-  /** 顶栏插入钮那一条工具栏的可访问名。 */
-  readonly insertToolbar: string
-  /** 顶栏插入钮的名字与提示，label 是字段种类的名字。 */
-  readonly insertField: (label: string) => string
   /** 属性区的「属性」页签。 */
   readonly propertiesTab: string
   /** 属性区的「校验」页签。 */

@@ -50,8 +50,6 @@ const locale: FormLocale = {
     widthPhone: '手機',
     statusFields: count => `${count} 個欄位`,
     statusSelected: count => `已選取 ${count} 個`,
-    insertToolbar: '插入欄位',
-    insertField: label => `新增「${label}」`,
     propertiesTab: '屬性',
     validationTab: '驗證規則',
     linkageTab: '連動規則',
@@ -104,8 +102,6 @@ const locale: FormLocale = {
       replaceDocument: '編輯 JSON',
     },
     tour: {
-      insertTitle: '快速插入',
-      insertDescription: '頂欄排著常用欄位，點一個就加到選取欄位的後面。',
       outlineTitle: '頁面結構',
       outlineDescription: '以樹狀列出表單裡的欄位與容器，可以在這裡選取、刪除，或拖曳調整位置。',
       rulesTitle: '驗證與連動',
@@ -117,7 +113,7 @@ const locale: FormLocale = {
       product: '曦寒表單設計器',
       docs: '開啟文件',
       notes: [
-        '從物料面板或頂欄把欄位加進畫布，點選畫布裡的欄位，在屬性面板裡修改標籤、資料鍵與外觀。',
+        '從物料面板把欄位拖進畫布或點一下加進來，點選畫布裡的欄位，在屬性面板裡修改標籤、資料鍵與外觀。',
         '屬性面板的「驗證規則」「連動規則」兩頁為選取的欄位加上規則：必填、格式與範圍，或依其他欄位的值顯示、隱藏、停用它。',
         '預覽時像填表的人那樣填一遍表單。每一步修改都能復原，歷史記錄面板列出全部步驟。',
       ],

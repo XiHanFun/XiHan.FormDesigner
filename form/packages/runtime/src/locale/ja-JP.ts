@@ -50,8 +50,6 @@ const locale: FormLocale = {
     widthPhone: 'スマートフォン',
     statusFields: count => `${count} 個のフィールド`,
     statusSelected: count => `${count} 個を選択中`,
-    insertToolbar: 'フィールドを挿入',
-    insertField: label => `「${label}」を追加`,
     propertiesTab: 'プロパティ',
     validationTab: '検証ルール',
     linkageTab: '連動ルール',
@@ -104,8 +102,6 @@ const locale: FormLocale = {
       replaceDocument: 'JSON を編集',
     },
     tour: {
-      insertTitle: 'クイック挿入',
-      insertDescription: 'よく使うフィールドが上部に並んでいます。クリックすると、選択中のフィールドの後ろに追加されます。',
       outlineTitle: 'ページ構造',
       outlineDescription: 'フォームのフィールドとコンテナーをツリーで表示します。ここで選択や削除をしたり、ドラッグして移動したりできます。',
       rulesTitle: '検証と連動',
@@ -117,7 +113,7 @@ const locale: FormLocale = {
       product: 'XiHan Form Designer',
       docs: 'ドキュメントを開く',
       notes: [
-        'パレットや上部のクイック挿入からフィールドをキャンバスに追加し、キャンバス上のフィールドを選択して、プロパティパネルでラベル、データキー、外観を変更します。',
+        'パレットからフィールドをキャンバスへドラッグするか、クリックして追加し、キャンバス上のフィールドを選択して、プロパティパネルでラベル、データキー、外観を変更します。',
         'プロパティパネルの「検証ルール」「連動ルール」タブでは、選択中のフィールドにルールを追加します。必須、形式、範囲のチェックや、ほかのフィールドの値に応じた表示、非表示、無効化ができます。',
         'プレビューでは、入力する人と同じようにフォームを試せます。変更はすべて元に戻せ、履歴パネルにすべての手順が表示されます。',
       ],

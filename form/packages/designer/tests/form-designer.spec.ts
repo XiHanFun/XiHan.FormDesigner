@@ -13,7 +13,7 @@ import { DESIGNER_SETTING_KEYS } from '@xihan-ui/designer-shell'
 import { setXhConfig } from '@xihan-ui/web-components'
 import { defineXhElements } from '@xihan-ui/web-components/define'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { defineFormDesigner, FORM_DESIGNER_HELP_URL, FORM_DESIGNER_PANELS, FORM_DESIGNER_TAG } from '../src'
+import { createFormDesignerModel, defineFormDesigner, FORM_DESIGNER_HELP_URL, FORM_DESIGNER_PANELS, FORM_DESIGNER_TAG } from '../src'
 
 defineXhElements()
 defineFormDesigner()
@@ -484,35 +484,14 @@ describe('<xh-form-designer>：面板卡片', () => {
     expect(['toolbar', 'palette', 'canvas', 'properties', 'issues', 'status'].filter(region => frame.showsPanel(region))).toEqual(['toolbar', 'canvas', 'status'])
   })
 
-  it('顶栏中段是常用字段的插入钮：图标在上、种类名在下，点了插到选中节点之后；只读与预览态不可用，commandLayout 写空数组就没有顶栏', async () => {
-    const { document, name, card } = sample()
-    const designer = await mount((element) => {
-      element.schema = document
-    })
+  it('外框没有顶栏，命令表里没有插入命令：物料只从物料面板拖进来或点一下加进来', async () => {
+    const designer = await mount(() => {})
     const frame = designer.querySelector('xh-designer-frame')!
-    const header = (): HTMLElement | null => frame.querySelector<HTMLElement>('[data-region="header"] [data-zone="center"] xh-tooltip[data-scope="designer-commands"]')
-    const buttons = (): HTMLButtonElement[] => Array.from(header()!.querySelectorAll<HTMLButtonElement>('button[data-xh-part="item"]'))
-    expect(header()!.getAttribute('data-display')).toBe('stacked')
-    expect(buttons().map(button => button.value)).toEqual(['insert:text', 'insert:textarea', 'insert:number', 'insert:date', 'insert:select', 'insert:radio-group'])
-    expect(buttons().map(button => button.querySelector('[data-part="label"]')!.textContent)).toEqual(['text', 'textarea', 'number', 'date', 'select', 'radio-group'].map(kind => T.kind(kind)))
-    expect([buttons()[2]!.getAttribute('aria-label'), buttons().every(button => button.hasAttribute('data-icon'))]).toEqual([T.insertField(T.kind('number')), true])
-    designer.select({ nodes: [name.id] })
-    await settle(designer)
-    buttons()[2]!.click()
-    await settle(designer)
-    const added = designer.schema.children[1]!
-    expect([added.kind, designer.schema.children.map(node => node.id).slice(2), designer.getSelection().nodes]).toEqual(['number', [card.id], [added.id]])
-    designer.readonly = true
-    await settle(designer)
-    expect(buttons().every(button => button.disabled)).toBe(true)
-    designer.readonly = false
+    expect(frame.querySelector('[data-region="header"]')).toBeNull()
+    expect([...createFormDesignerModel([]).commands.keys()].filter(id => id.startsWith('insert:'))).toEqual([])
     designer.mode = 'preview'
     await settle(designer)
-    expect(buttons().every(button => button.disabled)).toBe(true)
-    designer.mode = 'design'
-    designer.commandLayout = { header: [] }
-    await settle(designer)
-    expect([header(), frame.showsPanel('header')]).toEqual([null, false])
+    expect(['toolbar', 'palette', 'canvas', 'properties', 'issues', 'status'].filter(region => frame.showsPanel(region))).toEqual(['toolbar', 'canvas', 'status'])
   })
 
   it('工具栏末组是 designer-shell 内置的面板、设置与帮助：设置打开设置对话框，帮助在新窗口打开文档站的设计器一页', async () => {

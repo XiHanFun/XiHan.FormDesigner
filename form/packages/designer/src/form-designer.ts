@@ -112,8 +112,8 @@ const FORM_COMMON_KEYS = DESIGNER_COMMON_KEYS.filter(key => key.id === 'selectio
 /** 选中工具条往行尾挪的量，样式里加在 inset-inline-end 上。 */
 const NODE_TOOLBAR_SHIFT = '--xh-form-node-toolbar-shift'
 
-/** 预览态登记的区：只留顶栏、工具栏、画布与状态栏。 */
-const PREVIEW_REGIONS: ReadonlySet<string> = new Set(['header', 'toolbar', 'canvas', 'status'])
+/** 预览态登记的区：只留工具栏、画布与状态栏。 */
+const PREVIEW_REGIONS: ReadonlySet<string> = new Set(['toolbar', 'canvas', 'status'])
 
 /** 不能输入文字的 input 类型：焦点在这些上面时，撤销、复制这些键仍归设计器。 */
 const NON_TEXT_INPUTS: ReadonlySet<string> = new Set(['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'])
@@ -149,8 +149,6 @@ interface DesignerParts {
   readonly panels: DesignerPanelHost<FormDesignerContext>
   readonly toolbar: HTMLElement
   readonly commandBar: CommandToolbar<FormDesignerContext>
-  /** 顶栏中段的插入钮：图标在上、种类名在下；没有 header 命令时不在外框里。 */
-  readonly headerBar: CommandToolbar<FormDesignerContext>
   readonly canvas: HTMLElement
   readonly palette: HTMLElement
   readonly catalog: XhDesignerPaletteElement
@@ -232,7 +230,7 @@ export class XhFormDesigner extends XhReactiveElement {
   /** 校验表达式与预览用，缺省为 createExpressionEngine()。 */
   declare expressionEngine: ExpressionEngine | undefined
   /**
-   * 顶栏、工具栏与右键菜单的排列：位置（header、toolbar、menu:node、menu:region、menu:cell、menu:blank）→ 若干组命令 id，内置命令与扩展命令混排。
+   * 工具栏、右键菜单与选中工具条的排列：位置（toolbar、menu:node、menu:region、menu:cell、menu:blank、selection:node）→ 若干组命令 id，内置命令与扩展命令混排。
    * 写了某个位置就只显示列出的；没写的位置用内置的缺省排列，再把 placement 含它的扩展命令追加成一组。
    */
   declare commandLayout: DesignerCommandLayout | undefined
@@ -850,8 +848,6 @@ export class XhFormDesigner extends XhReactiveElement {
       return this.#parts
     const doc = this.ownerDocument
     const commandBar = createCommandToolbar<FormDesignerContext>(doc, { platform: this.#kbdPlatform() })
-    const headerBar = createCommandToolbar<FormDesignerContext>(doc, { display: 'stacked', platform: this.#kbdPlatform() })
-    headerBar.element.slot = 'header-center'
     const toolbar = createAuthoredElement(doc, 'div', { 'data-part': 'command-bar', 'slot': 'toolbar' }, [commandBar.element])
     const dropIndicator = createAuthoredElement(doc, 'div', { 'data-part': 'drop-indicator', 'aria-hidden': 'true', 'hidden': true })
     const canvas = createAuthoredElement(doc, 'div', { 'data-part': 'canvas', 'slot': 'canvas', 'tabindex': '0' }, [this.#canvas.element, dropIndicator])
@@ -920,7 +916,7 @@ export class XhFormDesigner extends XhReactiveElement {
     this.replaceChildren(frame, settings, tour, jsonEditor)
     // 面板头的命令（如历史记录的清空）按设计器此刻的命令表铺
     const panels = createPanelHost<FormDesignerContext>(frame, { commands: () => this.#model.commands })
-    this.#parts = { frame, panels, toolbar, commandBar, headerBar, canvas, palette, catalog, dropIndicator, ...this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings, tour, jsonEditor, selectionStatus, widthStatus }
+    this.#parts = { frame, panels, toolbar, commandBar, canvas, palette, catalog, dropIndicator, ...this.#buildNodeToolbar(doc), inspectorTabs, tabTriggers, tabList, inspector, issues, problems, menu, menuTrigger, menuContent, settings, tour, jsonEditor, selectionStatus, widthStatus }
     this.#prepareMenu(this.#parts)
     panels.assign(this.#model.extensions, this.#context())
     return this.#parts
@@ -1109,7 +1105,7 @@ export class XhFormDesigner extends XhReactiveElement {
 
   /**
    * 外框的区：工具栏与画布带上本地化的区名（分隔条的无障碍名称要用）；物料、属性与问题画成卡片，面板头写标题、图标与帮助，
-   * 属性面板的副标题是当前编辑的对象；后面接扩展面板的区。设置里关了状态栏或工具栏时不登记它们；预览态只登记顶栏、工具栏、画布与状态栏，
+   * 属性面板的副标题是当前编辑的对象；后面接扩展面板的区。设置里关了状态栏或工具栏时不登记它们；预览态只登记工具栏、画布与状态栏，
    * 面板的内容留在外框下面，布局不动。内容没变、外框手上也还是上次给的那一份时不重设。
    */
   #syncRegions(frame: XhDesignerFrameElement, t: FormDesignerTranslations, mode: FormDesignerMode): void {
@@ -1200,12 +1196,11 @@ export class XhFormDesigner extends XhReactiveElement {
   /**
    * 工具栏按 commandLayout 或缺省排列排出分组，再套用户在设置「工具栏」页的定制（toolbar.layout），显示方式取 toolbar.display，
    * 文字、可用与选中状态每次刷新；同一份缺省排列连同各命令此刻的文字交给设置对话框，「工具栏」页据此列出按钮表。
-   * 顶栏铺 placement 为 header 的命令，一条也没有时从外框里拿掉，顶栏随之收起。
    */
   #syncToolbar(t: FormDesignerTranslations): void {
     const { commands } = this.#model
     const context = this.#context(t)
-    const { commandBar, headerBar, frame, settings } = this.#ensureParts()
+    const { commandBar, settings } = this.#ensureParts()
     const arranged = arrangeCommands('toolbar', commands, FORM_TOOLBAR_LAYOUT, this.commandLayout)
     commandBar.setDisplay(toolbarDisplayOf(this.settings))
     commandBar.update(applyToolbarCustomization(arranged, toolbarCustomizationOf(this.settings)), commands, context, context.commands.toolbar)
@@ -1214,15 +1209,6 @@ export class XhFormDesigner extends XhReactiveElement {
     if (sourceKey !== this.#toolbarSourceKey) {
       this.#toolbarSourceKey = sourceKey
       settings.toolbar = source
-    }
-    const header = arrangeCommands('header', commands, [], this.commandLayout)
-    if (header.length > 0) {
-      headerBar.update(header, commands, context, t.insertToolbar)
-      if (!headerBar.element.isConnected)
-        frame.append(headerBar.element)
-    }
-    else {
-      headerBar.element.remove()
     }
   }
 

@@ -28,8 +28,6 @@ export const ENGLISH_DESIGNER_LOCALE: FormDesignerLocale = {
   widthPhone: 'Phone',
   statusFields: count => (count === 1 ? '1 field' : `${count} fields`),
   statusSelected: count => `${count} selected`,
-  insertToolbar: 'Insert fields',
-  insertField: label => `Add ${label}`,
   propertiesTab: 'Properties',
   validationTab: 'Validation',
   linkageTab: 'Linkage',
@@ -82,8 +80,6 @@ export const ENGLISH_DESIGNER_LOCALE: FormDesignerLocale = {
     replaceDocument: 'Edit JSON',
   },
   tour: {
-    insertTitle: 'Quick insert',
-    insertDescription: 'Common fields are lined up at the top. Click one to add it after the selected field.',
     outlineTitle: 'Outline',
     outlineDescription: 'The fields and containers of the form as a tree. Select or delete them here, or drag them to a new place.',
     rulesTitle: 'Validation and linkage',
@@ -95,7 +91,7 @@ export const ENGLISH_DESIGNER_LOCALE: FormDesignerLocale = {
     product: 'XiHan Form Designer',
     docs: 'Open documentation',
     notes: [
-      'Add fields from the palette or the quick insert bar at the top, then select a field on the canvas and change its label, data key and appearance in the properties panel.',
+      'Drag fields from the palette onto the canvas or click one to add it, then select a field on the canvas and change its label, data key and appearance in the properties panel.',
       'The Validation and Linkage tabs of the properties panel add rules to the selected field: required, format and range checks, or showing, hiding and disabling it based on other fields.',
       'In preview, fill in the form as your users will. Every change can be undone, and the history panel lists all the steps.',
     ],

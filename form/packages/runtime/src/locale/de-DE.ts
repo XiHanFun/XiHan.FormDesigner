@@ -50,8 +50,6 @@ const locale: FormLocale = {
     widthPhone: 'Smartphone',
     statusFields: count => (count === 1 ? '1 Feld' : `${count} Felder`),
     statusSelected: count => `${count} ausgewählt`,
-    insertToolbar: 'Felder einfügen',
-    insertField: label => `${label} hinzufügen`,
     propertiesTab: 'Eigenschaften',
     validationTab: 'Prüfregeln',
     linkageTab: 'Bedingte Logik',
@@ -104,8 +102,6 @@ const locale: FormLocale = {
       replaceDocument: 'JSON bearbeiten',
     },
     tour: {
-      insertTitle: 'Schnell einfügen',
-      insertDescription: 'Häufige Felder stehen oben. Ein Klick fügt das Feld nach dem ausgewählten ein.',
       outlineTitle: 'Struktur',
       outlineDescription: 'Die Felder und Container des Formulars als Baum. Hier auswählen, löschen oder per Ziehen verschieben.',
       rulesTitle: 'Prüfregeln und bedingte Logik',
@@ -117,7 +113,7 @@ const locale: FormLocale = {
       product: 'XiHan Form Designer',
       docs: 'Dokumentation öffnen',
       notes: [
-        'Fügen Sie Felder aus der Palette oder der Schnellleiste oben auf der Arbeitsfläche ein, wählen Sie ein Feld aus und ändern Sie im Eigenschaftenbereich Beschriftung, Datenschlüssel und Aussehen.',
+        'Ziehen Sie Felder aus der Palette auf die Arbeitsfläche oder fügen Sie sie per Klick ein, wählen Sie ein Feld aus und ändern Sie im Eigenschaftenbereich Beschriftung, Datenschlüssel und Aussehen.',
         'Auf den Registerkarten „Prüfregeln“ und „Bedingte Logik“ im Eigenschaftenbereich erhält das ausgewählte Feld Regeln: Pflichtfeld, Format und Bereich, oder Ein- und Ausblenden und Deaktivieren abhängig von anderen Feldern.',
         'In der Vorschau füllen Sie das Formular so aus, wie es Ihre Benutzer tun. Jede Änderung lässt sich rückgängig machen, und der Verlauf listet alle Schritte auf.',
       ],

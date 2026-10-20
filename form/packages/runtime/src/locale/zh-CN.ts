@@ -50,8 +50,6 @@ const locale: FormLocale = {
     widthPhone: '手机',
     statusFields: count => `${count} 个字段`,
     statusSelected: count => `已选 ${count} 个`,
-    insertToolbar: '插入字段',
-    insertField: label => `添加「${label}」`,
     propertiesTab: '属性',
     validationTab: '校验规则',
     linkageTab: '联动规则',
@@ -104,8 +102,6 @@ const locale: FormLocale = {
       replaceDocument: '编辑 JSON',
     },
     tour: {
-      insertTitle: '快速插入',
-      insertDescription: '顶栏排着常用字段，点一个就加到选中字段的后面。',
       outlineTitle: '页面结构',
       outlineDescription: '按树列出表单里的字段与容器，可以在这里选中、删除，或拖动换位置。',
       rulesTitle: '校验与联动',
@@ -117,7 +113,7 @@ const locale: FormLocale = {
       product: '曦寒表单设计器',
       docs: '打开文档',
       notes: [
-        '从物料面板或顶栏把字段加进画布，点选画布里的字段，在属性面板里改标签、数据键与外观。',
+        '从物料面板把字段拖进画布或点一下加进来，点选画布里的字段，在属性面板里改标签、数据键与外观。',
         '属性面板的「校验规则」「联动规则」两页给选中的字段加规则：必填、格式与范围，或按别的字段的值显示、隐藏、禁用它。',
         '预览时像填表的人那样填一遍表单。每一步修改都能撤销，历史记录面板列出全部步骤。',
       ],
