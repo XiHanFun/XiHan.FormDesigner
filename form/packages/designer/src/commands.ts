@@ -290,7 +290,7 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
   { id: 'width-full', label: text('widthFull'), icon: MonitorIcon, placement: ['menubar:view'], checked: ({ designer }) => (designer.previewWidth ?? 'full') === 'full', run: ({ designer }) => void (designer.previewWidth = 'full') },
   { id: 'width-tablet', label: text('widthTablet'), icon: TabletIcon, placement: ['menubar:view'], checked: ({ designer }) => designer.previewWidth === 'tablet', run: ({ designer }) => void (designer.previewWidth = 'tablet') },
   { id: 'width-phone', label: text('widthPhone'), icon: SmartphoneIcon, placement: ['menubar:view'], checked: ({ designer }) => designer.previewWidth === 'phone', run: ({ designer }) => void (designer.previewWidth = 'phone') },
-  // designer-shell 内置的保存、面板、拖动、设置、快捷键、关于、帮助、引导、编辑 JSON 与工具栏、状态栏、菜单栏的显示开关，
+  // designer-shell 内置的保存、面板、拖动、设置、快捷键、关于、帮助、引导、编辑 JSON，以及收着工具栏、状态栏、菜单栏三条显示开关的外观，
   // 文案取共用的那一桶，缺省落在菜单栏的各张菜单里；每块面板另有一条开关命令
   ...designerShellCommands<FormDesignerContext>({
     translations: context => context.commands,
@@ -305,7 +305,7 @@ export const FORM_COMMANDS: readonly FormDesignerCommand[] = Object.freeze([
       change: (context, key, value) => stateOf(context).internals.changeSetting(key, value),
       policy: ({ designer }) => designer.settingsPolicy,
     },
-    icons: { save: SaveIcon, panels: PanelLeftIcon, settings: SettingsIcon, help: CircleHelpIcon, startTour: MapIcon, editJson: FileCodeIcon, panTool: HandIcon, about: InfoIcon },
+    icons: { save: SaveIcon, panels: PanelLeftIcon, settings: SettingsIcon, help: CircleHelpIcon, startTour: MapIcon, editJson: FileCodeIcon, panTool: HandIcon, about: InfoIcon, appearance: EyeIcon },
   }),
   // 页面结构与历史记录是内置扩展登记的面板，它们的开关命令随扩展面板一起生成
   ...designerPanelCommands<FormDesignerContext>({ panels: [FORM_DESIGNER_PANELS.palette, FORM_DESIGNER_PANELS.properties, FORM_DESIGNER_PANELS.issues], frame: context => context.frame }),

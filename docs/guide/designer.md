@@ -70,7 +70,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 - 「文件」：保存（Ctrl / ⌘ + S，派发 `save`，见[保存](#保存)）、设置（Ctrl / ⌘ + ,，同 `openSettings()`）。
 - 「编辑」：撤销、重做，剪切、复制、粘贴、删除、创建副本，全选，编辑 JSON（Ctrl / ⌘ + Shift + J，见[编辑 JSON](#编辑-json)）。
-- 「视图」：设计、预览，拖动，「面板」子菜单（逐块面板一项，勾上的显示），预览宽度三档，工具栏、状态栏、菜单栏三个显示开关（改的是设置）。
+- 「视图」：设计、预览，拖动，预览宽度三档，「面板」与「外观」两个子菜单：面板里逐块面板一项，勾上的显示；外观里是工具栏、状态栏、菜单栏三个显示开关（改的是设置）。
 - 「帮助」：开始引导、帮助（在新窗口打开本站的这一页，地址是包入口导出的 `FORM_DESIGNER_HELP_URL`）、快捷键（打开设置的快捷键页），关于（打开设置的关于页）。
 
 按 F10 把焦点交给菜单栏，左右键在菜单之间走，下键、Enter 或 Space 展开；再按 F10，或在菜单栏上按 Esc，回到原来的地方。窄屏时菜单栏收成行首一颗「菜单」钮，各张菜单是它的子菜单。设置里关掉「显示菜单栏」时整条不显示，设置与帮助回到工具栏末组，菜单里的命令照样能用快捷键。
@@ -85,7 +85,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 末组是 designer-shell 内置的「面板」：点开一张菜单，列出能开关的面板，勾选的显示，后面是全部显隐、还原显隐与恢复默认布局。设置与帮助在菜单栏里，关掉菜单栏时回到末组。宿主不要哪一条，用 `commandLayout` 排掉，见[工具栏与菜单的排列](#工具栏与菜单的排列)。
 
-撤销、重做、清空历史、剪切、复制、粘贴、创建副本、删除、全选、设计与预览，以及保存、面板、拖动、设置、快捷键、关于、帮助与三个显示开关，这些四款设计器共用的命令，文字取 designer-shell 语言包的 `xh-designer-commands`，菜单栏四张菜单的名字、工具栏与菜单栏的可访问名也在这里；各语言的 `form…` 语言包已经带上。要换这些说法就改这一桶，设计器的 `translations` 属性只覆盖表单自己的文案。
+撤销、重做、清空历史、剪切、复制、粘贴、创建副本、删除、全选、设计与预览，以及保存、面板、拖动、设置、快捷键、关于、帮助、外观与三个显示开关，这些四款设计器共用的命令，文字取 designer-shell 语言包的 `xh-designer-commands`，菜单栏四张菜单的名字、工具栏与菜单栏的可访问名也在这里；各语言的 `form…` 语言包已经带上。要换这些说法就改这一桶，设计器的 `translations` 属性只覆盖表单自己的文案。
 
 ## 编辑
 
@@ -230,7 +230,7 @@ F10 不论焦点在画布、面板还是工具栏上都认：把焦点交给菜�
 designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
 ```
 
-内置命令的 id：`undo`、`redo`、`clear-history`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`，以及 designer-shell 内置的 `save`、`panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`pan-tool`、`settings`、`shortcuts`、`about`、`help`、`start-tour`、`edit-json`、`show-toolbar`、`show-status-bar`、`show-menubar` 与各面板的开关命令 `panel:palette`、`panel:outline`、`panel:properties`、`panel:history`、`panel:issues`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
+内置命令的 id：`undo`、`redo`、`clear-history`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`，以及 designer-shell 内置的 `save`、`panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`pan-tool`、`settings`、`shortcuts`、`about`、`help`、`start-tour`、`edit-json`、`appearance`（外观子菜单）、`show-toolbar`、`show-status-bar`、`show-menubar` 与各面板的开关命令 `panel:palette`、`panel:outline`、`panel:properties`、`panel:history`、`panel:issues`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
 
 ## 示例
 
