@@ -323,6 +323,8 @@ export class XhFormDesigner extends XhReactiveElement {
   #pending: FormOperation[] = []
   /** 正在拖的跨度把手：调用即取消，跨度回到按下时。 */
   #cancelSpanDrag: (() => void) | undefined
+  /** 正在用拖动工具平移画布：调用即停在此处。 */
+  #cancelPan: (() => void) | undefined
   /** 清空历史前的确认框，第一次用到时建。 */
   #dialogs: DialogService | undefined
   /** 刚连上文档或所在处的配置（语言、文案）变了：画布与物料要按新配置重排；只是选择变了时不重排。 */
@@ -556,6 +558,7 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#releaseConfigWatch?.()
     this.#releaseConfigWatch = undefined
     this.#cancelSpanDrag?.()
+    this.#cancelPan?.()
     this.#host.dispose()
     this.#settingsHost?.dispose()
     this.#settingsHost = undefined
@@ -895,6 +898,8 @@ export class XhFormDesigner extends XhReactiveElement {
     inspector.headless = true
     problems.headless = true
     frame.addEventListener('layout-change', this.#onLayoutChange)
+    // 拖动工具开关了：工具栏「拖动」钮的按下状态跟着重画
+    frame.addEventListener('canvas-tool-change', () => this.requestUpdate())
     // 快捷键在整个设计器里认：画布、物料、属性与问题列表
     this.addEventListener('keydown', this.#onKeyDown)
     canvas.addEventListener('click', this.#onCanvasClick)
@@ -1485,12 +1490,14 @@ export class XhFormDesigner extends XhReactiveElement {
       this.#suppressClick = false
       return
     }
-    if ((this.mode ?? 'design') !== 'design')
+    if ((this.mode ?? 'design') !== 'design' || this.#panTool())
       return
     this.#selectTarget(this.#canvas.targetOf(event.target), event.shiftKey || event.ctrlKey || event.metaKey)
   }
 
   readonly #onCanvasDblclick = (event: MouseEvent): void => {
+    if (this.#panTool())
+      return
     const target = this.#canvas.targetOf(event.target)
     if (target.kind === 'node')
       emitEvent(this, 'node-dblclick', { id: target.id })
@@ -1620,10 +1627,17 @@ export class XhFormDesigner extends XhReactiveElement {
       this.revealNode(first)
   }
 
-  /** 按住节点拖动：拖的是选中的那组节点（按住的节点不在选择里时只拖它）。 */
+  /** 按住节点拖动：拖的是选中的那组节点（按住的节点不在选择里时只拖它）；拖动工具开着时在哪儿按下都是平移画布。 */
   readonly #onCanvasPointerDown = (event: PointerEvent): void => {
     this.#suppressClick = false
-    if (this.readonly === true || (this.mode ?? 'design') !== 'design' || !event.isPrimary || event.button !== 0)
+    if (!event.isPrimary || event.button !== 0)
+      return
+    // 拖动工具开着：在节点、跨度把手上按下也走平移，不选中、不挪节点；只读与预览态一样能拖
+    if (this.#panTool()) {
+      this.#pan(event)
+      return
+    }
+    if (this.readonly === true || (this.mode ?? 'design') !== 'design')
       return
     const handle = (event.target as Element | null)?.closest<HTMLElement>('[data-part="span-handle"]')
     if (handle !== null && handle !== undefined) {
@@ -1701,6 +1715,49 @@ export class XhFormDesigner extends XhReactiveElement {
       onEnd: () => finish(true),
     })
     this.#cancelSpanDrag = () => finish(false)
+  }
+
+  /** 外框此刻的画布工具是拖动。 */
+  #panTool(): boolean {
+    return this.#parts?.frame.canvasTool === 'pan'
+  }
+
+  /**
+   * 拖动工具：按住拖动时画布按指针的位移反向滚动，拖动中画布标上 data-gesture="pan"。
+   * 拖动途中按 Esc 停在此处、结束这一次，按键不再往外传，外框的拖动工具照旧开着。
+   */
+  #pan(event: PointerEvent): void {
+    const canvas = this.#ensureParts().canvas
+    // 不起文字选择与原生拖动；焦点照旧落在画布上
+    event.preventDefault()
+    canvas.focus({ preventScroll: true })
+    let last = { x: event.clientX, y: event.clientY }
+    let session: PointerSession | undefined
+    const listening = new AbortController()
+    const finish = (): void => {
+      session?.dispose()
+      listening.abort()
+      this.#cancelPan = undefined
+      canvas.removeAttribute('data-gesture')
+    }
+    this.ownerDocument.addEventListener('keydown', (key) => {
+      if (key.key !== 'Escape')
+        return
+      key.preventDefault()
+      key.stopPropagation()
+      finish()
+    }, { capture: true, signal: listening.signal })
+    canvas.setAttribute('data-gesture', 'pan')
+    session = createPointerSession({
+      doc: this.ownerDocument,
+      pointerId: event.pointerId,
+      onMove: ({ point }) => {
+        canvas.scrollBy(last.x - point.clientX, last.y - point.clientY)
+        last = { x: point.clientX, y: point.clientY }
+      },
+      onEnd: finish,
+    })
+    this.#cancelPan = finish
   }
 
   /** 拖动节点时跟着指针的小标签：节点的种类与键，多个时带上个数。 */
@@ -1790,7 +1847,7 @@ export class XhFormDesigner extends XhReactiveElement {
       hit.run(context)
       return
     }
-    if (inCanvas && !event.ctrlKey && !event.metaKey && this.#onPlainKey(event))
+    if (inCanvas && !event.ctrlKey && !event.metaKey && !event.defaultPrevented && this.#onPlainKey(event))
       event.preventDefault()
   }
 
