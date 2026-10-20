@@ -1019,7 +1019,7 @@ describe('<xh-form-designer>：右键菜单', () => {
     expect(items.filter(item => item.getAttribute('aria-disabled') === 'true').map(item => item.getAttribute('value'))).toEqual(['paste', 'select-parent', 'move-up'])
     expect(items.at(-1)!.getAttribute('data-tone')).toBe('danger')
     expect(items.find(item => item.getAttribute('value') === 'duplicate')!.querySelector('[data-xh-part="item-shortcut"]')!.textContent).toBe('Ctrl+D')
-    menu.dispatchEvent(new CustomEvent('select', { bubbles: true, detail: { value: 'move-down' } }))
+    menu.dispatchEvent(new CustomEvent('item-select', { bubbles: true, detail: { value: 'move-down' } }))
     expect(designer.schema.children.map(node => node.id)).toEqual([card.id, name.id])
   })
 
@@ -1051,7 +1051,7 @@ describe('<xh-form-designer>：规则页签', () => {
     expect([trigger('validation').disabled, trigger('linkage').disabled]).toEqual([false, false])
     tabs.value = 'validation'
     const list = designer.querySelector('[data-part="rule-list"][data-list="validation"]')!
-    list.querySelector('xh-menu')!.dispatchEvent(new CustomEvent('select', { bubbles: true, detail: { value: 'length' } }))
+    list.querySelector('xh-menu')!.dispatchEvent(new CustomEvent('item-select', { bubbles: true, detail: { value: 'length' } }))
     expect(rules()).toEqual([{ id: expect.any(String), kind: 'length' }])
     await settle(designer)
     const panel = list.querySelector('xh-designer-properties[data-part="rule"]') as XhDesignerPropertiesElement
@@ -1077,7 +1077,7 @@ describe('<xh-form-designer>：规则页签', () => {
     const tabs = designer.querySelector('[data-part="inspector-tabs"]') as HTMLElement & { value?: string }
     tabs.value = 'linkage'
     const list = designer.querySelector('[data-part="rule-list"][data-list="linkage"]')!
-    list.querySelector('xh-menu')!.dispatchEvent(new CustomEvent('select', { bubbles: true, detail: { value: 'assign' } }))
+    list.querySelector('xh-menu')!.dispatchEvent(new CustomEvent('item-select', { bubbles: true, detail: { value: 'assign' } }))
     await settle(designer)
     const panel = list.querySelector('xh-designer-properties[data-part="rule"]') as XhDesignerPropertiesElement
     await panel.updateComplete
