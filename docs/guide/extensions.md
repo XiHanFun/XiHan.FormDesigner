@@ -100,9 +100,9 @@ aside: false
 `tourSteps` 往新手引导里加步骤，每一步是 `{ id, target?, title, description, placement?, order?, when? }`：
 
 - `id` 用扩展 id 加点加名字。不能与表单的（`form.` 开头）或别的扩展的重名，也不能用 designer-shell 留着的 `shell.` 前缀，否则给 `extensions` 赋值就抛 `DesignerExtensionError`。
-- `target` 是一块面板 `{ panel, part? }`、外框的一个区 `{ region }`、工具栏上的一条命令 `{ command }` 或任意选择器 `{ selector }`；不给就居中显示。目标面板隐藏、命令不在工具栏上时这一步跳过。
+- `target` 是一块面板 `{ panel, part? }`、外框的一个区 `{ region }`、工具栏上的一条命令 `{ command }`、菜单栏上的一张菜单 `{ menubar: '<菜单 id>' }`（如 `file`、`view`，或扩展登记的菜单）或任意选择器 `{ selector }`；不给就居中显示。目标面板隐藏、命令不在工具栏上、菜单栏没显示或没有这张菜单时这一步跳过；窄屏时菜单栏收成「菜单」钮，菜单的目标落在那颗钮上。
 - `title`、`description` 可以写成收上下文的函数，按此刻的语言取文字。
-- `order` 定先后：designer-shell 的通用步骤是 0–90，表单的是 100–130，扩展从 200 起；同值按登记顺序。`when` 返回 `false` 时跳过这一步，如只读时不讲编辑。
+- `order` 定先后：designer-shell 的通用步骤是 0–60，收尾的设置一步是 900，表单的是 100–120，扩展从 200 起；同值按登记顺序。`when` 返回 `false` 时跳过这一步，如只读时不讲编辑。
 
 引导怎么开始、怎么记下走完，见[新手引导](./designer#新手引导)。
 
