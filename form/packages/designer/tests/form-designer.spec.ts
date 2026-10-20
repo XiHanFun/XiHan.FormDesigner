@@ -1020,7 +1020,7 @@ describe('<xh-form-designer>：右键菜单', () => {
 
 describe('<xh-form-designer>：菜单栏', () => {
   /** 菜单栏的 <xh-menubar>：按数据铺的菜单与勾选。 */
-  interface MenubarNode { value: string, label?: string, items?: MenubarNode[], checkboxValue?: string[] }
+  interface MenubarNode { value: string, label?: string, kind?: string, items?: MenubarNode[], children?: MenubarNode[], checkboxValue?: string[] }
   type MenubarHost = HTMLElement & { collection?: MenubarNode[], checkboxValue?: string[] }
 
   function menubarOf(designer: XhFormDesigner): MenubarHost {
@@ -1039,7 +1039,7 @@ describe('<xh-form-designer>：菜单栏', () => {
     return designer.querySelector('xh-designer-frame')!.regions!.map(region => region.name)
   }
 
-  it('外框最上一条是菜单栏：文件、编辑、视图、帮助四张；保存与设置在文件里，预览宽度跟在面板后面、显示开关收尾；勾上的是此刻的模式、宽度与显示开关', async () => {
+  it('外框最上一条是菜单栏：文件、编辑、视图、帮助四张；保存与设置在文件里，预览宽度跟在拖动后面、面板与外观收尾，三条显示开关在外观子菜单里；勾上的是此刻的模式、宽度、面板与显示开关', async () => {
     const designer = await mount(() => {})
     const menubar = menubarOf(designer)
     expect(menubar.closest('[data-region]')!.getAttribute('data-region')).toBe('menubar')
@@ -1047,11 +1047,15 @@ describe('<xh-form-designer>：菜单栏', () => {
     expect(menubar.collection!.map(node => [node.value, node.label])).toEqual([['file', 'File'], ['edit', 'Edit'], ['view', 'View'], ['help', 'Help']])
     expect(items(designer, 'file')).toEqual(['save', 'settings'])
     expect(items(designer, 'edit')).toEqual(['undo', 'redo', 'cut', 'copy', 'paste', 'delete', 'duplicate', 'select-all', 'edit-json'])
-    expect(items(designer, 'view')).toEqual(['design', 'preview', 'pan-tool', 'panels', 'width-full', 'width-tablet', 'width-phone', 'show-toolbar', 'show-status-bar', 'show-menubar'])
+    expect(items(designer, 'view')).toEqual(['design', 'preview', 'pan-tool', 'width-full', 'width-tablet', 'width-phone', 'panels', 'appearance'])
     expect(items(designer, 'help')).toEqual(['start-tour', 'help', 'shortcuts', 'about'])
-    expect(menubar.checkboxValue).toEqual(['view/design', 'view/width-full', 'view/show-toolbar', 'view/show-status-bar', 'view/show-menubar'])
-    const panels = menubar.collection!.find(node => node.value === 'view')!.items!.find(item => item.value === 'view/panels')!
+    expect(menubar.checkboxValue).toEqual(['view/design', 'view/width-full'])
+    const view = menubar.collection!.find(node => node.value === 'view')!.items!
+    const panels = view.find(item => item.value === 'view/panels')!
     expect(panels.checkboxValue).toEqual(['view/panels/item:palette', 'view/panels/item:properties', 'view/panels/item:issues', 'view/panels/item:outline'])
+    const appearance = view.find(item => item.value === 'view/appearance')!
+    const toggles = ['show-toolbar', 'show-status-bar', 'show-menubar'].map(id => `view/appearance/command:${id}`)
+    expect([appearance.children!.map(child => [child.value, child.kind]), appearance.checkboxValue]).toEqual([toggles.map(value => [value, 'checkbox']), toggles])
   })
 
   it('保存是外壳的 save 命令：文件菜单里点它、画布上按 Ctrl+S 都派发 save；快捷键写在条目上', async () => {
@@ -1086,10 +1090,10 @@ describe('<xh-form-designer>：菜单栏', () => {
   it('显示开关改设置并派发 settings-change：关掉状态栏外框不登记它；关掉菜单栏外框不登记菜单栏，设置与帮助回到工具栏末组', async () => {
     const designer = await mount(() => {})
     const changes = events(designer, 'settings-change')
-    select(designer, 'view', 'show-status-bar')
+    select(designer, 'view', 'appearance/command:show-status-bar')
     await settle(designer)
     expect([changes.map(change => [change.key, change.value]), regionNames(designer).includes('status')]).toEqual([[['general.statusBar', false]], false])
-    select(designer, 'view', 'show-menubar')
+    select(designer, 'view', 'appearance/command:show-menubar')
     await settle(designer)
     expect([changes.at(-1)!.key, changes.at(-1)!.value, regionNames(designer).includes('menubar')]).toEqual(['toolbar.menubar', false, false])
     expect(designer.settings).toEqual({ 'general.statusBar': false, 'toolbar.menubar': false })
