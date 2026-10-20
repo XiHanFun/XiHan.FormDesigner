@@ -107,6 +107,7 @@ const locale: FormLocale = {
       rulesDescription: '選取一個欄位，在屬性面板的「驗證規則」「連動規則」兩頁為它加上規則。',
       previewTitle: '預覽',
       previewDescription: '像填表的人那樣填一遍表單，預覽寬度可以換成平板或手機。',
+      previewMenubarDescription: '像填表的人那樣填一遍表單，預覽寬度可以換成平板或手機。「檢視」選單裡也能切換設計與預覽、換預覽寬度。',
     },
     help: {
       product: '曦寒表單設計器',

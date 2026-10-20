@@ -107,6 +107,7 @@ const locale: FormLocale = {
       rulesDescription: '필드를 선택한 뒤 속성 패널의 유효성 검사 규칙, 연동 규칙 탭에서 규칙을 추가합니다.',
       previewTitle: '미리 보기',
       previewDescription: '양식을 작성하는 사람처럼 직접 입력해 봅니다. 미리 보기 너비를 태블릿이나 휴대폰으로 바꿀 수 있습니다.',
+      previewMenubarDescription: '양식을 작성하는 사람처럼 직접 입력해 봅니다. 미리 보기 너비를 태블릿이나 휴대폰으로 바꿀 수 있습니다. 디자인과 미리 보기 전환, 미리 보기 너비는 「보기」 메뉴에도 있습니다.',
     },
     help: {
       product: 'XiHan Form Designer',

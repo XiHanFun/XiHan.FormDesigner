@@ -107,6 +107,7 @@ const locale: FormLocale = {
       rulesDescription: '选中一个字段，在属性面板的「校验规则」「联动规则」两页给它加规则。',
       previewTitle: '预览',
       previewDescription: '像填表的人那样填一遍表单，预览宽度可以换成平板或手机。',
+      previewMenubarDescription: '像填表的人那样填一遍表单，预览宽度可以换成平板或手机。「视图」菜单里也能切换设计与预览、换预览宽度。',
     },
     help: {
       product: '曦寒表单设计器',

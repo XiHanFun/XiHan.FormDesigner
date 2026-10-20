@@ -5,6 +5,7 @@ import type { FormDesignerContext, FormDesignerEventMap, XhFormDesigner } from '
 import { createDocument, createFormModel, createNode } from '@xihan-form/core'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { createIdAllocator, DesignerExtensionError } from '@xihan-ui/designer-kit'
+import { DESIGNER_SETTING_KEYS } from '@xihan-ui/designer-shell'
 import { defineXhElements } from '@xihan-ui/web-components/define'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createFormDesignerModel, defineFormDesigner, FORM_COMMANDS, FORM_DESIGNER_TAG } from '../src'
@@ -85,6 +86,26 @@ describe('新手引导', () => {
     designer.readonly = true
     await designer.updateComplete
     expect(ids(tour.steps)).toEqual(['form.outline', 'form.preview'])
+  })
+
+  it('菜单栏开着时欢迎之后是菜单栏一步，设置一步落在「文件」菜单，预览一步的说明带上「视图」菜单；关掉菜单栏时没有菜单栏一步，设置一步回到工具栏的设置钮，预览说明换回原来的', async () => {
+    const designer = await mount(element => element.autoTour = false)
+    const tour = tourOf(designer)
+    const T = DEFAULT_FORM_DESIGNER_TRANSLATIONS.tour
+    const last = (): [string, unknown] => {
+      const step = tour.plannedSteps().at(-1)!
+      return [step.id, step.target]
+    }
+    const preview = (): string | undefined => tour.plannedSteps().find(step => step.id === 'form.preview')?.description
+    expect(ids(tour.plannedSteps()).slice(0, 3)).toEqual(['shell.welcome', 'shell.menubar', 'shell.toolbar'])
+    expect(last()).toEqual(['shell.settings', { menubar: 'file' }])
+    expect([preview(), T.previewMenubarDescription]).toEqual([T.previewMenubarDescription, expect.stringContaining('View menu')])
+    designer.settings = { [DESIGNER_SETTING_KEYS.toolbarMenubar]: false }
+    await settle(designer)
+    expect(ids(tour.plannedSteps())).not.toContain('shell.menubar')
+    expect(last()).toEqual(['shell.settings', { command: 'settings' }])
+    expect(preview()).toBe(T.previewDescription)
+    expect(T.previewDescription).not.toMatch(/menu/i)
   })
 
   it('第一次铺好画布后自动开始；收起时派发 tour-end，设置里记下 help.tourDone 并派发 settings-change', async () => {

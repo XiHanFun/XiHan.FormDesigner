@@ -58,6 +58,8 @@ export interface FormTourTranslations {
   /** 工具栏的预览。 */
   readonly previewTitle: string
   readonly previewDescription: string
+  /** 菜单栏显示着时换用的预览说明：多一句「视图」菜单里也能切换设计与预览、换预览宽度。 */
+  readonly previewMenubarDescription: string
 }
 
 /** 设置对话框「帮助」「关于」两页里表单自己的文字。 */
