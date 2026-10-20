@@ -172,9 +172,7 @@ export class RuleLists {
       createAuthoredElement(doc, 'button', { 'data-xh-part': 'root', 'type': 'button' }, [iconElement(doc, PlusIcon), addLabel]),
     ])
     const addMenu = createAuthoredElement(doc, 'xh-menu', { size: 'sm' }, [trigger, createAuthoredElement(doc, 'div', { 'data-xh-part': 'positioner' }, [addItems])])
-    addMenu.addEventListener('select', (event) => {
-      if (!(event instanceof CustomEvent))
-        return
+    addMenu.addEventListener('item-select', (event) => {
       event.stopPropagation()
       const node = this.#node
       const choice = (event as CustomEvent<{ value: string }>).detail.value

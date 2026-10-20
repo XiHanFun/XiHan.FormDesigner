@@ -883,7 +883,7 @@ export class XhFormDesigner extends XhReactiveElement {
     const menu = createAuthoredElement(doc, 'xh-context-menu', { 'data-part': 'menu', 'size': 'sm' }, [
       createAuthoredElement(doc, 'div', { 'data-xh-part': 'root' }, [menuTrigger, createAuthoredElement(doc, 'div', { 'data-xh-part': 'positioner' }, [menuContent])]),
     ])
-    menu.addEventListener('select', this.#onMenuSelect)
+    menu.addEventListener('item-select', this.#onMenuItemSelect)
     menu.addEventListener('open-change', this.#onMenuOpenChange)
     // 状态栏：左段写选中的对象，右段写预览宽度，点了回到全宽
     const selectionStatus = createStatusItem(doc, { value: '' })
@@ -1570,9 +1570,7 @@ export class XhFormDesigner extends XhReactiveElement {
     return groups.length > 0
   }
 
-  readonly #onMenuSelect = (event: Event): void => {
-    if (!(event instanceof CustomEvent))
-      return
+  readonly #onMenuItemSelect = (event: Event): void => {
     event.stopPropagation()
     runCommand(this.#model.commands, (event as CustomEvent<{ value: string }>).detail.value, this.#context())
     this.#parts?.canvas.focus({ preventScroll: true })
