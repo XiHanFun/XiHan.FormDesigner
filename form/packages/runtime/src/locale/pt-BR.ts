@@ -106,8 +106,7 @@ const locale: FormLocale = {
       rulesTitle: 'Validação e lógica condicional',
       rulesDescription: 'Selecione um campo e adicione regras a ele nas abas Validação e Lógica condicional do painel de propriedades.',
       previewTitle: 'Visualização',
-      previewDescription: 'Preencha o formulário como seus usuários farão. A largura da visualização pode ser trocada para tablet ou celular.',
-      previewMenubarDescription: 'Preencha o formulário como seus usuários farão. A largura da visualização pode ser trocada para tablet ou celular. Design, visualização e as larguras de visualização também estão no menu Exibir.',
+      previewDescription: 'Preencha o formulário como seus usuários farão. A largura da visualização pode ser trocada para tablet ou celular. Design, visualização e as larguras de visualização também estão no menu Exibir.',
     },
     help: {
       product: 'XiHan Form Designer',

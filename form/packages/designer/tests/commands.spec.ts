@@ -65,14 +65,14 @@ function states(subject: FormMenuSubject, ctx: FormDesignerContext): Record<stri
 }
 
 describe('内置命令与右键菜单', () => {
-  it('内置命令都带图标（面板菜单里的三条、快捷键、三个显示开关与面板开关命令除外）；四款共用的命令取 xh-designer-commands 的文案，表单专属的取设计器文案；会删掉内容的带危险语气', () => {
+  it('内置命令都带图标（面板菜单里的三条、快捷键、两个显示开关与面板开关命令除外）；四款共用的命令取 xh-designer-commands 的文案，表单专属的取设计器文案；会删掉内容的带危险语气', () => {
     const { document } = sample()
     const ctx = { ...context(document, { nodes: [] }), commands: { ...DESIGNER_COMMANDS_EN_US, duplicate: 'Shared duplicate', preview: 'Shared preview' } }
     const label = (id: string): string => {
       const found = FORM_COMMANDS.find(command => command.id === id)!.label
       return typeof found === 'function' ? found(ctx) : found
     }
-    expect(FORM_COMMANDS.filter(command => command.icon === undefined).map(command => command.id)).toEqual(['panels-toggle-all', 'panels-restore', 'layout-reset', 'shortcuts', 'show-toolbar', 'show-status-bar', 'show-menubar', 'panel:palette', 'panel:properties', 'panel:issues'])
+    expect(FORM_COMMANDS.filter(command => command.icon === undefined).map(command => command.id)).toEqual(['panels-toggle-all', 'panels-restore', 'layout-reset', 'shortcuts', 'show-toolbar', 'show-status-bar', 'panel:palette', 'panel:properties', 'panel:issues'])
     expect([label('duplicate'), label('preview'), label('undo'), label('select-all')]).toEqual(['Shared duplicate', 'Shared preview', 'Undo', 'Select all'])
     expect([label('select-parent'), label('insert-column-left'), label('remove-row')]).toEqual(['Select parent', 'Insert column left', 'Delete row'])
     expect(FORM_COMMANDS.filter(command => command.tone === 'danger').map(command => command.id)).toEqual(['clear-history', 'delete', 'remove-row', 'remove-column'])

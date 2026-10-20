@@ -55,11 +55,9 @@ export interface FormTourTranslations {
   /** 属性面板里的校验规则与联动规则两页。 */
   readonly rulesTitle: string
   readonly rulesDescription: string
-  /** 工具栏的预览。 */
+  /** 工具栏的预览；说明里带一句「视图」菜单里也能切换设计与预览、换预览宽度。 */
   readonly previewTitle: string
   readonly previewDescription: string
-  /** 菜单栏显示着时换用的预览说明：多一句「视图」菜单里也能切换设计与预览、换预览宽度。 */
-  readonly previewMenubarDescription: string
 }
 
 /** 设置对话框「帮助」「关于」两页里表单自己的文字。 */

@@ -106,8 +106,7 @@ const locale: FormLocale = {
       rulesTitle: 'Validación y lógica condicional',
       rulesDescription: 'Seleccione un campo y añádale reglas en las pestañas Validación y Lógica condicional del panel de propiedades.',
       previewTitle: 'Vista previa',
-      previewDescription: 'Rellene el formulario como lo harán sus usuarios. El ancho de la vista previa puede cambiarse a tableta o teléfono.',
-      previewMenubarDescription: 'Rellene el formulario como lo harán sus usuarios. El ancho de la vista previa puede cambiarse a tableta o teléfono. Diseño, vista previa y los anchos de vista previa también están en el menú Ver.',
+      previewDescription: 'Rellene el formulario como lo harán sus usuarios. El ancho de la vista previa puede cambiarse a tableta o teléfono. Diseño, vista previa y los anchos de vista previa también están en el menú Ver.',
     },
     help: {
       product: 'XiHan Form Designer',

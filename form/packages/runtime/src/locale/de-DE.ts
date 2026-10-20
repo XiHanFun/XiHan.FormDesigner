@@ -106,8 +106,7 @@ const locale: FormLocale = {
       rulesTitle: 'Prüfregeln und bedingte Logik',
       rulesDescription: 'Wählen Sie ein Feld aus und fügen Sie auf den Registerkarten „Prüfregeln“ und „Bedingte Logik“ im Eigenschaftenbereich Regeln hinzu.',
       previewTitle: 'Vorschau',
-      previewDescription: 'Füllen Sie das Formular so aus, wie es Ihre Benutzer tun. Die Vorschaubreite lässt sich auf Tablet oder Smartphone umstellen.',
-      previewMenubarDescription: 'Füllen Sie das Formular so aus, wie es Ihre Benutzer tun. Die Vorschaubreite lässt sich auf Tablet oder Smartphone umstellen. Entwurf, Vorschau und die Vorschaubreiten finden Sie auch im Menü „Ansicht“.',
+      previewDescription: 'Füllen Sie das Formular so aus, wie es Ihre Benutzer tun. Die Vorschaubreite lässt sich auf Tablet oder Smartphone umstellen. Entwurf, Vorschau und die Vorschaubreiten finden Sie auch im Menü „Ansicht“.',
     },
     help: {
       product: 'XiHan Form Designer',
