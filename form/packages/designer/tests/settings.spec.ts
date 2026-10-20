@@ -3,6 +3,8 @@
 import type { FormDesignerContext, FormDesignerExtension, XhFormDesigner } from '../src'
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { DesignerExtensionError } from '@xihan-ui/designer-kit'
+import { DESIGNER_SETTING_KEYS } from '@xihan-ui/designer-shell'
+import { getXhConfig } from '@xihan-ui/web-components'
 import { defineXhElements } from '@xihan-ui/web-components/define'
 import { afterEach, describe, expect, it } from 'vitest'
 import { version } from '../package.json'
@@ -52,12 +54,15 @@ function pages(): string[] {
 }
 
 describe('<xh-form-designer>：设置', () => {
-  it('openSettings 打开设置对话框：基础、布局、工具栏、帮助、快捷键与关于六页；基础列出主题与状态栏，工具栏页列出按钮显示方式、显示工具栏与按钮表', async () => {
+  it('openSettings 打开设置对话框：基础、语言、布局、工具栏、帮助、快捷键与关于七页；基础列出主题与状态栏，工具栏页列出按钮显示方式、显示工具栏与按钮表', async () => {
     const designer = await mount()
     designer.openSettings()
     await settle(designer)
-    expect(pages()).toEqual(['general', 'layout', 'toolbar', 'help', 'shortcuts', 'about'])
+    expect(pages()).toEqual(['general', 'language', 'layout', 'toolbar', 'help', 'shortcuts', 'about'])
     expect(['general.theme', 'general.statusBar', 'general.toolbarDisplay'].map(key => row(key) !== null)).toEqual([true, true, false])
+    designer.openSettings('language')
+    await settle(designer)
+    expect(row('language.locale')).not.toBeNull()
     designer.openSettings('toolbar')
     await settle(designer)
     expect(['toolbar.display', 'toolbar.visible', 'toolbar.layout'].map(key => row(key) !== null)).toEqual([true, true, true])
@@ -103,6 +108,26 @@ describe('<xh-form-designer>：设置', () => {
     expect([designer.hasAttribute('data-theme'), designer.hasAttribute('data-brand')]).toEqual([false, false])
   })
 
+  it('设置里选了语言：设计器根交出这一语言的配置，外壳的命令、表单自己的文案与物料都换，页面的全局配置不动；跟随页面换回来', async () => {
+    const designer = await mount()
+    const label = (): string | null => designer.querySelector('[data-part="command-bar"] xh-toolbar [data-xh-part="root"]')!.getAttribute('aria-label')
+    const name = (id: string): string | null => designer.querySelector(`[data-part="command-bar"] button[value="${id}"]`)!.getAttribute('aria-label')
+    const kinds = (): string[] => Array.from(designer.querySelectorAll('[data-part="catalog"] [data-part="item-label"]'), item => item.textContent ?? '').slice(0, 2)
+    const before = kinds()
+    expect([designer.xhConfig, label(), name('undo'), name('width-tablet')]).toEqual([{}, 'Designer actions', 'Undo', 'Tablet'])
+    designer.settings = { [DESIGNER_SETTING_KEYS.language]: 'zh-CN' }
+    for (let round = 0; round < 50 && designer.xhConfig.locale !== 'zh-CN'; round++)
+      await new Promise(resolve => setTimeout(resolve, 10))
+    await settle(designer)
+    expect([designer.xhConfig.locale, label(), name('undo'), name('width-tablet')]).toEqual(['zh-CN', '设计器操作', '撤销', '平板'])
+    expect(designer.xhConfig.translations).toHaveProperty(['xh-form-designer'])
+    expect(kinds()).not.toEqual(before)
+    expect(getXhConfig().locale).not.toBe('zh-CN')
+    designer.settings = {}
+    await settle(designer)
+    expect([designer.xhConfig, label(), name('width-tablet'), kinds()]).toEqual([{}, 'Designer actions', 'Tablet', before])
+  })
+
   it('给了 settingsStorageKey：没赋 settings 时从存储读，对话框里改了就写回；读出的不是对象时派发 settings-storage-error', async () => {
     localStorage.setItem('form-settings', JSON.stringify({ 'general.toolbarDisplay': 'both' }))
     const designer = await mount(element => (element.settingsStorageKey = 'form-settings'))
@@ -131,7 +156,7 @@ describe('<xh-form-designer>：设置', () => {
     })
     designer.openSettings('acme')
     await settle(designer)
-    expect(pages()).toEqual(['general', 'layout', 'toolbar', 'acme', 'help', 'shortcuts', 'about'])
+    expect(pages()).toEqual(['general', 'language', 'layout', 'toolbar', 'acme', 'help', 'shortcuts', 'about'])
     expect(row('acme.token')!.querySelector('xh-password-input')).not.toBeNull()
     designer.querySelector<HTMLButtonElement>('[data-part="command-bar"] button[value="acme.read"]')!.click()
     expect(seen).toEqual([{ 'acme.token': 'k', 'acme.dense': false }])

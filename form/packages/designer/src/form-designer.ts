@@ -5,7 +5,8 @@
 
 // <xh-form-designer>：表单设计器。编辑模型在 editor.ts，画布在 canvas.ts；版式交给 <xh-designer-frame>：
 // 最上一条是菜单栏，物料、属性与问题列表是面板，停靠、显隐与大小按设置里的布局，画布常驻。预览态换成 <xh-form-renderer>，只留菜单栏与工具栏。
-// 设置对话框（openSettings()）里是基础分区与各扩展的分区，值经 settings 与 settings-change 交给宿主。
+// 设置对话框（openSettings()）里是基础分区与各扩展的分区，值经 settings 与 settings-change 交给宿主；设置里选了语言时，
+// 设计器根把这一语言的配置作为 xhConfig 交出去，设计器这棵子树（含浮层）按它取文案，页面别处不变。
 
 import type { FormDocument, FormNode, FormOperation, FormSchemaIssue, RuleList } from '@xihan-form/core'
 import type { FileUploader, FormDesignerTranslations, FormRendererTranslations, OptionLoader, XhFormRenderer } from '@xihan-form/runtime'
@@ -13,9 +14,10 @@ import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { VisualEnvironmentStorageError } from '@xihan-ui/core/visual-environment'
 import type { ExecuteOptions, ExtensionHost, HistorySnapshot } from '@xihan-ui/designer-kit'
 import type { PropertySwatchOption } from '@xihan-ui/designer-kit/properties'
-import type { CommandMenubar, CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerHistoryTranslations, DesignerIssueItem, DesignerIssuesEventMap, DesignerJsonEditorEventMap, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPaletteGroup, DesignerPaletteItem, DesignerPaletteView, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, DesignerTourEventMap, PanRequestDetail } from '@xihan-ui/designer-shell'
+import type { CommandMenubar, CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerHistoryTranslations, DesignerIssueItem, DesignerIssuesEventMap, DesignerJsonEditorEventMap, DesignerLanguage, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPaletteGroup, DesignerPaletteItem, DesignerPaletteView, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, DesignerTourEventMap, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PointerSession } from '@xihan-ui/pointer'
+import type { XhConfig } from '@xihan-ui/web-components'
 import type { PropertyValues } from '@xihan-ui/web-components/authoring'
 import type { DialogService } from '@xihan-ui/web-components/services'
 import type { CanvasDrop, CanvasTarget } from './canvas'
@@ -30,10 +32,11 @@ import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS,
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
 import { commandForShortcut, createExtensionHost, HISTORY_NUDGE_MERGE_WITHIN, nudgeMergeKey, snapshotHistory } from '@xihan-ui/designer-kit'
 import { applyToolbarCustomization, arrangeCommands, arrangeMenubar, createCommandMenubar, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_COMMON_KEYS, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, DESIGNER_SHELL_COMMANDS, DESIGNER_TOUR_DONE_KEY, designerLayoutPolicy, designerMenubarLayout, forwardFrameSlots, registerDropTarget, renderCommandMenu, resolvePaletteSources, resolveSettings, resolveTourSteps, runCommand, shortcutSettingsSource, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, tourDoneOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerJsonEditorElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement, XhDesignerTourElement } from '@xihan-ui/designer-shell'
+import { loadDesignerLocale } from '@xihan-ui/designer-shell/language'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { CircleAlertIcon, LayoutGridIcon, MenuIcon, SlidersHorizontalIcon } from '@xihan-ui/icons'
 import { createPointerSession } from '@xihan-ui/pointer'
-import { onXhConfigChange } from '@xihan-ui/web-components'
+import { mergeXhConfig, onXhConfigChange } from '@xihan-ui/web-components'
 import { BOOLEAN_CONVERTER, createAuthoredElement, emitEvent, registerElement, setAttributes, setText, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { defineXhElement, XhButtonElement, XhContextMenuElement, XhExpressionInputElement, XhIconElement, XhMenuElement, XhToolbarElement, XhTooltipElement } from '@xihan-ui/web-components/define'
 import { createDialogService } from '@xihan-ui/web-components/services'
@@ -131,6 +134,16 @@ function isTextEntry(target: EventTarget | null): boolean {
 }
 
 const NO_EXTENSIONS: readonly FormDesignerExtension[] = Object.freeze([])
+
+/** 跟随页面时设计器这棵子树的配置。 */
+const FOLLOW_PAGE: XhConfig = Object.freeze({})
+
+/** 设置里选了语言时这台设计器用的配置：UI 与 designer-shell 的同语言包，再并上表单自己的同语言包（按需加载）。 */
+async function loadFormLocale(language: DesignerLanguage): Promise<XhConfig> {
+  const [shared, form] = await Promise.all([loadDesignerLocale(language), import('@xihan-form/runtime/locale')])
+  const pack = form[`form${language[0]!.toUpperCase()}${language.slice(1).replace('-', '')}` as keyof typeof form] as XhConfig
+  return mergeXhConfig(shared, pack)
+}
 
 type InspectorTab = 'properties' | RuleList
 
@@ -499,6 +512,14 @@ export class XhFormDesigner extends XhReactiveElement {
   /** 内部剪贴板里有内容可粘贴。 */
   get canPaste(): boolean {
     return this.#clipboard !== undefined
+  }
+
+  /**
+   * 设计器这棵子树的配置：设置里选了语言时是这一语言的 UI、designer-shell 与表单语言包，跟随页面时是空对象。
+   * 设计器自己、里面的元素与它弹出的浮层都按它取 locale 与文案，页面别处不受影响。
+   */
+  get xhConfig(): XhConfig {
+    return this.#settingsHost?.localeConfig ?? FOLLOW_PAGE
   }
 
   /** 有没保存的修改：上次 `markSaved` 之后改过。 */
@@ -942,7 +963,7 @@ export class XhFormDesigner extends XhReactiveElement {
 
   /**
    * 设置：建好设置宿主（主题色预设、注册函数或存储键变了就重建），给了存储键又没赋 settings 时从存储读；settings 变了
-   * 把主题与主题色落到设计器上；算出此刻生效的设置，交给设置对话框。
+   * 把主题、主题色与语言落到设计器上（语言包取到后重画）；算出此刻生效的设置，交给设置对话框。
    */
   #syncSettings(parts: DesignerParts, changed: PropertyValues): void {
     const options = [this.brands, this.registerBrand, this.settingsStorageKey]
@@ -951,12 +972,14 @@ export class XhFormDesigner extends XhReactiveElement {
       this.#settingsHost?.dispose()
       this.#settingsHostOptions = options
       const storageKey = this.settingsStorageKey
+      const locale = { locale: loadFormLocale, onLocaleChange: () => this.requestUpdate() }
       this.#settingsHost = storageKey === undefined
-        ? createDesignerSettingsHost({ root: this, brands: this.brands, registerBrand: this.registerBrand })
+        ? createDesignerSettingsHost({ root: this, brands: this.brands, registerBrand: this.registerBrand, ...locale })
         : createDesignerSettingsHost({
             root: this,
             brands: this.brands,
             registerBrand: this.registerBrand,
+            ...locale,
             storageKey,
             onStorageError: detail => emitEvent(this, 'settings-storage-error', detail),
           })

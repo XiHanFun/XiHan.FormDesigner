@@ -93,7 +93,7 @@ aside: false
 
 ## 设置分区
 
-`settings` 给设置对话框加自己的分区：`id`、`label`、可选的 `order` 与条目 `items`，条目用属性描述的写法，写了 `default` 的是缺省值。用户的取值以「分区 id.条目 id」为键，命令、面板与扩展从上下文的 `settings` 读，没写的已经取了缺省值。分区 id 不能是 `general`，也不能与别的扩展重名，见[设置](./designer#设置)。
+`settings` 给设置对话框加自己的分区：`id`、`label`、可选的 `order` 与条目 `items`，条目用属性描述的写法，写了 `default` 的是缺省值。用户的取值以「分区 id.条目 id」为键，命令、面板与扩展从上下文的 `settings` 读，没写的已经取了缺省值。分区 id 不能是内置的 `general`、`language`、`layout`、`toolbar`、`help`、`shortcuts`、`about`，也不能与别的扩展重名，见[设置](./designer#设置)。
 
 ## 引导步骤
 
