@@ -67,20 +67,20 @@ function events<K extends keyof FormDesignerEventMap>(target: EventTarget, type:
 }
 
 describe('新手引导', () => {
-  it('内置扩展登记表单的四步；步骤 id 与别人重名或用了 shell. 前缀时抛 DesignerExtensionError', () => {
-    expect(ids(createFormDesignerModel([]).tourSteps)).toEqual(['form.insert', 'form.outline', 'form.rules', 'form.preview'])
+  it('内置扩展登记表单的三步；步骤 id 与别人重名或用了 shell. 前缀时抛 DesignerExtensionError', () => {
+    expect(ids(createFormDesignerModel([]).tourSteps)).toEqual(['form.outline', 'form.rules', 'form.preview'])
     const step = (id: string): { id: string, title: string, description: string } => ({ id, title: 'T', description: 'D' })
     expect(ids(createFormDesignerModel([{ id: '@acme/tour', tourSteps: [step('@acme/tour.extra')] }]).tourSteps).at(-1)).toBe('@acme/tour.extra')
-    expect(() => createFormDesignerModel([{ id: '@acme/tour', tourSteps: [step('form.insert')] }])).toThrow(DesignerExtensionError)
+    expect(() => createFormDesignerModel([{ id: '@acme/tour', tourSteps: [step('form.outline')] }])).toThrow(DesignerExtensionError)
     expect(() => createFormDesignerModel([{ id: '@acme/tour', tourSteps: [step('shell.mine')] }])).toThrow(DesignerExtensionError)
   })
 
-  it('交给引导零件的各步按此刻的文案取好文字；只读时不讲顶栏插入与校验联动两步', async () => {
+  it('交给引导零件的各步按此刻的文案取好文字；只读时不讲校验联动那一步', async () => {
     const designer = await mount(element => element.autoTour = false)
     const tour = tourOf(designer)
     expect(tour.frame).toBe(designer.querySelector('xh-designer-frame'))
     const steps = tour.steps as readonly DesignerTourStepView[]
-    expect(ids(steps)).toEqual(['form.insert', 'form.outline', 'form.rules', 'form.preview'])
+    expect(ids(steps)).toEqual(['form.outline', 'form.rules', 'form.preview'])
     expect(steps.find(step => step.id === 'form.outline')).toMatchObject({ target: { panel: 'outline' }, title: DEFAULT_FORM_DESIGNER_TRANSLATIONS.tour.outlineTitle, description: DEFAULT_FORM_DESIGNER_TRANSLATIONS.tour.outlineDescription })
     designer.readonly = true
     await designer.updateComplete

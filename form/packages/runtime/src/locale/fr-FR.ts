@@ -54,8 +54,6 @@ const locale: FormLocale = {
     widthPhone: 'Téléphone',
     statusFields: count => (count < 2 ? `${count} champ` : `${count} champs`),
     statusSelected: count => (count < 2 ? `${count} sélectionné` : `${count} sélectionnés`),
-    insertToolbar: 'Insérer des champs',
-    insertField: label => `Ajouter ${label}`,
     propertiesTab: 'Propriétés',
     validationTab: 'Validation',
     linkageTab: 'Logique conditionnelle',
@@ -108,8 +106,6 @@ const locale: FormLocale = {
       replaceDocument: 'Modifier le JSON',
     },
     tour: {
-      insertTitle: 'Insertion rapide',
-      insertDescription: 'Les champs courants sont alignés en haut. Cliquez sur l’un d’eux pour l’ajouter après le champ sélectionné.',
       outlineTitle: 'Structure',
       outlineDescription: 'Les champs et conteneurs du formulaire sous forme d’arbre. Sélectionnez-les, supprimez-les ou faites-les glisser à un autre endroit.',
       rulesTitle: 'Validation et logique conditionnelle',
@@ -121,7 +117,7 @@ const locale: FormLocale = {
       product: 'XiHan Form Designer',
       docs: 'Ouvrir la documentation',
       notes: [
-        'Ajoutez des champs depuis la palette ou la barre d’insertion rapide en haut, puis sélectionnez un champ sur le canevas et modifiez son libellé, sa clé de données et son apparence dans le panneau des propriétés.',
+        'Faites glisser des champs depuis la palette sur le canevas ou cliquez sur l’un d’eux pour l’ajouter, puis sélectionnez un champ sur le canevas et modifiez son libellé, sa clé de données et son apparence dans le panneau des propriétés.',
         'Les onglets Validation et Logique conditionnelle du panneau des propriétés ajoutent des règles au champ sélectionné : obligatoire, format et plage, ou affichage, masquage et désactivation selon d’autres champs.',
         'Dans l’aperçu, remplissez le formulaire comme le feront vos utilisateurs. Chaque modification peut être annulée et l’historique liste toutes les étapes.',
       ],

@@ -50,8 +50,6 @@ const locale: FormLocale = {
     widthPhone: 'Móvil',
     statusFields: count => (count === 1 ? '1 campo' : `${count} campos`),
     statusSelected: count => (count === 1 ? '1 seleccionado' : `${count} seleccionados`),
-    insertToolbar: 'Insertar campos',
-    insertField: label => `Añadir ${label}`,
     propertiesTab: 'Propiedades',
     validationTab: 'Validación',
     linkageTab: 'Lógica condicional',
@@ -104,8 +102,6 @@ const locale: FormLocale = {
       replaceDocument: 'Editar JSON',
     },
     tour: {
-      insertTitle: 'Inserción rápida',
-      insertDescription: 'Los campos habituales están en la parte superior. Haga clic en uno para añadirlo después del campo seleccionado.',
       outlineTitle: 'Estructura',
       outlineDescription: 'Los campos y contenedores del formulario en forma de árbol. Selecciónelos o elimínelos aquí, o arrástrelos a otro lugar.',
       rulesTitle: 'Validación y lógica condicional',
@@ -117,7 +113,7 @@ const locale: FormLocale = {
       product: 'XiHan Form Designer',
       docs: 'Abrir la documentación',
       notes: [
-        'Añada campos desde la paleta o la barra de inserción rápida de arriba; después seleccione un campo en el lienzo y cambie su etiqueta, su clave de datos y su apariencia en el panel de propiedades.',
+        'Arrastre campos desde la paleta al lienzo o haga clic en uno para añadirlo; después seleccione un campo en el lienzo y cambie su etiqueta, su clave de datos y su apariencia en el panel de propiedades.',
         'Las pestañas Validación y Lógica condicional del panel de propiedades añaden reglas al campo seleccionado: obligatorio, formato y rango, o mostrarlo, ocultarlo y deshabilitarlo según otros campos.',
         'En la vista previa, rellene el formulario como lo harán sus usuarios. Cada cambio se puede deshacer y el historial muestra todos los pasos.',
       ],

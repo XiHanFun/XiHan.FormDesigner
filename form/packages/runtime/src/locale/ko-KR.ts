@@ -50,8 +50,6 @@ const locale: FormLocale = {
     widthPhone: '휴대폰',
     statusFields: count => `필드 ${count}개`,
     statusSelected: count => `${count}개 선택됨`,
-    insertToolbar: '필드 삽입',
-    insertField: label => `${label} 추가`,
     propertiesTab: '속성',
     validationTab: '유효성 검사 규칙',
     linkageTab: '연동 규칙',
@@ -104,8 +102,6 @@ const locale: FormLocale = {
       replaceDocument: 'JSON 편집',
     },
     tour: {
-      insertTitle: '빠른 삽입',
-      insertDescription: '자주 쓰는 필드가 위쪽에 있습니다. 하나를 클릭하면 선택한 필드 뒤에 추가됩니다.',
       outlineTitle: '페이지 구조',
       outlineDescription: '양식의 필드와 컨테이너를 트리로 보여 줍니다. 여기에서 선택하거나 삭제하고, 끌어서 위치를 바꿀 수 있습니다.',
       rulesTitle: '유효성 검사와 연동',
@@ -117,7 +113,7 @@ const locale: FormLocale = {
       product: 'XiHan Form Designer',
       docs: '문서 열기',
       notes: [
-        '팔레트나 위쪽의 빠른 삽입에서 필드를 캔버스에 추가하고, 캔버스에서 필드를 선택해 속성 패널에서 레이블, 데이터 키, 모양을 바꿉니다.',
+        '팔레트에서 필드를 캔버스로 끌어 놓거나 클릭해 추가하고, 캔버스에서 필드를 선택해 속성 패널에서 레이블, 데이터 키, 모양을 바꿉니다.',
         '속성 패널의 유효성 검사 규칙, 연동 규칙 탭에서 선택한 필드에 규칙을 추가합니다. 필수, 형식, 범위 검사나 다른 필드 값에 따라 표시, 숨기기, 사용 안 함을 정할 수 있습니다.',
         '미리 보기에서는 양식을 작성하는 사람처럼 직접 입력해 봅니다. 모든 변경은 실행 취소할 수 있고, 기록 패널에 모든 단계가 나열됩니다.',
       ],

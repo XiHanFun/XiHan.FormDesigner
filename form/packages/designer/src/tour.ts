@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 新手引导里表单自己的几步：排在 designer-shell 的通用步骤后面，讲顶栏的插入钮、页面结构、校验与联动两页和预览。
+// 新手引导里表单自己的几步：排在 designer-shell 的通用步骤后面，讲页面结构、校验与联动两页和预览。
 // 目标面板隐藏、工具栏没有那条命令时那一步由引导零件跳过；只读时不讲编辑用的两步。
 
 import type { DesignerTourStep } from '@xihan-ui/designer-shell'
@@ -15,24 +15,16 @@ const editable = ({ designer }: FormDesignerContext): boolean => designer.readon
 /** 表单的引导步骤，内置扩展登记；id 写 form. 开头，order 从 100 起。 */
 export const FORM_TOUR_STEPS: readonly DesignerTourStep<FormDesignerContext>[] = Object.freeze([
   {
-    id: 'form.insert',
-    target: { region: 'header' },
-    order: 100,
-    title: ({ translations }) => translations.tour.insertTitle,
-    description: ({ translations }) => translations.tour.insertDescription,
-    when: editable,
-  },
-  {
     id: 'form.outline',
     target: { panel: 'outline' },
-    order: 110,
+    order: 100,
     title: ({ translations }) => translations.tour.outlineTitle,
     description: ({ translations }) => translations.tour.outlineDescription,
   },
   {
     id: 'form.rules',
     target: { panel: 'properties', part: 'inspector-tabs' },
-    order: 120,
+    order: 110,
     title: ({ translations }) => translations.tour.rulesTitle,
     description: ({ translations }) => translations.tour.rulesDescription,
     when: editable,
@@ -40,7 +32,7 @@ export const FORM_TOUR_STEPS: readonly DesignerTourStep<FormDesignerContext>[] =
   {
     id: 'form.preview',
     target: { command: 'preview' },
-    order: 130,
+    order: 120,
     title: ({ translations }) => translations.tour.previewTitle,
     description: ({ translations }) => translations.tour.previewDescription,
   },

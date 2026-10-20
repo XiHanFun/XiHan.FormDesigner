@@ -22,13 +22,12 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 ## 界面
 
-设计器的外框从上到下是顶栏、工具栏、中间一行与状态栏。中间一行左边是物料与页面结构，中间是画布，右边是属性，画布下方是问题列表。
+设计器的外框从上到下是工具栏、中间一行与状态栏。中间一行左边是物料与页面结构，中间是画布，右边是属性，画布下方是问题列表。
 
 | 区域 | 内容 |
 | --- | --- |
-| 顶栏 | 常用字段的插入钮：单行文本、多行文本、数字、日期、下拉选择、单选组。图标在上、种类名在下，点一下插到选中节点之后，没有选中时放到末尾 |
-| 工具栏 | 撤销、重做；删除、创建副本；设计与预览；预览宽度三档；末组是面板、设置与帮助 |
-| 物料（左） | 卡片。按分类列出可以放进表单的种类，每种带图标：每组一行组名，下面直接列出条目，全部展开；可搜索。扩展可以经[物料来源](./extensions#物料来源)在后面加几组 |
+| 工具栏 | 撤销、重做；删除、创建副本；设计与预览；拖动与预览宽度三档；末组是面板、设置与帮助 |
+| 物料（左） | 卡片。按分类列出可以放进表单的种类：每组一行组名，下面是方形小卡片，图标在上、种类名在下，按面板宽度排成几列，悬停显示全名；全部展开，可搜索。拖到画布上放进想要的位置，点一下插到选中节点之后，没有选中时放到末尾。扩展可以经[物料来源](./extensions#物料来源)在后面加几组 |
 | 页面结构（左，物料下面） | 卡片。按树列出模板里的节点，见[页面结构](#页面结构) |
 | 画布（中） | 按模板排出的表单，所见即所得；只选中一个节点时它的右下角带一条选中工具条：选中上一级、上移、下移、创建副本、删除 |
 | 历史记录（右，属性下面） | 卡片，缺省隐藏，从工具栏的「面板」菜单打开。按先后列出撤销历史的每一步，见[撤销与历史记录](#撤销与历史记录) |
@@ -36,7 +35,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 | 问题（画布下方） | 卡片。模板自检出的问题，面板头上是错误数与警告数，兼作筛选开关；点一条就选中并滚到出问题的节点 |
 | 状态栏 | 左边写选中的字段种类与字段名，选中区域写它所在的容器，多选写个数，什么都没选写字段数；右边是预览宽度，点一下回到全宽 |
 
-预览态的外框不显示面板，只留顶栏、工具栏与状态栏，画布换成渲染器，见[预览](#预览)。
+预览态的外框不显示面板，只留工具栏与状态栏，画布换成渲染器，见[预览](#预览)。
 
 ### 卡片与面板
 
@@ -62,7 +61,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 - 拖动一行或按 Alt + 方向键挪动节点，放得下才许放（子表只收字段，不能放进自己里面），一次挪动记为一步撤销。区域行不能挪。
 - 只读时能选、能标出，不能删、不能挪；预览态不显示这块面板。
 
-扩展登记的面板给了标题也画成卡片，同样能挪动、浮出与隐藏，见[扩展](./extensions#面板)。画布总在。状态栏只受设置里的「状态栏」开关控制；顶栏有插入钮就显示，没有就收起。
+扩展登记的面板给了标题也画成卡片，同样能挪动、浮出与隐藏，见[扩展](./extensions#面板)。画布总在。状态栏只受设置里的「状态栏」开关控制。
 
 ### 工具栏
 
@@ -156,7 +155,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 - 「基础」（`general`）：主题（跟随页面、跟随系统、亮色、暗色）、主题色与状态栏。
 - 「布局」（`layout`）：一张面板表，逐块面板一行，显示开关、停在哪一栏（或浮动）、上移下移与收成标题条，表下「恢复默认布局」；和面板头的「更多」菜单一样，不靠拖动也能改布局，改的就是 `layout.panels`（见[卡片与面板](#卡片与面板)）。
-- 「工具栏」（`toolbar`）：按钮显示方式（`toolbar.display`）、显示工具栏（`toolbar.visible`），以及一张按钮表（`toolbar.layout`）：一组一块，组头三态勾选框，每个按钮一行，可以勾掉、拖动换先后或挪到别的组，表下「恢复默认」。只管顶部工具栏：顶栏的插入钮、右键菜单与选中工具条不在这里改，由宿主的 `commandLayout` 排。
+- 「工具栏」（`toolbar`）：按钮显示方式（`toolbar.display`）、显示工具栏（`toolbar.visible`），以及一张按钮表（`toolbar.layout`）：一组一块，组头三态勾选框，每个按钮一行，可以勾掉、拖动换先后或挪到别的组，表下「恢复默认」。只管顶部工具栏：右键菜单与选中工具条不在这里改，由宿主的 `commandLayout` 排。
 - 「帮助」（`help`）：表单的几段说明，以及「开始引导」「打开文档」两颗钮；点了先关上对话框，再跑对应的命令（`start-tour`、`help`）。
 - 「快捷键」（`shortcuts`）：按命令表列出，分通用、编辑、本设计器与扩展几组，同一条命令的第二个快捷键写在同一行。「本设计器」那组末尾是表单不是命令的按键：↑ ↓ 选上一个、下一个，Alt + ↑ ↓ 上移、下移，Enter 选中里面第一个，Esc 选中上一级，Shift + F10 打开右键菜单。「通用」组末尾只列表单有的两个按键：Alt + F10（焦点在画布里时，焦点移到选中工具条）与 Esc；表单的画布不能微移，也不能按住空格拖动。
 - 「关于」（`about`）：产品名、版本（包入口导出的 `FORM_DESIGNER_VERSION`）、界面库版本与许可证，后面接各扩展给的几行（见[扩展](./extensions#关于)）。
@@ -180,7 +179,7 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 ## 新手引导
 
-第一次打开设计器时，画布铺好后自动开始一遍新手引导，一步高亮一处：先是工具栏、物料、画布、属性、问题列表与状态栏，再是表单自己的四步——顶栏的插入钮、页面结构、属性面板的「校验规则」「联动规则」两页，以及工具栏的预览，最后是设置。目标面板隐藏、工具栏上没有那条命令时那一步跳过；只读时不讲插入与校验联动两步。进入一步前，设计器把那块面板亮出来：展开收起的栏或标题条，窄屏时打开抽屉。
+第一次打开设计器时，画布铺好后自动开始一遍新手引导，一步高亮一处：先是工具栏、物料、画布、属性、问题列表与状态栏，再是表单自己的三步——页面结构、属性面板的「校验规则」「联动规则」两页，以及工具栏的预览，最后是设置。目标面板隐藏、工具栏上没有那条命令时那一步跳过；只读时不讲插入与校验联动两步。进入一步前，设计器把那块面板亮出来：展开收起的栏或标题条，窄屏时打开抽屉。
 
 - 走完、跳过（含按 Esc）或关掉时，设计器派发 `tour-end`：`reason` 是 `complete`、`skip` 或 `close`，`step` 是收起时那一步的 id。同时在设置里记下 `help.tourDone`，照常派发 `settings-change`；宿主把设置存好，下次就不再自动开始。
 - 引导只铺在设计器的外框里：遮罩与高亮都不出外框，页面别处照常可用。同一页同时只开一个引导：别的设计器的引导开着时，自动开始让开；`startTour()` 与「开始引导」先收起那一个再开始。
@@ -203,13 +202,13 @@ pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/des
 
 ## 工具栏与菜单的排列
 
-`commandLayout` 按位置写命令 id 的分组：`header` 是顶栏的插入钮，`toolbar` 是工具栏，`menu:node`、`menu:region`、`menu:cell`、`menu:blank` 是选中节点、区域、表格单元格与空白处的右键菜单，`selection:node` 是只选中一个节点时浮在它右下角的选中工具条。写了某个位置就只显示列出的命令；没写的位置用内置的排列 `FORM_TOOLBAR_LAYOUT`、`FORM_MENU_LAYOUTS` 与 `FORM_SELECTION_LAYOUTS`，再把登记在这个位置的扩展命令追加成一组；顶栏没写时列出登记在 `header` 的命令。写成 `{ header: [] }` 就没有顶栏，写成 `{ 'selection:node': [] }` 就没有选中工具条。示例在内置的工具栏末尾加了保存：
+`commandLayout` 按位置写命令 id 的分组：`toolbar` 是工具栏，`menu:node`、`menu:region`、`menu:cell`、`menu:blank` 是选中节点、区域、表格单元格与空白处的右键菜单，`selection:node` 是只选中一个节点时浮在它右下角的选中工具条。写了某个位置就只显示列出的命令；没写的位置用内置的排列 `FORM_TOOLBAR_LAYOUT`、`FORM_MENU_LAYOUTS` 与 `FORM_SELECTION_LAYOUTS`，再把登记在这个位置的扩展命令追加成一组。写成 `{ 'selection:node': [] }` 就没有选中工具条。示例在内置的工具栏末尾加了保存：
 
 ```ts
 designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
 ```
 
-内置命令的 id：`undo`、`redo`、`clear-history`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`，以及 designer-shell 内置的 `panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`settings`、`help`、`start-tour`、`edit-json` 与各面板的开关命令 `panel:palette`、`panel:outline`、`panel:properties`、`panel:history`、`panel:issues`；顶栏的插入钮是 `insert:text`、`insert:textarea`、`insert:number`、`insert:date`、`insert:select`、`insert:radio-group`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
+内置命令的 id：`undo`、`redo`、`clear-history`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`、`save`，以及 designer-shell 内置的 `panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`pan-tool`、`settings`、`help`、`start-tour`、`edit-json` 与各面板的开关命令 `panel:palette`、`panel:outline`、`panel:properties`、`panel:history`、`panel:issues`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
 
 ## 示例
 
