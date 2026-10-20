@@ -86,6 +86,17 @@ xh-form-designer [slot='canvas'][data-resizing] {
   cursor: col-resize;
 }
 
+/* 拖动工具开着：画布与里面的节点、跨度把手一律手形，拖动中握拳；选中工具条上的按钮照常 */
+xh-form-designer [data-canvas-tool='pan'] [slot='canvas'],
+xh-form-designer [data-canvas-tool='pan'] [slot='canvas'] :not([data-part='node-toolbar'], [data-part='node-toolbar'] *) {
+  cursor: grab;
+}
+
+xh-form-designer [data-canvas-tool='pan'] [slot='canvas'][data-gesture='pan'],
+xh-form-designer [data-canvas-tool='pan'] [slot='canvas'][data-gesture='pan'] * {
+  cursor: grabbing;
+}
+
 xh-form-designer > [data-part='frame'][data-readonly] [data-part='span-handle'] {
   display: none;
 }

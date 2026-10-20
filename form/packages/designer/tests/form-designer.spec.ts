@@ -1015,6 +1015,103 @@ describe('<xh-form-designer>：右键菜单', () => {
   })
 })
 
+describe('<xh-form-designer>：拖动工具', () => {
+  function pointer(type: string, target: EventTarget, clientX: number, clientY: number): void {
+    target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 5, isPrimary: true, button: 0, clientX, clientY }))
+  }
+
+  function escape(target: EventTarget): KeyboardEvent {
+    const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' })
+    target.dispatchEvent(event)
+    return event
+  }
+
+  /** 选中 name、开着拖动工具的设计器；画布的 scrollBy 记下每次滚了多少。 */
+  async function panSetup() {
+    const { document, name, inner } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    designer.select({ nodes: [name.id] })
+    const frame = designer.querySelector('xh-designer-frame')!
+    frame.canvasTool = 'pan'
+    await settle(designer)
+    const canvas = designer.querySelector<HTMLElement>('[data-part="canvas"]')!
+    const scrolled: [number, number][] = []
+    Object.defineProperty(canvas, 'scrollBy', { configurable: true, value: (x: number, y: number) => void scrolled.push([x, y]) })
+    return { designer, frame, canvas, scrolled, name, inner }
+  }
+
+  it('工具栏预览宽度那组最前是外壳的拖动工具（H，手形图标）；外框换了工具时按钮的按下状态跟着重画', async () => {
+    const designer = await mount(() => {})
+    const frame = designer.querySelector('xh-designer-frame')!
+    const button = (): HTMLButtonElement => designer.querySelector<HTMLButtonElement>('[data-part="command-bar"] button[value="pan-tool"]')!
+    expect([button().getAttribute('data-icon') === null, button().getAttribute('aria-keyshortcuts'), button().getAttribute('aria-pressed')]).toEqual([false, 'H', 'false'])
+    frame.canvasTool = 'pan'
+    await settle(designer)
+    expect(button().getAttribute('aria-pressed')).toBe('true')
+    frame.canvasTool = 'select'
+    await settle(designer)
+    expect(button().getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('开着时在节点上按住拖动是滚动画布：不选中、不挪节点，拖动中画布标上 data-gesture；只点一下不取消选择，双击不派发 node-dblclick', async () => {
+    const { designer, canvas, scrolled, name, inner } = await panSetup()
+    const schema = designer.schema
+    const dblclicks = events(designer, 'node-dblclick')
+    pointer('pointerdown', block(designer, inner.id), 100, 100)
+    expect(canvas.getAttribute('data-gesture')).toBe('pan')
+    pointer('pointermove', window.document, 80, 60)
+    pointer('pointermove', window.document, 90, 70)
+    pointer('pointerup', window.document, 90, 70)
+    expect(scrolled).toEqual([[20, 40], [-10, -10]])
+    expect(canvas.hasAttribute('data-gesture')).toBe(false)
+    block(designer, inner.id).dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    canvas.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    block(designer, inner.id).dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }))
+    await settle(designer)
+    expect(designer.getSelection().nodes).toEqual([name.id])
+    expect(designer.schema).toBe(schema)
+    expect(dblclicks).toEqual([])
+  })
+
+  it('跨度把手上按下也是滚动画布，不改跨度；只读与预览态照样能拖', async () => {
+    const ids = createIdAllocator('p')
+    const grid = createNode(registry, 'grid', ids) as ContainerNode
+    const { designer, canvas, scrolled } = await panSetup()
+    designer.schema = { ...createDocument(), children: [grid] }
+    await settle(designer)
+    const handle = designer.querySelector<HTMLElement>(`[data-region-id="${grid.regions[0]!.id}"] > [data-part="span-handle"]`)!
+    pointer('pointerdown', handle, 100, 100)
+    pointer('pointermove', window.document, 60, 100)
+    pointer('pointerup', window.document, 60, 100)
+    expect(scrolled).toEqual([[40, 0]])
+    expect([canvas.hasAttribute('data-resizing'), designer.canUndo]).toEqual([false, false])
+    designer.readonly = true
+    designer.mode = 'preview'
+    await settle(designer)
+    pointer('pointerdown', canvas.querySelector('xh-form-renderer')!, 100, 100)
+    pointer('pointermove', window.document, 100, 50)
+    pointer('pointerup', window.document, 100, 50)
+    expect(scrolled).toEqual([[40, 0], [0, 50]])
+  })
+
+  it('拖动途中按 Esc 只取消这次拖动：拖动工具还开着、选择不动；不在拖动时 Esc 由外框退出拖动工具，选择也不动', async () => {
+    const { designer, frame, canvas, scrolled, name } = await panSetup()
+    pointer('pointerdown', canvas, 100, 100)
+    pointer('pointermove', window.document, 90, 100)
+    const during = escape(canvas)
+    expect([during.defaultPrevented, frame.canvasTool, canvas.hasAttribute('data-gesture')]).toEqual([true, 'pan', false])
+    pointer('pointermove', window.document, 50, 100)
+    pointer('pointerup', window.document, 50, 100)
+    expect(scrolled).toEqual([[10, 0]])
+    expect(designer.getSelection().nodes).toEqual([name.id])
+    expect(escape(canvas).defaultPrevented).toBe(true)
+    expect(frame.canvasTool).toBe('select')
+    expect(designer.getSelection().nodes).toEqual([name.id])
+  })
+})
+
 describe('<xh-form-designer>：规则页签', () => {
   it('单选字段时校验与联动页签可用；从菜单加规则、改参数、删掉；选空白时回到属性页签', async () => {
     const { document, name } = sample()
