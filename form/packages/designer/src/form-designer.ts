@@ -13,7 +13,7 @@ import type { FileUploader, FormDesignerTranslations, FormRendererTranslations, 
 import type { JsonPath, JsonValue } from '@xihan-ui/core/json'
 import type { VisualEnvironmentStorageError } from '@xihan-ui/core/visual-environment'
 import type { ExecuteOptions, ExtensionHost, HistorySnapshot } from '@xihan-ui/designer-kit'
-import type { CommandMenubar, CommandToolbar, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerHistoryTranslations, DesignerIssueItem, DesignerIssuesEventMap, DesignerJsonEditorEventMap, DesignerLanguage, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPaletteGroup, DesignerPaletteItem, DesignerPaletteView, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, DesignerTourEventMap, PanRequestDetail } from '@xihan-ui/designer-shell'
+import type { CommandMenubar, CommandToolbar, DesignerAutosave, DesignerCommandLayout, DesignerCommandsTranslations, DesignerFrameEventMap, DesignerFrameRegion, DesignerHistoryTranslations, DesignerIssueItem, DesignerIssuesEventMap, DesignerJsonEditorEventMap, DesignerLanguage, DesignerLayout, DesignerLayoutPolicy, DesignerPaletteEventMap, DesignerPaletteGroup, DesignerPaletteItem, DesignerPaletteView, DesignerPanelHost, DesignerPropertiesEventMap, DesignerPropertyDescriptor, DesignerSettings, DesignerSettingsEventMap, DesignerSettingsHost, DesignerSettingsPolicy, DesignerSettingsSection, DesignerStatusItem, DesignerTourEventMap, PanRequestDetail } from '@xihan-ui/designer-shell'
 import type { ExpressionEngine } from '@xihan-ui/expression'
 import type { PointerSession } from '@xihan-ui/pointer'
 import type { XhConfig } from '@xihan-ui/web-components'
@@ -30,7 +30,7 @@ import { createDocument, findNode, findRegion, kindLabel, PROPERTY_GROUPS, valid
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
 import { commandForShortcut, createExtensionHost, HISTORY_NUDGE_MERGE_WITHIN, nudgeMergeKey, snapshotHistory } from '@xihan-ui/designer-kit'
-import { applyToolbarCustomization, arrangeCommands, arrangeMenubar, createCommandMenubar, createCommandToolbar, createDesignerDebugLogger, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_COMMON_KEYS, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, DESIGNER_SHELL_COMMANDS, DESIGNER_TOUR_DONE_KEY, designerLayoutPolicy, designerMenubarLayout, forwardFrameSlots, registerDropTarget, renderCommandMenu, resolvePaletteSources, resolveSettings, resolveTourSteps, runCommand, shortcutSettingsSource, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, tourDoneOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerJsonEditorElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement, XhDesignerTourElement } from '@xihan-ui/designer-shell'
+import { applyToolbarCustomization, arrangeCommands, arrangeMenubar, autoSaveOf, createCommandMenubar, createCommandToolbar, createDesignerAutosave, createDesignerDebugLogger, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_COMMON_KEYS, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, DESIGNER_SHELL_COMMANDS, DESIGNER_TOUR_DONE_KEY, designerLayoutPolicy, designerMenubarLayout, forwardFrameSlots, registerDropTarget, renderCommandMenu, resolvePaletteSources, resolveSettings, resolveTourSteps, runCommand, shortcutSettingsSource, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, tourDoneOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerJsonEditorElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement, XhDesignerTourElement } from '@xihan-ui/designer-shell'
 import { loadDesignerLocale } from '@xihan-ui/designer-shell/language'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { CircleAlertIcon, LayoutGridIcon, MenuIcon, SlidersHorizontalIcon } from '@xihan-ui/icons'
@@ -235,6 +235,7 @@ export class XhFormDesigner extends XhReactiveElement {
     settings: { attribute: false },
     settingsPolicy: { attribute: false },
     settingsStorageKey: { attribute: 'settings-storage-key', converter: { fromAttribute: (value: string | null) => value ?? undefined } },
+    draftKey: { attribute: 'draft-key', converter: { fromAttribute: (value: string | null) => value ?? undefined } },
     autoTour: { attribute: 'auto-tour', converter: BOOLEAN_CONVERTER },
     historyLimit: { attribute: 'history-limit', converter: { fromAttribute: (value: string | null) => (value === null || value === '' ? undefined : Number(value)) } },
   }
@@ -279,6 +280,12 @@ export class XhFormDesigner extends XhReactiveElement {
    * 标了 secret 的条目不存；读写失败派发 settings-storage-error。不给就不读写。同名 attribute settings-storage-key。
    */
   declare settingsStorageKey: string | undefined
+  /**
+   * 自动保存草稿的键：区分同一页、同一种设计器里的不同模板（宿主写模板 id）；不给时按页面地址区分。
+   * 设置里开着自动保存时，未保存的修改停手约一秒存成这台浏览器里的草稿；下次装进同一个键的模板、和草稿不一样时问恢复还是丢弃。
+   * 同名 attribute draft-key。
+   */
+  declare draftKey: string | undefined
   /** 撤销步数上限，缺省 100；在下一次装载（赋 schema）时生效。同名 attribute history-limit。 */
   declare historyLimit: number | undefined
   /**
@@ -340,6 +347,23 @@ export class XhFormDesigner extends XhReactiveElement {
   readonly #debug = createDesignerDebugLogger({ name: FORM_DESIGNER_TAG, settings: () => this.#resolvedSettings })
   /** 清空历史前的确认框，第一次用到时建。 */
   #dialogs: DialogService | undefined
+  /** 自动保存本机草稿：恢复走整份替换、记一步撤销（说明是「恢复」），问恢复还是丢弃用设计器的确认框。 */
+  readonly #autosave: DesignerAutosave = createDesignerAutosave({
+    root: this,
+    kind: FORM_DESIGNER_TAG,
+    key: () => this.draftKey,
+    enabled: () => autoSaveOf(this.#resolvedSettings),
+    snapshot: () => this.#editor.document as unknown as JsonValue,
+    restore: document => void this.execute([{ type: 'replaceDocument', document: document as unknown as FormDocument }], { label: () => this.#commandTexts().draftRestore }),
+    confirm: (options) => {
+      this.#dialogs ??= createDialogService()
+      return this.#dialogs.confirm(options)
+    },
+    translations: () => this.#commandTexts(),
+  })
+
+  /** 宿主在元素连上文档之前装进的模板：连上以后再看有没有草稿。 */
+  #draftCheckPending = false
   /** 刚连上文档或所在处的配置（语言、文案）变了：画布与物料要按新配置重排；只是选择变了时不重排。 */
   #configStale = true
   #releaseConfigWatch: (() => void) | undefined
@@ -448,6 +472,10 @@ export class XhFormDesigner extends XhReactiveElement {
       const pending = this.#pending
       this.#pending = []
       this.#documentChanged()
+      if (change.cause === 'reset')
+        this.#checkDraft()
+      else
+        this.#autosave.changed(this.#editor.history.dirty)
       if (change.cause === 'commit' && pending.length > 0)
         emitEvent(this, 'schema-change', { schema: change.document, operations: pending, kind: 'execute' })
       else if (change.cause === 'execute' || change.cause === 'undo' || change.cause === 'redo')
@@ -458,7 +486,18 @@ export class XhFormDesigner extends XhReactiveElement {
     })
   }
 
-  /** 当前模板；赋值即装载：清空历史与选择，赋回当前这一份不重新装载。 */
+  /** 宿主装进了一份模板：同一个草稿键下有和它不一样的草稿就问恢复还是丢弃；还没连上文档时等连上再问，只读时不问。 */
+  #checkDraft(): void {
+    if (!this.isConnected) {
+      this.#draftCheckPending = true
+      return
+    }
+    this.#draftCheckPending = false
+    if (this.readonly !== true)
+      void this.#autosave.loaded(this.#editor.document as unknown as JsonValue)
+  }
+
+  /** 当前模板；赋值即装载：清空历史与选择，赋回当前这一份不重新装载；同一个草稿键下有不一样的草稿时问恢复还是丢弃。 */
   get schema(): FormDocument {
     return this.#editor.document
   }
@@ -558,6 +597,8 @@ export class XhFormDesigner extends XhReactiveElement {
       leave: () => this.#showDrop(undefined),
     })
     this.#host.assign(this.#extensions ?? NO_EXTENSIONS)
+    if (this.#draftCheckPending)
+      void this.updateComplete.then(() => this.#checkDraft())
     const Observer = this.ownerDocument.defaultView?.ResizeObserver
     if (Observer !== undefined && this.#canvasResize === undefined) {
       this.#canvasResize = new Observer(() => {
@@ -589,6 +630,7 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#settingsHost = undefined
     this.#dialogs?.dispose()
     this.#dialogs = undefined
+    this.#autosave.dispose()
   }
 
   protected override update(changed: PropertyValues): void {
