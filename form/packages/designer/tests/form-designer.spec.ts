@@ -1015,7 +1015,7 @@ describe('<xh-form-designer>：右键菜单', () => {
     block(designer, name.id).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
     const menu = designer.querySelector('xh-context-menu') as HTMLElement & { updateComplete: Promise<unknown> }
     await menu.updateComplete
-    expect([...menu.querySelectorAll('[data-xh-part="item"]')].map(item => item.getAttribute('value'))).toEqual(['paste', 'edit-json'])
+    expect([...menu.querySelectorAll('[data-xh-part="item"]')].map(item => item.getAttribute('value'))).toEqual(['paste'])
   })
 })
 
@@ -1040,8 +1040,10 @@ describe('<xh-form-designer>：菜单栏', () => {
     return designer.querySelector('xh-designer-frame')!.regions!.map(region => region.name)
   }
 
-  it('外框最上一条是菜单栏：文件、编辑、视图、帮助四张；保存与设置在文件里，预览宽度跟在拖动后面、面板与外观收尾，工具栏、状态栏两条显示开关在外观子菜单里；勾上的是此刻的模式、宽度、面板与显示开关', async () => {
-    const designer = await mount(() => {})
+  it('外框最上一条是菜单栏（开发者模式开着）：文件、编辑、视图、帮助四张；保存与设置在文件里，预览宽度跟在拖动后面、面板与外观收尾，工具栏、状态栏两条显示开关在外观子菜单里；勾上的是此刻的模式、宽度、面板与显示开关', async () => {
+    const designer = await mount((element) => {
+      element.settings = { 'general.developer': true }
+    })
     const menubar = menubarOf(designer)
     expect(menubar.closest('[data-region]')!.getAttribute('data-region')).toBe('menubar')
     expect(regionNames(designer)[0]).toBe('menubar')
@@ -1057,6 +1059,29 @@ describe('<xh-form-designer>：菜单栏', () => {
     const appearance = view.find(item => item.value === 'view/appearance')!
     const toggles = ['show-toolbar', 'show-status-bar'].map(id => `view/appearance/command:${id}`)
     expect([appearance.children!.map(child => [child.value, child.kind]), appearance.checkboxValue]).toEqual([toggles.map(value => [value, 'checkbox']), toggles])
+  })
+
+  it('开发者模式关着时没有编辑 JSON：编辑菜单、空白处右键菜单里都没有，Ctrl / ⌘ + Shift + J 不打开；打开开发者模式后都有', async () => {
+    const designer = await mount(() => {})
+    const editor = designer.querySelector<HTMLElement & { open?: boolean }>('xh-designer-json-editor')!
+    const canvas = designer.querySelector<HTMLElement>('[data-part="canvas"]')!
+    const press = (): void => void canvas.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'J', code: 'KeyJ', ctrlKey: true, shiftKey: true }))
+    const menu = designer.querySelector('xh-context-menu') as HTMLElement & { updateComplete: Promise<unknown> }
+    // 菜单打开后内容搬进浮层，先记住内容那一块
+    const content = menu.querySelector<HTMLElement>('[data-xh-part="content"]')!
+    const blank = async (): Promise<(string | null)[]> => {
+      canvas.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
+      await menu.updateComplete
+      return [...content.querySelectorAll('[data-xh-part="item"]')].map(item => item.getAttribute('value'))
+    }
+    expect([items(designer, 'edit').includes('edit-json'), await blank()]).toEqual([false, ['paste']])
+    press()
+    expect(editor.open).not.toBe(true)
+    designer.settings = { 'general.developer': true }
+    await settle(designer)
+    expect([items(designer, 'edit').at(-1), await blank()]).toEqual(['edit-json', ['paste', 'edit-json']])
+    press()
+    expect(editor.open).toBe(true)
   })
 
   it('保存是外壳的 save 命令：文件菜单里点它、画布上按 Ctrl+S 都派发 save；快捷键写在条目上', async () => {
