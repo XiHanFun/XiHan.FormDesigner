@@ -30,7 +30,7 @@ import { createDocument, findNode, findRegion, kindLabel, PROPERTY_GROUPS, valid
 import { DEFAULT_FORM_DESIGNER_TRANSLATIONS, DEFAULT_FORM_RENDERER_TRANSLATIONS, defineFormRenderer, FORM_RENDERER_TAG } from '@xihan-form/runtime'
 import { detectKbdPlatform } from '@xihan-ui/core/hotkey'
 import { commandForShortcut, createExtensionHost, HISTORY_NUDGE_MERGE_WITHIN, nudgeMergeKey, snapshotHistory } from '@xihan-ui/designer-kit'
-import { applyToolbarCustomization, arrangeCommands, arrangeMenubar, createCommandMenubar, createCommandToolbar, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_COMMON_KEYS, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, DESIGNER_SHELL_COMMANDS, DESIGNER_TOUR_DONE_KEY, designerLayoutPolicy, designerMenubarLayout, forwardFrameSlots, registerDropTarget, renderCommandMenu, resolvePaletteSources, resolveSettings, resolveTourSteps, runCommand, shortcutSettingsSource, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, tourDoneOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerJsonEditorElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement, XhDesignerTourElement } from '@xihan-ui/designer-shell'
+import { applyToolbarCustomization, arrangeCommands, arrangeMenubar, createCommandMenubar, createCommandToolbar, createDesignerDebugLogger, createDesignerSettingsHost, createPanelHost, createStatusItem, defineDesignerShellElement, DESIGNER_COMMANDS_EN_US, DESIGNER_COMMON_KEYS, DESIGNER_FRAME_REGIONS, DESIGNER_HISTORY_EN_US, DESIGNER_SETTING_KEYS, DESIGNER_SHELL_COMMANDS, DESIGNER_TOUR_DONE_KEY, designerLayoutPolicy, designerMenubarLayout, forwardFrameSlots, registerDropTarget, renderCommandMenu, resolvePaletteSources, resolveSettings, resolveTourSteps, runCommand, shortcutSettingsSource, startDrag, toolbarCustomizationOf, toolbarDisplayOf, toolbarSettingsSource, toolbarVisibleOf, tourDoneOf, XhDesignerFrameElement, XhDesignerIssuesElement, XhDesignerJsonEditorElement, XhDesignerPaletteElement, XhDesignerPropertiesElement, XhDesignerSettingsElement, XhDesignerTourElement } from '@xihan-ui/designer-shell'
 import { loadDesignerLocale } from '@xihan-ui/designer-shell/language'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { CircleAlertIcon, LayoutGridIcon, MenuIcon, SlidersHorizontalIcon } from '@xihan-ui/icons'
@@ -336,6 +336,8 @@ export class XhFormDesigner extends XhReactiveElement {
   #cancelPan: (() => void) | undefined
   /** 把宿主写在设计器上的 slot="menubar-end" 转交给外框：调用即停止转交。 */
   #releaseSlots: (() => void) | undefined
+  /** 调试日志：开发者模式与渲染日志都开着时记每次重画、重铺画布与模板自检的耗时。 */
+  readonly #debug = createDesignerDebugLogger({ name: FORM_DESIGNER_TAG, settings: () => this.#resolvedSettings })
   /** 清空历史前的确认框，第一次用到时建。 */
   #dialogs: DialogService | undefined
   /** 刚连上文档或所在处的配置（语言、文案）变了：画布与物料要按新配置重排；只是选择变了时不重排。 */
@@ -590,6 +592,16 @@ export class XhFormDesigner extends XhReactiveElement {
   }
 
   protected override update(changed: PropertyValues): void {
+    if (!this.#debug.enabled('render')) {
+      this.#update(changed)
+      return
+    }
+    const reasons = [...changed.keys()].map(String).join(', ')
+    this.#debug.measure('render', `update: ${reasons === '' ? 'requestUpdate' : reasons}`, () => this.#update(changed))
+  }
+
+  /** 一次重画：设置、状态栏、画布、预览、属性、外框的区与布局、工具栏、设置页、物料、问题、选中工具条、规则页签、面板与引导。 */
+  #update(changed: PropertyValues): void {
     super.update(changed)
     const parts = this.#ensureParts()
     const mode = this.mode ?? 'design'
@@ -1444,15 +1456,24 @@ export class XhFormDesigner extends XhReactiveElement {
   }
 
   #renderCanvas(): void {
-    this.#rendered = this.#editor.document
-    this.#canvas.render(this.#editor.document)
-    this.#canvas.select(this.#editor.selection)
+    const document = this.#editor.document
+    this.#rendered = document
+    this.#debug.measure('render', 'canvas', () => {
+      this.#canvas.render(document)
+      this.#canvas.select(this.#editor.selection)
+    }, () => {
+      let nodes = 0
+      walkNodes(document, () => void (nodes += 1))
+      return { nodes }
+    })
   }
 
   #documentChanged(): void {
     this.requestUpdate()
     this.#syncDirty()
-    const issues = this.validate()
+    // 模板自检：结构、取值与规则里的表达式
+    let issues: readonly FormSchemaIssue[] = []
+    this.#debug.measure('render', 'validate', () => void (issues = this.validate()), () => ({ issues: issues.length }))
     if (!sameIssues(issues, this.#issues)) {
       this.#issues = issues
       emitEvent(this, 'issues-change', { issues })
