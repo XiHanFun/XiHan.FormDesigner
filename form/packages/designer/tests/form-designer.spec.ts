@@ -850,6 +850,29 @@ describe('<xh-form-designer>：选中工具条', () => {
     expect(toolbarOf(designer)).toBeNull()
   })
 
+  it('在工具条的钮上按下、松开再点：命令执行，选中不丢，工具条还在原节点上', async () => {
+    const { document, name, card } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    designer.select({ nodes: [name.id] })
+    await settle(designer)
+    const button = buttonOf(designer, 'move-down')
+    const init = { bubbles: true, cancelable: true, composed: true, pointerId: 7, pointerType: 'mouse', isPrimary: true, button: 0, clientX: 10, clientY: 10 }
+    button.dispatchEvent(new PointerEvent('pointerdown', { ...init, buttons: 1 }))
+    button.dispatchEvent(new MouseEvent('mousedown', { ...init, buttons: 1 }))
+    await settle(designer)
+    expect(designer.getSelection().nodes).toEqual([name.id])
+    expect(toolbarOf(designer)!.contains(button)).toBe(true)
+    button.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }))
+    button.dispatchEvent(new MouseEvent('mouseup', { ...init, buttons: 0 }))
+    button.dispatchEvent(new MouseEvent('click', { ...init, buttons: 0 }))
+    await settle(designer)
+    expect(designer.schema.children.map(node => node.id)).toEqual([card.id, name.id])
+    expect(designer.getSelection().nodes).toEqual([name.id])
+    expect(toolbarOf(designer)!.parentElement).toBe(block(designer, name.id))
+  })
+
   it('焦点在画布里按 Alt+F10：焦点移到选中工具条；没有选中工具条时什么都不做', async () => {
     const { document, name } = sample()
     const designer = await mount((element) => {
