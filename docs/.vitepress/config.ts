@@ -186,6 +186,12 @@ export default defineXiHanConfig({
   description,
   keywords,
   repo: 'XiHan.FormDesigner',
+  banner: {
+    id: '2026-10-designers-rc',
+    text: '生态产品多个设计器现已发布候选版本',
+    link: 'https://docs.xihanfun.com/cosmos/ecosystem',
+    linkText: '查看生态总览',
+  },
   llms: {
     title: '曦寒表单设计器',
     summary:
