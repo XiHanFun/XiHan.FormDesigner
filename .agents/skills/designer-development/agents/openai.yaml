@@ -1,0 +1,7 @@
+interface:
+  display_name: "XiHan.FormDesigner 开发"
+  short_description: "实现和修复表单设计器的 core、runtime 与 designer"
+  default_prompt: "使用 $xihan-form-designer-development 实现并验证一个表单设计器改动。"
+
+policy:
+  allow_implicit_invocation: true
