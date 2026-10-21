@@ -49,20 +49,13 @@ XiHan.FormDesigner 是框架无关的表单设计器，以原生 Web Components 
 | 单测 | `pnpm test` |
 | Lint | `pnpm lint` |
 | 产物契约（publint + attw，先 build） | `pnpm gate:publish` |
-| 冒烟（在临时空项目里装包、类型检查与打包） | `pnpm smoke --pack`（UI 未发版时加 `--ui ../../XiHan.UI/ui`） |
+| 冒烟（在临时空项目里装包、类型检查与打包） | `pnpm smoke --pack`（要连同级 XiHan.UI 还没发版的改动一起试时加 `--ui ../../XiHan.UI/ui`） |
 | 写变更集 | `pnpm changeset` |
 
 `pnpm build` 按依赖拓扑依次构建 core、runtime、designer。runtime 与 designer 经包的 `exports` 读取上游 dist，改了上游先重建再验证下游。
 
 开发预览页在 `form/playground`，用 Vite 起在 5192 端口（strictPort）：页面分渲染器与设计器两页：渲染器页是一张示例报销单，演示排布、联动、校验、异步与级联选项、只读与禁用和中文语言包；设计器页用同一张报销单演示画布、选择、键盘编辑、撤销重做与预览宽度。
-它直接引用各包的源码，改了源码即时生效，不必先 `pnpm build`；`@xihan-ui/*` 经 overrides 读同级 XiHan.UI 的产物，启动前先在 `XiHan.UI/ui` 构建依赖的包：
-
-```bash
-# XiHan.UI/ui
-pnpm --filter "@xihan-ui/web-components..." --filter "@xihan-ui/designer-kit..." --filter "@xihan-ui/designer-shell..." --filter "@xihan-ui/expression..." --filter "@xihan-ui/icons..." --filter "@xihan-ui/styles..." build
-# XiHan.FormDesigner/form
-pnpm dev
-```
+它直接引用各包的源码，改了源码即时生效，不必先 `pnpm build`；`@xihan-ui/*` 用 npm 上的正式包，在 `form/` 下 `pnpm dev` 即可。
 
 这是开发预览，不是产品：页面只用 UI 的令牌、皮肤与元素，不另写一套样式，也不进任何发布物。
 
@@ -80,13 +73,13 @@ pnpm dev
 | 示例模板自检 | `pnpm check:examples` |
 | Lint | `pnpm lint` |
 
-- 表单三个包经 `link:` 读 `form/packages/*` 的产物，先在 `form/` 构建；`@xihan-ui/*` 与 `form/` 工作区一样经 overrides 读同级 XiHan.UI 的产物，UI 5.0.0 正式发布后删掉那一段。
+- 表单三个包经 `link:` 读 `form/packages/*` 的产物，先在 `form/` 构建。`@xihan-ui/*` 用 npm 上的正式包，由文档站在 `docs/package.json` 里装唯一的一份；`.vitepress/config.ts` 的 `vite.resolve.dedupe` 让 `link:` 进来的表单包也解析到这一份，不然页面上有两份 UI、全局配置（界面语言）对不上。表单包多依赖一个 `@xihan-ui/*` 时，`docs/package.json` 与 dedupe 名单一起补。
 - `docs/reference/` 由 `scripts/gen-reference.mjs` 从源码生成（内置种类的属性描述与缺省值、`formZhCN`、TypeScript 源码注释），不手改。改了种类、属性、问题码、公开 API 或这些注释，在 `docs/` 跑 `pnpm gen` 并随改动一起提交；参考页的说明不对，就改源码注释。
 - 正文里的 TypeScript 示例都放在 `examples/`，用 `<<< @/examples/…#片段` 引入，不在 Markdown 里另写一份：`templates/` 下导出 `schema` 与 `values` 的模板由 `check:examples` 自检并按模板校验示例数据，`demos/` 下的 `.ts` 导出 `mount(host)`、页面上写 `<FormDemo name="…" />` 真实运行，`snippets/` 只做类型检查。
 - 站点自己的导航、侧栏与示例组件放在 `docs/.vitepress/`，不复制或改写主题已提供的样式。
 - 正文里含 `{{` 的行内代码写成 `<code v-pre>…</code>`，否则会被 Vue 当成插值吃掉，构建也不报错。
 - 文档只写已经做完的能力；不写种类数、组件数与依赖的具体版本号，不写预发布阶段的铺垫。
-- 站点地址是 https://form.docs.xihanfun.com：`docs/public/CNAME`、`docs/public/.nojekyll` 与 `.github/workflows/deploy-docs.yml`（main 上 `docs/` 或 `form/` 有变更时先装好并构建 `form/`，再构建文档站，部署到 gh-pages）属于站点契约，不因清理构建配置而删除；主题配置的 `llms.site` 与 `docs/package.json` 的 `homepage` 写同一个地址。`form/` 的 overrides 生效期间这条流水线跑不通，与不推送远端的约定一致。
+- 站点地址是 https://form.docs.xihanfun.com：`docs/public/CNAME`、`docs/public/.nojekyll` 与 `.github/workflows/deploy-docs.yml`（main 上 `docs/` 或 `form/` 有变更时先装好并构建 `form/`，再构建文档站，部署到 gh-pages）属于站点契约，不因清理构建配置而删除；主题配置的 `llms.site` 与 `docs/package.json` 的 `homepage` 写同一个地址。
 
 ## 分层与依赖
 
@@ -95,6 +88,7 @@ pnpm dev
 - runtime 是业务页面使用的元素，体积敏感；设计器专用的代码不进 runtime。
 - 所有包源码不得 import 任何前端框架（ESLint 已拦截）。
 - 运行时依赖只允许 `@xihan-form/*` 与 `@xihan-ui/*`；引入任何其他依赖之前先征得维护者同意。
+- `@xihan-ui/*` 在三个发布包里写成 `peerDependencies`（`^5.0.0`，由宿主装唯一的一份），开发时另写 `devDependencies`（`catalog:`）；`@xihan-form/*` 之间照旧写 `dependencies`。UI 的新能力要等 UI 发版、升级 catalog 后才进得来，缺 UI 能力时先报给协调会话，不在本仓另写。
 
 ## 硬性约定
 
