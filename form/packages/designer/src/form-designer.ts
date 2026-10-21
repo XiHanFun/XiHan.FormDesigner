@@ -39,7 +39,7 @@ import { mergeXhConfig, onXhConfigChange } from '@xihan-ui/web-components'
 import { BOOLEAN_CONVERTER, createAuthoredElement, emitEvent, registerElement, setAttributes, setText, XhConfigController, XhReactiveElement } from '@xihan-ui/web-components/authoring'
 import { defineXhElement, XhButtonElement, XhContextMenuElement, XhExpressionInputElement, XhIconElement, XhMenuElement, XhToolbarElement, XhTooltipElement } from '@xihan-ui/web-components/define'
 import { createDialogService } from '@xihan-ui/web-components/services'
-import { DesignCanvas, spanColumns } from './canvas'
+import { DesignCanvas, spanRange } from './canvas'
 import { checkFormClipboard, readFormClipboard, writeFormClipboard } from './clipboard'
 import { FORM_MENU_LAYOUTS, FORM_SELECTION_LAYOUTS, FORM_TOOLBAR_LAYOUT, menuSubject } from './commands'
 import { createFormEditor } from './editor'
@@ -661,8 +661,9 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#syncStatus(t)
     if (changed.has('mode'))
       this.#syncMode()
-    if (this.#rendered !== this.#editor.document || changed.has('extensions') || changed.has('translations') || configStale)
-      this.#renderCanvas()
+    const fresh = changed.has('extensions') || changed.has('translations') || configStale
+    if (this.#rendered !== this.#editor.document || fresh)
+      this.#renderCanvas(!fresh)
     this.#syncPreview()
     this.#syncProperties(changed, t)
     // 属性卡片的副标题取这一轮算出的编辑对象，所以先更新属性面板再设区；面板开关命令的文字取区的标题，所以设完区再铺工具栏
@@ -1503,16 +1504,17 @@ export class XhFormDesigner extends XhReactiveElement {
     indicator.hidden = false
   }
 
-  #renderCanvas(): void {
+  /** 排画布：reuse 为 true 时只按文档的变化重排变了的节点，扩展、文案或配置变了时整份重建。 */
+  #renderCanvas(reuse: boolean): void {
     const document = this.#editor.document
     this.#rendered = document
     this.#debug.measure('render', 'canvas', () => {
-      this.#canvas.render(document)
+      this.#canvas.render(document, reuse)
       this.#canvas.select(this.#editor.selection)
     }, () => {
       let nodes = 0
       walkNodes(document, () => void (nodes += 1))
-      return { nodes }
+      return { nodes, reuse }
     })
   }
 
@@ -1758,37 +1760,51 @@ export class XhFormDesigner extends XhReactiveElement {
 
   /**
    * 拖区域右缘改跨度：按住时的跨度加上横向位移折成的列数，列宽取容器宽度除以总列数；从右到左时方向相反。
-   * 按下到松手是一个事务，记为一步撤销；拖动中按 Esc 取消，跨度回到按下时、不留步。拖过之后不再当作点选。
+   * 拖动中每帧最多一次把新跨度画到画布上这一格，不改模板、不重建节点块；松手时跨度变了才写进模板，记为一步撤销。
+   * 拖动中按 Esc 取消，画出来的跨度回到按下时、不留步。拖过之后不再当作点选。
    */
   #dragSpan(event: PointerEvent, handle: HTMLElement): void {
     const region = handle.closest<HTMLElement>('[data-region-id]')
     const regionId = region?.dataset.regionId
-    const found = regionId === undefined ? undefined : findRegion(this.#editor.document, regionId)
-    const columns = found === undefined ? undefined : spanColumns(this.#editor.registry, found.container.kind)
+    const document = this.#editor.document
+    const found = regionId === undefined ? undefined : findRegion(document, regionId)
+    const range = found === undefined ? undefined : spanRange(this.#editor.registry, found.container.kind)
     const body = region?.closest('[data-node-id]')?.querySelector(':scope > [data-part="node-body"]')
     const width = body?.getBoundingClientRect().width ?? 0
-    if (region === null || region === undefined || regionId === undefined || found === undefined || columns === undefined || width <= 0 || this.#editor.history.inTransaction)
+    if (region === null || region === undefined || regionId === undefined || found === undefined || range === undefined || width <= 0 || this.#editor.history.inTransaction)
       return
     event.preventDefault()
-    const start = typeof found.region.props.span === 'number' ? found.region.props.span : columns
+    const { container } = found
+    const start = typeof found.region.props.span === 'number' ? found.region.props.span : range.max
     const sign = getComputedStyle(region).direction === 'rtl' ? -1 : 1
     const canvas = this.#ensureParts().canvas
-    const history = this.#editor.history
+    const view = this.ownerDocument.defaultView
     canvas.setAttribute('data-resizing', '')
-    history.begin()
+    let span = start
+    let shown = start
+    let frame: number | undefined
     let moved = false
     let session: PointerSession | undefined
     const listening = new AbortController()
+    const show = (value: number): void => {
+      if (value === shown || this.#editor.document !== document)
+        return
+      shown = value
+      this.#canvas.previewContainer({ ...container, regions: container.regions.map(item => item.id === regionId ? { ...item, props: { ...item.props, span: value } } : item) })
+    }
     const finish = (keep: boolean): void => {
       session?.dispose()
       listening.abort()
+      if (frame !== undefined)
+        view?.cancelAnimationFrame(frame)
+      frame = undefined
       this.#cancelSpanDrag = undefined
       canvas.removeAttribute('data-resizing')
-      if (keep)
-        history.commit()
-      else
-        history.rollback()
       this.#suppressClick = moved
+      if (keep && span !== start)
+        this.#editor.setGridSpan(regionId, span)
+      else
+        show(start)
     }
     this.ownerDocument.addEventListener('keydown', (key) => {
       if (key.key !== 'Escape')
@@ -1803,10 +1819,15 @@ export class XhFormDesigner extends XhReactiveElement {
       onMove: ({ point }) => {
         const dx = (point.clientX - event.clientX) * sign
         moved ||= dx !== 0
-        const span = Math.round(start + dx / (width / columns))
-        const current = findRegion(this.#editor.document, regionId)?.region.props.span
-        if (span !== current)
-          this.#editor.setGridSpan(regionId, span)
+        span = Math.min(Math.max(Math.round(start + dx / (width / range.max)), range.min), range.max)
+        if (view === null) {
+          show(span)
+          return
+        }
+        frame ??= view.requestAnimationFrame(() => {
+          frame = undefined
+          show(span)
+        })
       },
       onEnd: () => finish(true),
     })

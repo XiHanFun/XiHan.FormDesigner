@@ -99,6 +99,26 @@ describe('<xh-form-designer>：装载与画布', () => {
     expect(codes.filter(code => code.startsWith('wc.'))).toEqual([])
   })
 
+  it('改模板只重排变了的节点：其余节点块原样沿用，撤销后也一样；换了扩展时整份重建', async () => {
+    const { document, name, card, inner } = sample()
+    const designer = await mount((element) => {
+      element.schema = document
+    })
+    const before = { name: block(designer, name.id), card: block(designer, card.id), inner: block(designer, inner.id) }
+    designer.execute([{ type: 'setProperty', nodeId: inner.id, group: 'basic', name: 'label', value: '年龄' }])
+    await settle(designer)
+    expect(block(designer, name.id)).toBe(before.name)
+    expect(block(designer, card.id)).toBe(before.card)
+    expect(block(designer, inner.id)).not.toBe(before.inner)
+    designer.undo()
+    await settle(designer)
+    expect(block(designer, name.id)).toBe(before.name)
+    expect(block(designer, card.id)).toBe(before.card)
+    designer.extensions = []
+    await settle(designer)
+    expect(block(designer, name.id)).not.toBe(before.name)
+  })
+
   it('赋回当前这一份不重新装载；新模板清空历史', async () => {
     const { document, name } = sample()
     const designer = await mount((element) => {
@@ -954,23 +974,34 @@ describe('<xh-form-designer>：栅格跨度', () => {
       target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 3, isPrimary: true, button: 0, clientX, clientY: 10 }))
     }
     const span = (): unknown => findRegion(designer.schema, region)!.region.props.span
-    return { designer, grid, card, region, handle, pointer, span }
+    // 画布上这一格的区域元素；它所在的栅格格子的 span 就是画出来的跨度
+    const regionElement = designer.querySelector<HTMLElement>(`[data-region-id="${region}"]`)!
+    const shown = (): string | null => regionElement.parentElement!.getAttribute('span')
+    return { designer, grid, card, region, regionElement, handle, pointer, span, shown }
   }
 
-  it('栅格的区域带跨度把手；拖右缘按列宽改 span，按下到松手是一步撤销，松手时派发一次 schema-change', async () => {
-    const { designer, card, region, handle, pointer, span } = await spanSetup()
+  const nextFrame = (): Promise<void> => new Promise(resolve => window.requestAnimationFrame(() => resolve()))
+
+  it('栅格的区域带跨度把手；拖右缘时每帧只按列宽改画出来的跨度，不重建画布、不改模板；松手才改 span：一步撤销，派发一次 schema-change', async () => {
+    const { designer, card, region, regionElement, handle, pointer, span, shown } = await spanSetup()
     expect(designer.querySelector(`[data-region-id="${card.regions[0]!.id}"] > [data-part="span-handle"]`)).toBeNull()
     const changes = events(designer, 'schema-change')
     pointer('pointerdown', handle, 600)
     pointer('pointermove', window.document, 760)
-    expect(span()).toBe(8)
-    expect(designer.undo()).toBe(false)
+    await nextFrame()
+    expect(shown()).toBe('8')
+    expect(span()).toBe(6)
+    pointer('pointermove', window.document, 900)
     pointer('pointermove', window.document, 420)
-    expect(span()).toBe(4)
+    await nextFrame()
+    expect(shown()).toBe('4')
+    expect(span()).toBe(6)
+    expect(designer.querySelector(`[data-region-id="${region}"]`)).toBe(regionElement)
+    expect(designer.canUndo).toBe(false)
     expect(changes).toEqual([])
     pointer('pointerup', window.document, 420)
+    expect(span()).toBe(4)
     expect(changes.map(change => [change.kind, change.operations])).toEqual([['execute', [
-      { type: 'setRegionProperty', regionId: region, name: 'span', value: 8 },
       { type: 'setRegionProperty', regionId: region, name: 'span', value: 4 },
     ]]])
     designer.undo()
@@ -978,17 +1009,35 @@ describe('<xh-form-designer>：栅格跨度', () => {
     expect(designer.canUndo).toBe(false)
   })
 
-  it('拖跨度时按 Esc 取消：跨度回到按下时，不留步、不派发 schema-change，也不当作选上一级', async () => {
-    const { designer, grid, handle, pointer, span } = await spanSetup()
+  it('拖回按下时的跨度再松手：不留步、不派发 schema-change', async () => {
+    const { designer, handle, pointer, span, shown } = await spanSetup()
+    const changes = events(designer, 'schema-change')
+    pointer('pointerdown', handle, 600)
+    pointer('pointermove', window.document, 760)
+    await nextFrame()
+    pointer('pointermove', window.document, 610)
+    pointer('pointerup', window.document, 610)
+    await nextFrame()
+    expect(shown()).toBe('6')
+    expect(span()).toBe(6)
+    expect(designer.canUndo).toBe(false)
+    expect(changes).toEqual([])
+  })
+
+  it('拖跨度时按 Esc 取消：画出来的跨度回到按下时，不留步、不派发 schema-change，也不当作选上一级', async () => {
+    const { designer, grid, handle, pointer, span, shown } = await spanSetup()
     designer.select({ nodes: [grid.id] })
     const changes = events(designer, 'schema-change')
     pointer('pointerdown', handle, 600)
     pointer('pointermove', window.document, 760)
-    expect(span()).toBe(8)
+    await nextFrame()
+    expect(shown()).toBe('8')
     const canvas = designer.querySelector<HTMLElement>('[data-part="canvas"]')!
     const escape = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' })
     canvas.dispatchEvent(escape)
     expect(escape.defaultPrevented).toBe(true)
+    await nextFrame()
+    expect(shown()).toBe('6')
     expect(span()).toBe(6)
     expect(designer.getSelection().nodes).toEqual([grid.id])
     expect(canvas.hasAttribute('data-resizing')).toBe(false)
