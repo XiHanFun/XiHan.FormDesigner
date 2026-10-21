@@ -1,0 +1,13 @@
+{
+  "mode": "pre",
+  "tag": "rc",
+  "initialVersions": {
+    "@xihan-form/core": "0.0.0",
+    "@xihan-form/designer": "0.0.0",
+    "@xihan-form/runtime": "0.0.0",
+    "@xihan-form/playground": "0.0.0"
+  },
+  "changesets": [
+    "first-release"
+  ]
+}
