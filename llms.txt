@@ -6,10 +6,10 @@
 
 ## 机读资产
 
-- [llms-full.txt](https://form.docs.xihanfun.com/llms-full.txt): 全部 16 页正文
+- [llms-full.txt](https://form.docs.xihanfun.com/llms-full.txt): 全部 18 页正文
 - [llms-guide.txt](https://form.docs.xihanfun.com/llms-guide.txt): 6 页指南
 - [llms-reference.txt](https://form.docs.xihanfun.com/llms-reference.txt): 6 页参考
-- 每页 Markdown：把站点地址后缀成 `.md`，如 https://form.docs.xihanfun.com/guide/designer.md
+- 每页 Markdown：把站点地址后缀成 `.md`，如 https://form.docs.xihanfun.com/ai/agents.md
 
 ## 开始
 
@@ -17,6 +17,11 @@
 - [曦寒表单设计器](https://form.docs.xihanfun.com/): 框架无关的表单设计、渲染与校验
 - [介绍](https://form.docs.xihanfun.com/introduction): 曦寒表单设计器（XiHan.FormDesigner）是一款框架无关的表单设计器：以原生 Web Components 交付，可视化编辑表单模板，在业务页面里按模板渲染出带排布、校验、联动、异步选项与列表录入的表单。
 - [快速开始](https://form.docs.xihanfun.com/quickstart): 这一页在任意前端项目里装包、渲染一张表单并拿到提交的数据。
+
+## AI 辅助开发
+
+- [For Agents](https://form.docs.xihanfun.com/ai/agents): 给 Claude Code、Cursor、Codex、GitHub Copilot 这类 AI 编程工具的入口：在项目里用表单设计器时，怎样让 AI 写对接法；参与表单仓库开发时，AI 该读什么。
+- [LLMs.txt](https://form.docs.xihanfun.com/ai/llms): 文档站在构建时产出一组给大语言模型读的机读资产，内容与站点正文同源。
 
 ## 指南
 
