@@ -1,0 +1,1307 @@
+# 曦寒表单设计器 · 指南
+
+共 6 页。索引见 https://form.docs.xihanfun.com/llms.txt
+
+---
+
+来源：https://form.docs.xihanfun.com/guide/designer
+
+# 设计器
+
+`<xh-form-designer>` 是可视化的表单设计器：物料、画布、属性与问题列表都在里面，可以切到预览看真实效果。它只吃模板、吐模板与事件，模板存在哪里、谁能改，都由宿主决定。全部属性、方法与事件见[设计器参考](../reference/designer)。
+
+## 接入
+
+```bash
+pnpm add @xihan-form/designer @xihan-form/runtime @xihan-ui/styles @xihan-ui/designer-shell
+```
+
+```ts
+import type { FormDocument } from '@xihan-form/core'
+import type { FormDesignerEventMap } from '@xihan-form/designer'
+import { defineFormDesigner, FORM_TOOLBAR_LAYOUT } from '@xihan-form/designer'
+import { schema, values } from '../templates/travel'
+import '@xihan-ui/styles/index.css'
+import '@xihan-ui/designer-shell/style.css'
+import '@xihan-form/runtime/style.css'
+import '@xihan-form/designer/style.css'
+
+defineFormDesigner()
+```
+
+`defineFormDesigner()` 注册设计器以及它用到的全部元素，包括画布与预览共用的渲染器。样式要引入四份：XiHan.UI 的皮肤、设计器零件、渲染器与设计器自己的样式表。设计器要有高度，由宿主的布局给出。
+
+```ts
+const designer = document.createElement('xh-form-designer')
+designer.schema = schema
+designer.previewValues = values
+designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
+```
+
+`schema` 是正在编辑的模板，读它就是当前的模板；给 `schema` 赋一个新模板会清空撤销历史与选择。
+
+## 界面
+
+设计器的外框从上到下是菜单栏、工具栏、中间一行与状态栏。中间一行左边是物料与页面结构，中间是画布，右边是属性，画布下方是问题列表。
+
+| 区域 | 内容 |
+| --- | --- |
+| 菜单栏 | 文件、编辑、视图、帮助四张菜单；正中放宿主的模板标题，右边一段放宿主别的常显内容，见[菜单栏](#菜单栏) |
+| 工具栏 | 撤销、重做；删除、创建副本；设计与预览；拖动与预览宽度三档；末组是面板 |
+| 物料（左） | 卡片。按分类列出可以放进表单的种类：每组一行组名，下面是方形小卡片，图标在上、种类名在下，按面板宽度排成几列，悬停显示全名；全部展开，可搜索。拖到画布上放进想要的位置，点一下插到选中节点之后，没有选中时放到末尾。扩展可以经[物料来源](./extensions#物料来源)在后面加几组 |
+| 页面结构（左，物料下面） | 卡片。按树列出模板里的节点，见[页面结构](#页面结构) |
+| 画布（中） | 按模板排出的表单，所见即所得；只选中一个节点时它的右下角带一条选中工具条：选中上一级、上移、下移、创建副本、删除 |
+| 历史记录（右，属性下面） | 卡片，缺省隐藏，从工具栏或「视图」菜单的「面板」打开。按先后列出撤销历史的每一步，见[撤销与历史记录](#撤销与历史记录) |
+| 属性（右） | 卡片。副标题写当前编辑的对象，面板头下面一排三个页签：属性、校验规则、联动规则。没有选中时编辑表单设置，选中区域时编辑区域属性 |
+| 问题（画布下方） | 卡片。模板自检出的问题，面板头上是错误数与警告数，兼作筛选开关；点一条就选中并滚到出问题的节点 |
+| 状态栏 | 左边写选中的字段种类与字段名，选中区域写它所在的容器，多选写个数，什么都没选写字段数；右边是预览宽度，点一下回到全宽；宿主的保存状态排在预览宽度左边 |
+
+预览态的外框不显示面板，只留菜单栏、工具栏与状态栏，画布换成渲染器，见[预览](#预览)。
+
+### 卡片与面板
+
+物料、页面结构、属性、历史记录与问题列表各是一块面板，画成一张卡片：面板头写图标与标题，「?」弹出这块面板的说明，右边依次是收起、「更多」与关闭。面板停在左、右、下三栏，缺省物料与页面结构在左栏（页面结构在物料下面）、属性与历史记录在右栏（历史记录缺省隐藏）、问题在下栏；可以换栏、调先后、收成标题条，也可以浮出成小窗再吸回：
+
+- 按住面板头拖到另一栏或两块面板之间就停在那里，拖到画布上就地浮出；不用拖的话，「更多」菜单里有移到左栏、右栏、下栏，上移、下移，浮出与停靠，键盘与读屏也靠它。
+- 「×」隐藏这块面板，工具栏或「视图」菜单的「面板」里勾回来再显示。菜单里还有「显示 / 隐藏所有面板」（Ctrl / ⌘ + \）、「还原面板显隐」（Ctrl / ⌘ + Shift + \）与「恢复默认布局」。
+- 每块面板另有一条开关命令 `panel:<面板 id>`，可以排进工具栏、菜单栏或右键菜单。
+
+挪了面板、改了显隐或大小，设计器把整份布局写进设置的 `layout.panels`（`DESIGNER_SETTING_KEYS.layout`），并像改了别的设置一样派发 `settings-change`，宿主存下来、下次随 `settings` 赋回即可，见[设置](#设置)。宿主要换掉内置的缺省布局时给 `defaultLayout`：用户还没存过布局时用它，「恢复默认布局」也回到它，写了的字段整项覆盖内置缺省。面板 id 用包入口导出的 `FORM_DESIGNER_PANELS`（`palette`、`outline`、`properties`、`issues`、`history`）。`settingsPolicy` 也管布局：`layout.panels.<面板 id>` 写 `hidden` 就没有这块面板，写 `locked` 就固定它；`layout.panels` 锁定整份布局。
+
+```ts
+export function hostLayout(designer: XhFormDesigner): void {
+  // 缺省收起问题面板；物料面板固定在原处，不能挪动或隐藏
+  designer.defaultLayout = { version: 1, hidden: [FORM_DESIGNER_PANELS.issues] }
+  designer.settingsPolicy = { [`${DESIGNER_SETTING_KEYS.layout}.${FORM_DESIGNER_PANELS.palette}`]: 'locked' }
+}
+```
+
+### 页面结构
+
+页面结构按树列出模板里的节点，像图层面板一样找东西、删东西、挪东西：
+
+- 顶层是模板的节点，容器下面按区域分组：栅格写「第几列」，表格布局写「第几行第几列」，标签页与折叠项写标题（没写标题时写「区域几」）；卡片、分组、子表单、子表只有一个区域，子节点直接挂在容器下。表格布局只列有内容的格。
+- 节点带种类的图标，写「种类 · 数据键」，下面一行小字是它的标签或标题。上面有搜索框，按名字与小字过滤。
+- 点一行就在画布上选中它并滚过去，节点或区域在没切到的标签页、收着的折叠项里时先切过去、展开；画布上的选择变了，树上跟着变。悬停或用方向键走到一行时，画布上用虚线框标出它。
+- 能多选，与画布上的选择是同一份：按住 Ctrl（macOS 为 ⌘）点一行或按 Ctrl / ⌘ + Space 加选、取消，按住 Shift 点一行从上一次点的那行（画布上刚选过的话从画布上最后选的那个）选到这一行。节点与区域不能同时选：新选上的有节点就只留节点；只新选上了区域时，只留和它同一个容器的区域。新选上的第一个在画布上滚进可见区。焦点在选中的行上时，Delete 删掉全部选中的行。
+- Delete 或行尾的删除钮删掉这一行，与工具栏的删除同一条路，区域照删区域的规矩（表格布局的格不删，删完不少于容器的下限）。
+- 拖动一行或按 Alt + 方向键挪动节点，放得下才许放（子表只收字段，不能放进自己里面），一次挪动记为一步撤销。区域行不能挪。
+- 只读时能选、能标出，不能删、不能挪；预览态不显示这块面板。
+
+扩展登记的面板给了标题也画成卡片，同样能挪动、浮出与隐藏，见[扩展](./extensions#面板)。画布总在。状态栏只受设置里的「状态栏」开关控制。
+
+### 菜单栏
+
+最上一条是菜单栏，放通用的功能，四张菜单与四款设计器一致：
+
+- 「文件」：保存（Ctrl / ⌘ + S，派发 `save`，见[保存](#保存)）、设置（Ctrl / ⌘ + ,，同 `openSettings()`）。
+- 「编辑」：撤销、重做，剪切、复制、粘贴、删除、创建副本，全选，编辑 JSON（Ctrl / ⌘ + Shift + J，开发者模式开着时才有，见[编辑 JSON](#编辑-json)）。
+- 「视图」：设计、预览，拖动，预览宽度三档，「面板」与「外观」两个子菜单：面板里逐块面板一项，勾上的显示；外观里是工具栏、状态栏两个显示开关（改的是设置）。
+- 「帮助」：开始引导、帮助（在新窗口打开本站的这一页，地址是包入口导出的 `FORM_DESIGNER_HELP_URL`）、快捷键（打开设置的快捷键页），关于（打开设置的关于页）。
+
+按 F10 把焦点交给菜单栏，左右键在菜单之间走，下键、Enter 或 Space 展开；再按 F10，或在菜单栏上按 Esc，回到原来的地方。窄屏时菜单栏收成行首一颗「菜单」钮，各张菜单是它的子菜单。菜单栏常在，没有关掉它的开关。
+
+宿主自己的操作（新建、发布、返回列表）写成一个扩展的命令，`placement` 写 `menubar:file` 就进「文件」菜单，排在设置之前，写了 `toolbar` 也上工具栏；模板标题写成设计器的子元素 `slot="menubar-center"`，显示在整条菜单栏的正中，放不下时截断加省略号，再窄就藏起；保存状态写成 `slot="status-end"`，显示在状态栏右端、预览宽度的左边，状态栏在设置里关掉时跟着不显示；别的要常显的内容写 `slot="menubar-end"`，显示在菜单栏右边。后来加的子元素也一样转过去。这样设计器外面不必另起一条操作条。扩展还能登记自己的菜单，见[扩展](./extensions#命令)。
+
+```ts
+export function hostMenubar(name: string): void {
+  designer.extensions = [{
+    id: 'acme.host',
+    commands: [
+      { id: 'acme.new', label: '新建', placement: ['menubar:file'], run: () => location.assign('/forms/new') },
+      { id: 'acme.back', label: '返回列表', placement: ['menubar:file', 'toolbar'], run: () => history.back() },
+    ],
+  }]
+  const title = document.createElement('span')
+  title.slot = 'menubar-center'
+  title.textContent = name
+  const saved = document.createElement('span')
+  saved.slot = 'status-end'
+  saved.textContent = '已保存'
+  designer.append(title, saved)
+}
+```
+
+### 工具栏
+
+工具栏缺省只显示图标，设置「工具栏」页的「按钮显示方式」可以换成只显示文字或图标加文字，那一页还能隐藏整条工具栏、调按钮的先后与分组、藏起不用的按钮（见[设置](#设置)）。按钮的名字与快捷键报给读屏，悬停或键盘聚焦到按钮时提示命令的文字与快捷键；会删掉内容的命令按危险色显示。宽度不够时，放不下的按钮收进末尾的「更多」菜单。
+
+末组是 designer-shell 内置的「面板」：点开一张菜单，列出能开关的面板，勾选的显示，后面是全部显隐、还原显隐与恢复默认布局。设置与帮助在菜单栏里。宿主不要哪一条，用 `commandLayout` 排掉，见[工具栏与菜单的排列](#工具栏与菜单的排列)。
+
+撤销、重做、清空历史、剪切、复制、粘贴、创建副本、删除、全选、设计与预览，以及保存、面板、拖动、设置、快捷键、关于、帮助、外观与两个显示开关，这些四款设计器共用的命令，文字取 designer-shell 语言包的 `xh-designer-commands`，菜单栏四张菜单的名字、工具栏与菜单栏的可访问名也在这里；各语言的 `form…` 语言包已经带上。要换这些说法就改这一桶，设计器的 `translations` 属性只覆盖表单自己的文案。
+
+## 编辑
+
+**放进节点**：把物料拖到画布上的位置，或点物料条目，插到选中节点之后，没有选中时放到末尾。区域只收它能放的节点，如子表的区域只收字段；放不下的位置拖过去时不给落点。
+
+**选择**：点节点选中它，按住 Shift、Ctrl 或 ⌘ 再点是追加或取消。也可以选中容器里的区域：栅格的一列、标签页的一页、折叠面板的一项、表格布局的单元格。
+
+**移动**：把画布上的节点拖到新位置，或用选中工具条、右键菜单与快捷键上移下移。
+
+**拖动画布**：工具栏上的「拖动」（`H`）打开以后，在画布任意处按住拖动都是滚动画布，节点与跨度把手上也一样，不选中、不挪节点，点一下也不改选择，光标是手形，拖动中握拳；只读与预览态照样能拖。拖动途中按 Esc 停在此处，拖动工具还开着；再点一下「拖动」或按 Esc 退出，状态在外框的 `canvasTool` 上。
+
+**右键菜单**按选中的东西给出命令：节点有剪切、复制、粘贴、创建副本、选中上一级、上移、下移与删除；表格布局的单元格另有合并、拆分、插入与删除行列；画布空白处有粘贴，开发者模式开着时还有编辑 JSON。菜单键或 Shift + F10 也能打开。
+
+**复制粘贴**走系统剪贴板：复制的节点以表单自己的格式与 JSON 文本两种写进剪贴板，可以粘贴到另一个设计器、另一个页签，也可以粘贴一段 JSON 文本。粘贴时 id 全部换新，与目标作用域冲突的数据键改成新的键；剪贴板里的内容不是合法的表单节点时不粘贴。
+
+快捷键分两类。带 Ctrl / ⌘ 的在整个设计器里都认，焦点在物料、属性或问题列表里也一样；焦点在输入框、文本框这些能输入文字的地方时，这些键归输入框自己（比如撤销的是输入框里的字），面板里的组件自己处理了的键也不再当快捷键。复制、剪切在画布外选着一段文字时，复制的是那段文字。
+
+| 按键 | 作用 |
+| --- | --- |
+| Ctrl / ⌘ + Z | 撤销 |
+| Ctrl / ⌘ + Shift + Z，Ctrl + Y | 重做 |
+| Ctrl / ⌘ + C、X、V | 复制、剪切、粘贴 |
+| Ctrl / ⌘ + D | 创建副本：复制并紧跟着粘贴 |
+| Ctrl / ⌘ + A | 全选 |
+| Ctrl / ⌘ + S | 保存：派发 `save` |
+| Ctrl / ⌘ + , | 打开设置 |
+| Ctrl / ⌘ + \ | 显示或隐藏所有面板 |
+| Ctrl / ⌘ + Shift + \ | 还原面板显隐 |
+| Ctrl / ⌘ + Shift + J | 打开 JSON 编辑框（开发者模式开着时） |
+
+F10 不论焦点在画布、面板还是工具栏上都认：把焦点交给菜单栏，再按一次回到原来的地方。
+
+不带 Ctrl / ⌘ 的单键只在焦点在画布里时认，物料与属性面板里的列表、开关照常用这些键：
+
+| 按键 | 作用 |
+| --- | --- |
+| Delete，Backspace | 删除选中的节点或区域 |
+| ↑ ↓ | 在同一层里移动选择 |
+| Alt + ↑ ↓ | 上移、下移选中的节点，连续按的并成一步撤销 |
+| Enter | 选中第一个子节点 |
+| H | 打开或关闭拖动工具 |
+| Esc | 选中上一级，再按一次清空选择；拖动工具开着时先退出拖动，选择不动 |
+| 菜单键，Shift + F10 | 打开右键菜单 |
+
+## 属性、校验与联动
+
+属性面板按选中的节点列出它的属性，分基础、数据、外观三组，每个属性用合适的编辑方式：文本、数字、开关、下拉、选项表等。多个节点同时选中时只列出它们共有的属性，取值不同的显示「多个值」，改了就写给每个节点。
+
+下拉、单选组等字段的选项在「数据」组的选项表里编辑：一项一行，三格依次是值、文字与禁用，可以新增、删除、上移、下移，键盘都能操作。值为空、值重复或缺了文字时，模板自检报出问题，问题列表里列出这一条，选项表把它标在那一项的那一格上。
+
+树选择、级联的选项是一棵树，在「数据」组的选项树里编辑：一项一行，下一层缩进排在上一层下面，四格依次是值、文字、禁用与操作。操作格里可以给这一项加子项或删掉它（连同下一层），表格下面的「新增一项」加在顶层末尾。键盘上方向键在格子之间走，Enter 或 F2 进格内编辑、Esc 回到格子；Alt + 上下键在同一层换序，树里已有层级时 Alt + 左右键改一层缩进，也可以按住行拖动。同一层里值重复、值为空或缺了文字时，问题同样标在那一项的那一格上。
+
+「校验规则」与「联动规则」两个页签编辑节点的规则：新增、删除、调整顺序、改每条规则的字段。条件、取值与表达式规则用表达式输入框，边输入边检查，并补全数据键、`$value` 等变量与函数名。规则的含义见[校验与联动](./validation)。
+
+## 撤销与历史记录
+
+改动随输入写进模板，连续改同一个属性合成一步撤销。拖栅格一列的跨度从按下到松手是一步，拖动中按 Esc 取消、跨度回到原样；连续按 Alt + ↑ ↓ 挪同一个节点，相隔一秒以内的并成一步，换了选择就另起一步。
+
+撤销历史的每一步带一句说明，写成「动作 + 对象名」，如「删除「单行文本 · name」」「修改「标签」」「移动 2 个组件」，跟着设计器的语言变。工具栏上撤销、重做的全名带上下一步的说明，如「撤销：删除「单行文本 · name」」，按钮上看得见的仍是图标与「撤销」。直接用 `createFormEditor` 的宿主把 `describeFormOperations` 传给它的 `describe`，也能得到同样的说明。
+
+历史记录面板按先后列出每一步：第一行是打开时（步数超过上限丢掉过最早的几步时写「更早的步骤已丢弃」），当前位置那一行选中，已撤销的步骤字色减淡，保存时所在的那一步标「已保存」。选一行就跳到那一步，一次撤销或重做到位，只派发一次 `schema-change`；跳回去以后再改，后面已撤销的步骤照常丢掉。只读时只能看。
+
+清空历史（`clear-history`）丢掉全部撤销与重做的步骤，模板不变；它在历史记录面板的面板头上，不上工具栏，执行时先弹确认框，也可以经 `commandLayout` 排进工具栏或右键菜单。只读时撤销、重做与清空历史都不可用，`undo()`、`redo()` 返回 `false`。
+
+宿主也能读写撤销历史：`historyState` 是此刻的快照（各步的说明、位置号、当前位置与起点），`goToHistory(position)` 一次跳到某一步或起点（只读、预览或拖动中返回 `false`），`clearHistory()` 清空撤销与重做；历史有任何变化（执行、撤销、重做、跳转、装载、清空、保存）都派发 `history-change`，载荷就是 `historyState`。撤销步数上限是 `historyLimit`（同名特性 `history-limit`），缺省 100，下一次给 `schema` 赋值时生效。
+
+## 编辑 JSON
+
+「编辑」菜单或画布空白处右键菜单里的「编辑 JSON」、快捷键 Ctrl / ⌘ + Shift + J 或 `openJsonEditor()` 打开 JSON 编辑框，写出此刻的整份模板，缩进两格。它是调试入口，菜单、快捷键与命令只在设置「基础」里的开发者模式开着时才有；`openJsonEditor()` 方法照样能调。宿主要让用户用它，就在 `settings` 里预先写 `'general.developer': true`，或用 `settingsPolicy` 锁住 `general.developer`。
+
+编辑框里：
+
+- 每改一次都重新解析，并按 `validate()` 同一套检查：扩展登记的种类与规则都认，给了 `expressionEngine` 时也查表达式。问题列在编辑框下面，说明与问题列表一样；点一条，光标跳到它在文字里的位置。解析不了或有错误级问题时「应用」不可用。
+- 按「应用」整份换上，作为一步进撤销栈，历史里写「编辑 JSON」，撤销就回到原来那一份；派发的 `schema-change` 里是一条 `replaceDocument` 操作。
+- 只读或预览态时只能看、格式化与复制，不能应用。
+- 命令 id 是 `edit-json`，开发者模式开着时缺省在「编辑」菜单里、不上工具栏，要放就写进 `commandLayout`；关着时它不存在，写进排列也不显示。
+
+## 问题列表
+
+设计器随改随做模板自检，问题列在问题面板里，也随 `issues-change` 派发给宿主；问题码见[问题码](../reference/issues#schema)。需要时宿主也可以调用 `validate()` 取一次。
+
+## 预览
+
+工具栏或「视图」菜单的「预览」，或 `mode = 'preview'` 切到预览态：画布换成真实的渲染器，可以填写、校验、看联动，外框不显示面板，菜单栏与工具栏照常在，从那里切回设计态时面板照原来的布局回来。`previewValues` 是预览用的示例数据，`loadOptions` 是预览时的选项加载函数，`uploadFile` 是预览里文件字段的上传函数，都与渲染器的同名属性一样；不给 `uploadFile` 时，预览里选的文件不会上传，也不会写进字段值。
+
+预览宽度有全宽、平板与手机三档（`previewWidth`），设计态的画布也按这个宽度排。
+
+## 设置
+
+设置是用户偏好，每人每机一份，不随模板保存。「文件」菜单的「设置」（Ctrl / ⌘ + ,）或 `openSettings(section?)` 打开设置对话框，左边一个分区一页：
+
+- 「基础」（`general`）：主题（跟随页面、跟随系统、亮色、暗色）、主题色（跟随页面、八种预设、自定义颜色）、状态栏、开发者模式（`general.developer`，缺省关；关着时编辑 JSON 这类调试入口都不出现），分页调试日志与渲染调试日志两个开关（开发者模式开着时才能改，日志见下文），以及自动保存（`general.autoSave`，缺省关，见[保存](#保存)）。
+- 「语言」（`language`）：跟随页面（缺省）、跟随系统，或在十种语言里选一种，名字是各自的本名（简体中文、繁體中文、English、日本語……）。
+- 「布局」（`layout`）：一张面板表，逐块面板一行，显示开关、停在哪一栏（或浮动）、上移下移与收成标题条，表下「恢复默认布局」；和面板头的「更多」菜单一样，不靠拖动也能改布局，改的就是 `layout.panels`（见[卡片与面板](#卡片与面板)）。
+- 「工具栏」（`toolbar`）：按钮显示方式（`toolbar.display`）、显示工具栏（`toolbar.visible`），以及一张按钮表（`toolbar.layout`）：一组一块，组头三态勾选框，每个按钮一行，可以勾掉、拖动换先后或挪到别的组，表下「恢复默认」。只管顶部工具栏：右键菜单与选中工具条不在这里改，由宿主的 `commandLayout` 排。
+- 「帮助」（`help`）：表单的几段说明，以及「开始引导」「打开文档」两颗钮；点了先关上对话框，再跑对应的命令（`start-tour`、`help`）。
+- 「快捷键」（`shortcuts`）：按命令表列出，分通用、编辑、本设计器与扩展几组，同一条命令的第二个快捷键写在同一行，保存、设置这些外壳命令在「通用」里。「本设计器」那组末尾是表单不是命令的按键：↑ ↓ 选上一个、下一个，Alt + ↑ ↓ 上移、下移，Enter 选中里面第一个，Esc 选中上一级，Shift + F10 打开右键菜单。「通用」组末尾只列表单有的三个按键：F10（进出菜单栏）、Alt + F10（焦点在画布里时，焦点移到选中工具条）与 Esc；表单的画布不能微移，也不能按住空格拖动。
+- 「关于」（`about`）：产品名、版本（包入口导出的 `FORM_DESIGNER_VERSION`）、界面库版本与许可证，后面接各扩展给的几行（见[扩展](./extensions#关于)）。
+- 扩展登记的分区按各自的 `order` 排：基础、语言、布局、工具栏是 0–3，帮助、快捷键、关于是 900–920，没写 `order` 的是 0。分区 id 与内置的或别的扩展重名时，给 `extensions` 赋值就抛 `DesignerExtensionError`。
+
+表单没有自己的设置分区：预览宽度是正在看的视图，不是偏好，仍是 `previewWidth` 与工具栏、「视图」菜单里的三档。
+
+```ts
+export function openGeneralSettings(designer: XhFormDesigner): void {
+  designer.openSettings('general')
+}
+```
+
+值是扁平的键值，键是「分区 id.条目 id」，如 `general.theme`、`language.locale`，没写的键取缺省值；基础、语言、布局、工具栏几个分区的键用 designer-shell 导出的 `DESIGNER_SETTING_KEYS`，不手写字符串。`settings` 赋值即生效；用户在对话框里改了一条，设计器换成新的一份并派发 `settings-change`，宿主存起来、下次赋回。`settingsPolicy` 隐藏或锁定条目，键是条目键或分区 id：`hidden` 不显示，一个分区的条目全藏了就没有这一页；`locked` 只读，说明换成「由所在系统管理」。
+
+```ts
+export function wireSettings(designer: XhFormDesigner, saved: FormSettings, store: (settings: FormSettings) => void): void {
+  designer.settings = saved
+  designer.settingsPolicy = { [DESIGNER_SETTING_KEYS.theme]: 'hidden', [DESIGNER_SETTING_KEYS.brand]: 'hidden' }
+  designer.addEventListener('settings-change', (event) => {
+    store((event as CustomEvent<{ settings: FormSettings }>).detail.settings)
+  })
+}
+```
+
+- **主题只作用于设计器**：主题与主题色写在 `<xh-form-designer>` 自己的 `data-theme`、`data-brand` 上，页面其余部分不变；设置对话框、菜单这些浮层跟着设计器变。主题色是内置的：跟随页面（缺省），或 UI 的八种预设，或自定义颜色，宿主不用传预设。
+- **语言只作用于设计器**：设置里选了语言，`<xh-form-designer>` 把这一语言的 UI、designer-shell 与表单语言包作为自己的 `xhConfig` 交出去，设计器、里面的元素（含预览里的渲染器与日期选择这些 UI 元素）与它弹出的浮层都换成这种语言，页面别处不变。跟随系统按浏览器的语言偏好挑最接近的一种，挑不到用英文；语言包第一次用到时才加载。跟随页面时 `xhConfig` 是空对象，照页面的全局配置。
+- **工具栏**：按钮显示方式有只显示图标（缺省）、只显示文字、图标加文字，只显示图标时按钮的名字照样报给读屏，悬停或聚焦时提示文字。关掉「显示工具栏」只是不显示那一条，命令照样能经快捷键与右键菜单执行。按钮表的缺省排列是宿主 `commandLayout` 的 `toolbar`（没写时是 `FORM_TOOLBAR_LAYOUT`）再追加扩展的那一组，用户的定制套在它上面：后装的扩展命令放到缺省排列里挨着的位置，已经没有的命令跳过。宿主不让用户改时用 `settingsPolicy` 锁定或藏掉 `toolbar.layout`。
+- **调试日志**：只写到浏览器的控制台，开发者模式与这一路都开着时才记。渲染日志每次重画记一组「[xh-form-designer] render · update: 改动的属性 耗时」，重铺画布（canvas，带节点数）与模板自检（validate，带问题数）各记一组；表单没有分页，分页日志开着也没有内容。关掉开发者模式，两路日志随即停。
+- **扩展读设置**：命令、面板与扩展从上下文的 `settings` 读值，各分区没写的条目已经取了缺省值，如 `context.settings['acme.dense']`。
+
+独立使用、没有宿主替你存时，给 `settingsStorageKey`：连上文档时若没赋 `settings` 就从根所在窗口的 localStorage 读，用户改了设置就写回去；标了 `secret` 的文本条目（如密钥）不存。读写失败派发 `settings-storage-error`，设置留在内存里。不给就不读写存储。
+
+```ts
+export function standalone(designer: XhFormDesigner): void {
+  designer.settingsStorageKey = 'form-designer:settings'
+  designer.addEventListener('settings-storage-error', (event) => {
+    console.warn('设置没能读写本机存储，这次改的只在内存里', (event as CustomEvent<{ error: unknown }>).detail.error)
+  })
+}
+```
+
+## 新手引导
+
+第一次打开设计器时，画布铺好后自动开始一遍新手引导，一步高亮一处：欢迎之后先是菜单栏（各张菜单里有什么、F10 进出菜单栏），再是工具栏、物料、画布、属性、问题列表与状态栏，然后是表单自己的三步——页面结构、属性面板的「校验规则」「联动规则」两页，以及工具栏的预览（说明里带一句「视图」菜单里也能切换设计与预览、换预览宽度），最后是设置：高亮「文件」菜单的入口，说设置在那里、引导能从「帮助」菜单重新开始。目标面板隐藏、工具栏上没有那条命令时那一步跳过；只读时不讲校验联动那一步。进入一步前，设计器把那块面板亮出来：展开收起的栏或标题条，窄屏时打开抽屉。
+
+窄屏时菜单栏收成一颗「菜单」钮：菜单栏一步高亮那一条，设置一步落在「菜单」钮上。
+
+- 走完、跳过（含按 Esc）或关掉时，设计器派发 `tour-end`：`reason` 是 `complete`、`skip` 或 `close`，`step` 是收起时那一步的 id。同时在设置里记下 `help.tourDone`，照常派发 `settings-change`；宿主把设置存好，下次就不再自动开始。
+- 引导只铺在设计器的外框里：遮罩与高亮都不出外框，页面别处照常可用。同一页同时只开一个引导：别的设计器的引导开着时，自动开始让开；`startTour()` 与「开始引导」先收起那一个再开始。
+- `autoTour` 写 `false`（特性写 `auto-tour="false"`）就不自动开始。`startTour()` 随时从头开始，没有能走的步骤时返回 `false`。「帮助」菜单与设置对话框「帮助」页的「开始引导」、命令 `start-tour` 做同一件事；命令缺省不上工具栏，要放就写进 `commandLayout`。
+- 扩展用 `tourSteps` 加自己的步骤，见[扩展](./extensions#引导步骤)。
+
+本站的示例都关掉了自动开始。
+
+## 保存
+
+设计器不存模板，只告诉宿主什么时候变了、用户想什么时候存：
+
+- 每次修改派发 `schema-change`，载荷里是变化后的模板与这一步的操作，可以用来自动保存。拖动跨度这样的手势在松手时派发一次，操作是整个手势的；取消的手势不派发。
+- 有没有未保存的修改变了时派发 `dirty-change`。
+- 用户按 Ctrl / ⌘ + S 或点「文件」菜单的「保存」（designer-shell 内置的命令 `save`）时派发 `save`；宿主存好后调用 `markSaved()`，设计器把当前模板记为已保存。
+
+```ts
+let saved: FormDocument = schema
+designer.addEventListener('dirty-change', (event) => {
+  status.textContent = (event as FormDesignerEventMap['dirty-change']).detail.dirty ? '有未保存的修改' : `已保存，共 ${saved.children.length} 个顶层节点`
+})
+designer.addEventListener('save', () => {
+  // 这里由宿主把模板存进数据库或文件
+  saved = designer.schema
+  designer.markSaved()
+})
+```
+
+设置「基础」里开着自动保存时，设计器把未保存的修改存成这台浏览器里的草稿：停手约一秒写一次，连着改只写最后一次；存好（`markSaved()`）或撤销回已保存的那一步时删掉。下次宿主给 `schema` 装进同一个草稿键的模板、和草稿不一样时，设计器弹框问「发现未保存的草稿」：恢复就整份换成草稿、记一步撤销，丢弃就删掉；一样就悄悄删掉，只读时不问。草稿键是 `draftKey`（同名特性 `draft-key`），宿主写模板 id，不写时按页面地址区分。草稿只在本机，宿主不用存、也不用接新事件；不想让用户开，就用 `settingsPolicy` 藏起或锁住 `general.autoSave`。
+
+`readonly` 让设计器只能选择、浏览与预览，不能修改。写成特性（attribute）时按三态读：没写或写 `"false"` 可修改，空串、`"true"` 与别的写法只读，移除后回到可修改。这是一处行为变化：此前 `readonly="false"` 也算只读，现在是可修改。
+
+## 工具栏与菜单的排列
+
+`commandLayout` 按位置写命令 id 的分组：`toolbar` 是工具栏，`menubar:file`、`menubar:edit`、`menubar:view`、`menubar:help` 是菜单栏的四张菜单（扩展登记的菜单是 `menubar:<菜单 id>`），`menu:node`、`menu:region`、`menu:cell`、`menu:blank` 是选中节点、区域、表格单元格与空白处的右键菜单，`selection:node` 是只选中一个节点时浮在它右下角的选中工具条。写了某个位置就只显示列出的命令；没写的位置用内置的排列 `FORM_TOOLBAR_LAYOUT`、`FORM_MENU_LAYOUTS` 与 `FORM_SELECTION_LAYOUTS`，菜单栏用 designer-shell 的缺省排列（预览宽度三档经 `placement` 落在「视图」菜单），再把登记在这个位置的扩展命令追加成一组（菜单栏里排在那张菜单收尾的一组之前）。写成 `{ 'selection:node': [] }` 就没有选中工具条，`{ 'menubar:help': [] }` 就没有「帮助」菜单。示例在内置的工具栏末尾加了保存：
+
+```ts
+designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
+```
+
+内置命令的 id：`undo`、`redo`、`clear-history`、`copy`、`cut`、`paste`、`duplicate`、`delete`、`select-all`、`select-parent`、`move-up`、`move-down`、`merge-cells`、`split-cell`、`insert-row-above`、`insert-row-below`、`insert-column-left`、`insert-column-right`、`remove-row`、`remove-column`、`design`、`preview`、`width-full`、`width-tablet`、`width-phone`，以及 designer-shell 内置的 `save`、`panels`、`panels-toggle-all`、`panels-restore`、`layout-reset`、`pan-tool`、`settings`、`shortcuts`、`about`、`help`、`start-tour`、`edit-json`、`appearance`（外观子菜单）、`show-toolbar`、`show-status-bar` 与各面板的开关命令 `panel:palette`、`panel:outline`、`panel:properties`、`panel:history`、`panel:issues`。扩展可以登记自己的命令，见[扩展](./extensions#命令)。
+
+## 示例
+
+出差申请：菜单栏正中是模板标题；点物料加一个字段，状态栏右端的保存状态显示有未保存的修改；点一下画布再按 Ctrl / ⌘ + S，或点「文件」菜单、工具栏的保存，状态显示已保存。
+
+---
+
+来源：https://form.docs.xihanfun.com/guide/extensions
+
+# 扩展
+
+新的字段种类、渲染方式、属性编辑器、模板规则、命令与面板都写成扩展：一个普通对象，经元素的 `extensions` 属性传入，只对这一个实例生效，同一页面的其它实例不受影响。内置的种类、渲染与命令也写成扩展，排在最前面，与传入的走同一条路。
+
+## 三层
+
+| 层 | 类型 | 在内置之上加的字段 | 谁用 |
+| --- | --- | --- | --- |
+| core | `FormCoreExtension` | `id`、`kinds`、`documentProperties`、`controls`、`rules`、`issueText` | `validateDocument`、`createFormModel` |
+| 运行时 | `FormRuntimeExtension` | `fieldRenderers`、`containerRenderers`、`staticRenderers` | `<xh-form-renderer>`、`createFormController` |
+| 设计器 | `FormDesignerExtension` | `editors`、`commands`、`panels`、`paletteSources`、`settings`、`tourSteps`、`about`、`kindIcons`、`setup` | `<xh-form-designer>` |
+
+各层是超集：设计器层的扩展可以原样交给渲染器与 `validateDocument`，它们只读自己那一层的字段。业务页面只用渲染器时，扩展只写到运行时层，不会带进设计器的代码。
+
+模板里用了扩展登记的种类，渲染器、设计器与 `validateDocument` 都要给同一组扩展，否则模板自检报 `node.unknownKind`。
+
+## 一个例子
+
+下面的扩展新增「身份证号」字段，渲染沿用单行文本，规则提醒加上格式校验，工具栏多一条复制 JSON：
+
+```ts
+export const idCard: FormDesignerExtension = {
+  id: 'acme/id-card',
+  kinds: [idCardKind],
+  // 渲染器按种类名找渲染方式：身份证号就用单行文本的
+  fieldRenderers: { 'id-card': FORM_FIELD_RENDERERS.text! },
+  rules: [(document) => {
+    const issues: FormSchemaIssue[] = []
+    patternMissing(document.children, ['children'], issues)
+    return issues
+  }],
+  issueText: issue => (issue.code === 'id-card.pattern-missing' ? '身份证号字段建议加上正则校验' : undefined),
+  commands: [{
+    id: 'acme/id-card.copy-json',
+    label: '复制 JSON',
+    placement: ['toolbar'],
+    run: ({ designer }) => void navigator.clipboard.writeText(JSON.stringify(designer.schema, null, 2)),
+  }],
+}
+```
+
+### 种类
+
+`kinds` 里的每一项是一个种类定义。字段的定义：
+
+```ts
+/** 身份证号：值是字符串，放在物料的「输入」分类里，属性沿用单行文本的基础与外观；显示名按语言自带。 */
+const idCardKind: FieldKindDefinition = {
+  type: 'field',
+  kind: 'id-card',
+  label: {
+    'en-US': 'ID card number',
+    'zh-CN': '身份证号',
+    'zh-TW': '身分證號',
+    'ja-JP': '身分証番号',
+    'ko-KR': '신분증 번호',
+    'de-DE': 'Ausweisnummer',
+    'es-ES': 'Número de identidad',
+    'fr-FR': 'Numéro d’identité',
+    'pt-BR': 'Número de identidade',
+    'ru-RU': 'Номер удостоверения личности',
+  },
+  category: 'input',
+  element: 'xh-text-field',
+  properties: { basic: text.properties.basic, data: [], appearance: text.properties.appearance },
+  validations: ['required', 'pattern', 'expression'],
+  valueKind: () => 'string',
+  emptyValue: () => '',
+}
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `type` | `field`、`container` 或 `static` |
+| `kind` | 种类名，不能与内置的或别的扩展的重名 |
+| `label` | 可选，显示名，按语言各给一个，见[名字](#名字) |
+| `category` | 物料面板里的分类，内置的有 `input`、`choice`、`datetime`、`advanced`、`layout`、`data`、`static` |
+| `element` | 缺省渲染用的 XiHan.UI 元素标签 |
+| `properties` | 三组属性描述，属性面板按它们给出编辑方式，模板自检按它们检查取值；写法见[种类与属性](../reference/kinds)里内置种类的属性表 |
+| `validations` | 字段与容器适用的校验规则种类 |
+| `valueKind` / `emptyValue` | 字段的值形状与空值，可随 `data` 变化 |
+
+容器另有 `scope`（`list` 时带数据键、值是行的数组，`none` 只管排版）、`regionProperties`、`regions`（区域个数的上下限与新建时的区域）、`accepts`（区域能放任意节点还是只放字段）与可选的 `check`（种类自己的结构检查）。
+
+### 渲染
+
+渲染器按种类名找渲染方式。`fieldRenderers` 的值是一个函数：收到字段的上下文，建出控件元素，返回 `{ element, update?, destroy? }`；标签、提示与错误文案由渲染器外面的字段外壳给出，控件不必自带。上下文里有字段节点、数据路径、当前值、状态、错误文案、选项、文案，以及 `setValue` 与 `commit`，见[渲染器参考](../reference/renderer#fieldrenderercontext)。
+
+内置的字段渲染表 `FORM_FIELD_RENDERERS` 也导出了，新种类的控件与某个内置种类一样时可以直接拿来用，例子里身份证号就用了单行文本的。渲染方式按种类名登记，不能与内置的重名，内置种类的渲染不能被替换。
+
+模板里的种类没有渲染方式时，渲染器不渲染整张表单，派发 `schema-error`（`XH_FORM_RT_NO_RENDERER`）。
+
+### 规则与问题说明
+
+`rules` 里的每一项是 `(document, context) => 问题[]`，与内置检查一起跑，结果进 `validateDocument` 的返回值与设计器的问题列表。问题码必须以扩展 `id` 的末段加点开头，例子的 `id` 是 `acme/id-card`，问题码就是 `id-card.…`；问题可以写 `severity: 'warning'`。
+
+```ts
+/** 身份证号字段没有正则校验时给一条警告；问题码以扩展 id 的末段 `id-card.` 开头。 */
+function patternMissing(nodes: readonly FormNode[], path: JsonPath, out: FormSchemaIssue[]): void {
+  nodes.forEach((node, index) => {
+    const at = [...path, index]
+    if (node.type === 'field' && node.kind === 'id-card' && !node.validation.some(rule => rule.kind === 'pattern'))
+      out.push({ code: 'id-card.pattern-missing', path: at, target: { kind: 'node', id: node.id }, severity: 'warning' })
+    if (node.type === 'container')
+      node.regions.forEach((region, r) => patternMissing(region.children, [...at, 'regions', r, 'children'], out))
+  })
+}
+```
+
+`issueText` 给自己的问题码说明文字，设计器的问题列表显示它。
+
+### 命令
+
+`commands` 里的命令与内置命令一样：`{ id, label, shortLabel?, icon?, placement?, shortcut?, enabled?, checked?, tone?, run }`。`id` 用扩展 id 加点加名字；`placement` 写 `toolbar`、`menubar:file`（菜单栏的「文件」菜单，另有 `menubar:edit`、`menubar:view`、`menubar:help`）、`menu:node` 或 `selection:node`（选中一个节点时浮在它右下角的选中工具条）等时出现在对应位置的缺省排列末尾（菜单栏里排在那张菜单收尾的一组之前）；扩展还能用 `menubarMenus` 往菜单栏上加自己的菜单 `{ id, label, order? }`（`order` 写在 30–80 之间，排在「视图」与「帮助」之间），命令写 `menubar:<菜单 id>` 落进去；宿主用 `commandLayout` 排列时按 id 引用；`shortcut` 是快捷键：带 `Mod` 的在整个设计器里认（焦点在文字输入里时除外），单键只在焦点在画布里时认，`Mod` 在 macOS 上是 ⌘、其余平台是 Ctrl；`icon` 取 `@xihan-ui/icons` 的图标，工具栏缺省只显示图标，没给图标的命令显示文字（`shortLabel`，没给就是 `label`）；破坏性命令的 `tone` 写 `danger`。`label`、`enabled` 与 `run` 收到的上下文里有设计器实例 `designer`、设计器文案 `translations`，以及四款设计器共用的命令文案 `commands`（如 `commands.undo`）。
+
+## 名字
+
+新种类在物料、画布、属性面板、状态栏与问题列表里的名字，写在种类的 `label` 上，按语言各给一个，键是 BCP 47 语言标记，与 XiHan.UI 内建语言包的语言一一对应（`en-US`、`zh-CN`……）。设计器按全局配置的 `locale`（与 XiHan.UI 的语言包合并后就有）取名：先找语言标记完全相同的，再找同一语种的（没写 `zh-TW` 时用 `zh-CN`），再用 `en-US`；都没有时显示种类的键。宿主不用再往文案里补这些名字；真要换个说法，给设计器元素的 `translations` 写 `kind`，它压在 `label` 之上。上面[种类](#种类)里的身份证号就给了十种语言的名字。
+
+分类名取设计器文案的 `category`，属性名取 `property`，扩展新加的分类与属性的名字仍由宿主补进文案。
+
+```ts
+const designer = document.createElement('xh-form-designer')
+designer.extensions = [idCard]
+designer.schema = schema
+```
+
+
+物料的「输入」分类末尾多了身份证号；点它放进画布，问题列表给出一条警告；工具栏末尾多了「复制 JSON」。
+
+## 种类图标
+
+`kindIcons` 给本扩展登记的种类配图标，键是种类名，值取 `@xihan-ui/icons` 的图标；物料面板的条目与页面结构的行都用它。只能给自己 `kinds` 里的种类，给了别的种类时给 `extensions` 赋值就抛 `TypeError`。不给的种类只显示名字。内置种类的图标是包入口导出的 `FORM_KIND_ICONS`。
+
+## 面板
+
+`panels` 在设计器外框里加自己的面板：`region` 给出区名（即面板 id）、缺省停的栏（`start`、`end`、`bottom`）与标题，给了 `title` 就画成卡片，面板头写标题，还可以给 `icon`、`subtitle` 与 `help`；`defaultHidden` 的面板缺省不显示。卡片和内置面板一样能挪动、浮出、收起与隐藏，写 `movable`、`floatable`、`minimizable`、`closable` 为 `false` 就不出对应的操作；每块面板自动有一条开关命令 `panel:<区名>`。区名与内置的区或别的扩展面板重名时，给 `extensions` 赋值就抛 `DesignerExtensionError`。面板元素用设计器零件时写 `headless`，标题交给卡片画。`create({ designer })` 建出面板元素，可选的 `update` 在设计器状态变化后调用、`destroy` 在撤掉时调用。面板里的条目可以拖到画布上：拖动载荷写成 `{ kind }` 是新建一个节点，写成 `{ clipboard: { nodes } }` 是按粘贴的规则插入一段节点。面板与外框的约定见视图组件文档的 [designer-shell](https://ui.docs.xihanfun.com/runtime/designer-shell)。
+
+## 物料来源
+
+`paletteSources` 往物料面板里加自己的几组条目，如一组常用的字段片段：每个来源是 `{ id, order?, groups(context), insert(item, context, at?) }`。
+
+- `groups` 每次刷新现取，组接在内置分组后面，几个来源按 `order` 排（不写按 100）。组 id 与条目 id 在整个物料面板里不能重名，与内置的种类名也不能重。
+- 条目被点按（或回车）时调 `insert(item, context)`；拖到画布上放下时调 `insert(item, context, at)`，`at` 是放下处的 `FormDropTarget`（`{ parent, index? }`，`parent` 是区域 id，顶层为 `null`）。插入怎么做由来源定，比如按粘贴的规则插入一组节点：`designer.paste(clipboard, { at })`，不给 `at` 时插到选中节点之后。
+- 来源 id 与别的扩展的重名时，给 `extensions` 赋值就抛 `DesignerExtensionError`。
+
+## 设置分区
+
+`settings` 给设置对话框加自己的分区：`id`、`label`、可选的 `order` 与条目 `items`，条目用属性描述的写法，写了 `default` 的是缺省值。用户的取值以「分区 id.条目 id」为键，命令、面板与扩展从上下文的 `settings` 读，没写的已经取了缺省值。分区 id 不能是内置的 `general`、`language`、`layout`、`toolbar`、`help`、`shortcuts`、`about`，也不能与别的扩展重名，见[设置](./designer#设置)。
+
+## 引导步骤
+
+`tourSteps` 往新手引导里加步骤，每一步是 `{ id, target?, title, description, placement?, order?, when? }`：
+
+- `id` 用扩展 id 加点加名字。不能与表单的（`form.` 开头）或别的扩展的重名，也不能用 designer-shell 留着的 `shell.` 前缀，否则给 `extensions` 赋值就抛 `DesignerExtensionError`。
+- `target` 是一块面板 `{ panel, part? }`、外框的一个区 `{ region }`、工具栏上的一条命令 `{ command }`、菜单栏上的一张菜单 `{ menubar: '<菜单 id>' }`（如 `file`、`view`，或扩展登记的菜单）或任意选择器 `{ selector }`；不给就居中显示。目标面板隐藏、命令不在工具栏上、菜单栏上没有这张菜单时这一步跳过；窄屏时菜单栏收成「菜单」钮，菜单的目标落在那颗钮上。
+- `title`、`description` 可以写成收上下文的函数，按此刻的语言取文字。
+- `order` 定先后：designer-shell 的通用步骤是 0–60，收尾的设置一步是 900，表单的是 100–120，扩展从 200 起；同值按登记顺序。`when` 返回 `false` 时跳过这一步，如只读时不讲编辑。
+
+引导怎么开始、怎么记下走完，见[新手引导](./designer#新手引导)。
+
+## 关于
+
+`about` 给设置对话框「关于」页加几行，如附加包的版本与授权：`[{ label, value }]`，按扩展顺序接在表单自己那几行后面。
+
+## 属性编辑器与编辑方式
+
+- `controls` 登记新的编辑方式：键是属性描述里的 `control.kind`，值的 `check(value)` 返回问题码或 `undefined`，模板自检按它检查取值。文本、数字、开关、下拉、选项表 `options`、选项树 `treeOptions` 等是 designer-kit 的内建编辑方式。
+- `editors` 给属性面板换上自己的编辑器，可以按编辑方式、属性路径或「种类 + 路径」查找；路径带分组前缀，如 `basic.label`、`data.options`，数据键是 `key`；种类在节点上是种类名，区域是 `region`，表单设置是 `settings`。编辑器的写法见视图组件文档的 [designer-kit](https://ui.docs.xihanfun.com/runtime/designer-kit)。
+- `documentProperties` 给表单设置加属性，没有选中节点时属性面板编辑它们。
+
+## 扩展数据
+
+扩展自己的数据放在文档或节点的 `extensions` 里，键是扩展 `id`，值是一个 JSON 对象，与业务属性分开。设计器的编辑操作 `setExtensionData` 写它，复制粘贴时原样带着走：
+
+```ts
+designer.execute([{ type: 'setExtensionData', nodeId: 'f-name', id: 'acme/id-card', data: { masked: true } }])
+```
+
+## 冲突与装卸
+
+- 种类名、渲染方式、编辑方式、命令 id、快捷键与面板区名在扩展之间不能重名。给 `extensions` 赋值时当场查重，冲突抛 `DesignerExtensionError`，什么都不变。
+- `setup(context)` 在设计器连上页面时调用，返回的函数在断开或换掉扩展时调用，适合挂监听。
+
+---
+
+来源：https://form.docs.xihanfun.com/guide/host
+
+# 与宿主集成
+
+组件只管设计、渲染与校验，不发网络请求，也不碰存储与权限。把它嵌进业务系统时，下面这些由宿主来做：
+
+| 事情 | 宿主做什么 | 组件给什么 |
+| --- | --- | --- |
+| 模板的保存 | 存模板 JSON，管名称、分类、版本与审核 | `schema`、`schema-change`、`save`、`dirty`、`markSaved()` |
+| 已有数据与提交 | 取出已有的数据，收下提交的数据并保存 | `values`、`submit`、`submitAction`、`getFormData()` |
+| 选项与附件 | 按选项来源返回选项，接收上传的文件 | `loadOptions`、`uploadFile` |
+| 权限 | 决定谁能改模板、谁能填哪些字段，服务端再复核 | `readonly`、`disabled`、`settingsPolicy`、控制器的强制设定 |
+| 校验 | 保存前拦住有错误的模板，服务端复核提交的数据 | `validate()`、`issues-change`、`validateDocument`、`validateValues` |
+
+## 模板的保存
+
+模板是一份完整的 JSON，原样存、原样取，不要拆成字段存。`schemaVersion` 记录模板格式的版本；扩展自己的数据放在文档与节点的 `extensions` 里，组件原样保留。
+
+打开时把取回的模板赋给设计器的 `schema`，用户保存时取 `schema` 交给后端，成功后 `markSaved()`：
+
+```ts
+export async function openTemplate(id: string): Promise<void> {
+  designer.schema = await api.loadTemplate(id)
+  designer.addEventListener('save', async () => {
+    await api.saveTemplate(id, designer.schema)
+    designer.markSaved()
+  })
+}
+```
+
+设计器在内存里改模板，页面关掉修改就没了（用户在设置里开了自动保存时，未保存的修改另有一份本机草稿，下次打开同一个模板时问要不要恢复，见[保存](./designer#保存)；给设计器写 `draftKey` 为模板 id，草稿才不会串到别的模板上）。有未保存的修改时提醒用户：
+
+```ts
+window.addEventListener('beforeunload', (event) => {
+  if (designer.dirty)
+    event.preventDefault()
+})
+```
+
+模板定下来以后，表单数据就按它的数据键存。改模板时删掉或改名的字段，旧数据里的值不会自动迁移，由宿主决定怎么处理。
+
+## 已有数据与提交
+
+- **打开**：宿主取出已有的数据交给渲染器的 `values`；没有的键取模板里的初始值。
+- **提交**：渲染器校验通过后派发 `submit`，交出不含隐藏字段的数据；需要等后端回应时用 `submitAction`，见[渲染器](./renderer#提交)。
+- **草稿**：随时用 `getFormData()` 取当前数据存草稿，再打开时交给 `values`。
+
+## 选项与附件
+
+下拉等字段的选项来源只是一个名字，渲染器按它调用宿主的 `loadOptions`；文件字段按 `uploadFile` 上传。宿主在这两个回调里调自己的接口，组件不知道接口的地址与鉴权方式。写法见[渲染器](./renderer#选项)。
+
+## 权限
+
+- 只能看模板的用户把设计器设成 `readonly`：能选择、浏览与预览，不能修改；用 `settingsPolicy` 的 `layout.panels.palette` 写 `hidden` 去掉物料面板。
+- 只能看表单的用户把渲染器设成 `readonly`（仍可提交）或 `disabled`（不能提交）。
+- 某些字段只给特定角色填写时，按角色用控制器的 `setReadOnly`、`setHidden` 强制，见[渲染器](./renderer#只读与禁用)。
+- 这些都只在前端生效。模板与数据的保存权限要在服务端判断，服务端也应复核收到的模板与数据。
+
+## 服务端复核
+
+`@xihan-form/core` 不依赖 DOM，可以在 Node.js 后端直接复核：
+
+```ts
+const expressionEngine = createExpressionEngine()
+
+/** 服务端收到模板时：有问题就拒绝保存。 */
+export function checkTemplate(schema: unknown): boolean {
+  return validateDocument(schema, { expressionEngine, identifiers: ['$limit'] }).length === 0
+}
+
+/** 服务端收到表单数据时：先按联动求出各字段的状态与赋值，再按这些状态校验。 */
+export function checkSubmission(schema: FormDocument, submitted: Record<string, JsonValue>) {
+  const variables = { $limit: 5000 }
+  const linkage = resolveLinkage(schema, submitted, { expressionEngine, variables })
+  const issues = validateValues(schema, linkage.values, { expressionEngine, states: linkage.states, variables })
+  // 赋值字段（小计、合计）以重算出的值为准，不用提交上来的
+  return { values: linkage.values, issues }
+}
+```
+
+- 复核数据时先用 `resolveLinkage` 按联动求出各字段的状态，再交给 `validateValues`。不求联动时，按条件才变成必填的字段会被漏掉，隐藏的字段也会被当成要校验。
+- 联动赋值的字段（如合计）以 `resolveLinkage` 重算出的值为准，不要相信提交上来的。
+- 宿主变量（如 `$limit`）在服务端用同一份值。
+
+后端不是 JavaScript 时，前端在提交前已经校验过；服务端把模板当作不透明的 JSON 存取，需要时另起一个 Node.js 服务做复核。
+
+## 在前端框架里使用
+
+渲染器与设计器是原生 Web Components，任何框架都能用：在应用启动时调用一次 `defineFormRenderer()` 或 `defineFormDesigner()`，之后像普通元素一样放进模板。模板、数据、回调这类对象要交给元素的属性，不要写成 attribute。
+
+在 Vue 里，先告诉编译器 `xh-` 开头的标签是自定义元素，免得被当成组件去解析：
+
+```ts
+// vite.config.ts 里 @vitejs/plugin-vue 的选项
+vue({
+  template: {
+    compilerOptions: {
+      isCustomElement: tag => tag.startsWith('xh-'),
+    },
+  },
+})
+```
+
+对象用 `.prop` 修饰交给属性，事件用 `@` 监听：
+
+```vue
+<script setup lang="ts">
+/*
+ * Copyright (c) 2021-Present XiHanFun and contributors.
+ * Licensed under the MIT License. See LICENSE in the project root for license information.
+ */
+
+// 在 Vue 里使用渲染器：对象经 .prop 交给元素的属性，事件用 @ 监听。
+
+import type { FormRendererEventMap } from '@xihan-form/runtime'
+import { defineFormRenderer } from '@xihan-form/runtime'
+import { ref } from 'vue'
+import { schema, values } from '../templates/contact'
+
+defineFormRenderer()
+
+const renderer = ref<HTMLElement & { submit: () => void }>()
+const result = ref('')
+
+function onSubmit(event: Event): void {
+  result.value = JSON.stringify((event as FormRendererEventMap['submit']).detail.values)
+}
+
+function onInvalid(event: Event): void {
+  result.value = `还有 ${(event as FormRendererEventMap['invalid']).detail.issues.length} 处没填对`
+}
+</script>
+
+<template>
+  <xh-form-renderer ref="renderer" :schema.prop="schema" :values.prop="values" @submit="onSubmit" @invalid="onInvalid" />
+  <button type="button" @click="renderer?.submit()">
+    提交
+  </button>
+  <pre>{{ result }}</pre>
+</template>
+```
+
+
+React 19 起会把对象直接赋给自定义元素的同名属性；事件可以用 `ref` 拿到元素后 `addEventListener` 监听。
+
+## 一个页面里放多个实例
+
+组件不往 `window` 上挂对象，也不读写固定键名的本地存储，同一页面里的多个渲染器、多个设计器互不影响，扩展也按实例给。只有语言包是全局的：`setXhConfig` 对页面上所有元素生效，单个实例的文案用它的 `translations` 属性覆写。
+
+---
+
+来源：https://form.docs.xihanfun.com/guide/renderer
+
+# 渲染器
+
+`<xh-form-renderer>` 按模板渲染出表单：字段、布局、列表、校验与联动都按模板来，选项与附件经回调交给宿主，组件自己不发请求。全部属性、方法与事件见[渲染器参考](../reference/renderer)。
+
+## 放到页面上
+
+```ts
+import { defineFormRenderer } from '@xihan-form/runtime'
+import '@xihan-ui/styles/index.css'
+import '@xihan-form/runtime/style.css'
+
+defineFormRenderer()
+
+const renderer = document.createElement('xh-form-renderer')
+renderer.schema = schema
+document.body.append(renderer)
+```
+
+复杂数据都走属性（property）：`schema`、`values`、`variables`、`loadOptions`、`uploadFile`、`submitAction`、`translations` 与 `extensions`。可以写成 HTML 特性（attribute）的只有 `readonly`、`disabled` 与 `validate-on`。
+
+`readonly` 与 `disabled` 按三态读：没写取缺省（不生效），写 `"false"` 是关，空串、`"true"` 与别的写法都是开，移除后回到缺省。这与 HTML 原生的布尔特性不同：原生的只要写了就算开。这是一处行为变化，渲染器此前也照原生读，`readonly="false"` 会让整表只读，现在不会；经属性（property）赋值不受影响。
+
+模板没通过自检时表单不渲染，渲染器派发 `schema-error`，载荷里是错误码与全部模板问题；建好表单时派发 `ready`。换了 `schema`、`extensions`、`expressionEngine` 或 `loadOptions`，渲染器重建表单，再派发一次 `ready`。
+
+## 取值与赋值
+
+```ts
+renderer.schema = schema
+// 已有的数据：也是 reset 与 isDirty 的基准
+renderer.values = { applicant: '张三', items: [{ name: '高铁', qty: 2, price: 553 }] }
+
+const all = renderer.getFormData() // 整份数据的副本，含联动赋值
+const visible = renderer.getFormData({ omitHidden: true }) // 去掉隐藏字段的值，与 submit 交出的一样
+const first = renderer.getValue(['items', 0, 'name']) // 按数据路径读
+
+renderer.setValue(['items', 0, 'qty'], 3) // 写一个字段，形状不符时抛错
+renderer.setFormData({ applicant: '李四' }, { baseline: true }) // 整份替换，同时作为新的基准
+renderer.reset() // 回到基准值并清空校验状态
+const changed = renderer.isDirty()
+```
+
+- 数据路径是数组：顶层字段是 `['applicant']`，列表里的字段带行号，如 `['items', 0, 'name']`。
+- `values` 是初始数据，也是 `reset()` 与 `isDirty()` 的基准；表单建好后再给 `values`，等于 `setFormData(values, { baseline: true })`。
+- 值的形状由种类决定，写入形状不符的值时抛 `FormRuntimeError`（`XH_FORM_RT_INVALID_VALUE`），见[问题码](../reference/issues#runtime)。
+- 用户输入、联动赋值、增删行与宿主赋值都会派发 `value-change`，载荷里是变化的路径与整份数据。
+
+## 提交
+
+调用 `submit()`，或在文本框里按回车，都会走一次提交：整表校验，通过时派发 `submit`，没通过时派发 `invalid`，焦点移到第一个出问题的字段。`submit` 交出的数据不含隐藏字段的值。
+
+提交要等后端回应时，把异步动作交给 `submitAction`：
+
+```ts
+renderer.submitAction = async ({ values }) => {
+  // 返回的 Promise 落定之前表单处于提交中，期间再提交不会发生；失败时派发 submit-error
+  await saveOrder(values)
+}
+```
+
+## 选项
+
+选择类字段（下拉、可输入下拉、树选择、级联、单选组、多选组、按钮组、列表、可选标签、穿梭框）的选项有两种来源。
+
+**写在模板里**：`data.options` 是选项数组，每项 `{ value, label }`，可带 `disabled`；树选择与级联的选项是树，每项还可带 `children`。
+
+```ts
+{
+  type: 'field',
+  id: 'f-province',
+  kind: 'select',
+  key: 'province',
+  basic: { label: '收货省份', placeholder: '请选择' },
+  data: { options: [{ value: 'zj', label: '浙江' }, { value: 'js', label: '江苏' }, { value: 'gd', label: '广东' }] },
+  appearance: {},
+  validation: [],
+  linkage: [],
+},
+```
+
+**交给宿主加载**：`data.optionSource` 是一个由宿主解释的名字，渲染器按它调用 `loadOptions(request)`，宿主返回选项数组或它的 Promise。表单建好时加载一次全部带选项来源的字段。
+
+```ts
+renderer.loadOptions = (request) => {
+  if (request.source === 'cities')
+    return later(CITIES[String(request.values.province)] ?? [])
+  if (request.source === 'vendors')
+    return later(VENDORS.filter(vendor => vendor.label.includes(request.query?.trim() ?? '')))
+  return later(CATEGORIES[request.parent ?? ''] ?? [])
+}
+```
+
+请求里有 `source`（选项来源）、`nodeId`、`path`（字段的数据路径）与 `values`（当前表单数据），以及按情况带上的：
+
+- **依赖其它字段**：`data.optionDependencies` 列出这个字段依赖的数据键。依赖的值一变，字段回到空值并重新加载，宿主从 `request.values` 读依赖的值。依赖的键在字段所在作用域里找，找不到再往外层找。
+
+  <<< @/examples/templates/purchase.ts#cascade
+
+- **搜索**：可输入下拉在用户输入时带上 `query`，宿主按它返回匹配的选项；没有选项来源时按文字包含在静态选项里筛。可提及文本的候选也是这样取：用户敲提及符号（缺省 `@`）后面的字就是 `query`，选中的候选文字插回正文，字段值是整段正文。
+
+  <<< @/examples/templates/purchase.ts#search
+
+- **逐级展开**：树选择与级联的选项可以带 `hasChildren: true` 而不给 `children`，用户第一次展开它时请求带上 `parent`（那个节点的值），宿主只返回它的直接子项。级联在那一列末尾显示在途与失败，失败时点重试再请求一次。
+
+  <<< @/examples/templates/purchase.ts#tree
+
+加载中字段显示在途状态；加载失败时下拉显示失败提示与重试钮，点重试再加载一次。宿主也可以经控制器的 `reloadOptions()` 主动重新加载。
+
+单选的下拉、树选择与级联在字段不必填时带清空钮：选了值以后它顶替展开钮那一格，点一下把值清成空；字段必填（校验规则里有必填，或联动让它必填）时不带，多选能逐个去掉已选项，也不带。只读与禁用时清空钮收起。
+
+## 附件上传
+
+文件字段的值是附件记录的数组，每条 `{ id, name, size?, type?, url? }`。用户选了文件，渲染器调用宿主的 `uploadFile(request)`：
+
+```ts
+renderer.uploadFile = request => new Promise((resolve, reject) => {
+  let progress = 0
+  const timer = setInterval(() => {
+    progress += 20
+    request.onProgress(progress)
+    if (progress >= 100) {
+      clearInterval(timer)
+      resolve({ id: `${request.target}-${Date.now()}` })
+    }
+  }, 200)
+  request.signal.addEventListener('abort', () => {
+    clearInterval(timer)
+    reject(request.signal.reason)
+  })
+})
+```
+
+- `request.file` 是用户选的文件，`request.target` 是字段的 `data.uploadTarget`，另有 `nodeId` 与 `path`。
+- 用 `request.onProgress(0–100)` 汇报进度；用户删掉文件或表单卸载时 `request.signal` 中止，把它传给底层请求。
+- 返回带 `id` 的结果时，这个文件转成一条附件记录写进字段值；上传失败或被中止的文件不会写进字段值。
+- 已有的附件经 `values` 交给渲染器，用户可以删掉，删掉后字段值里就没有那一条。
+
+
+## 只读与禁用
+
+- 整张表单：渲染器的 `readonly` 与 `disabled` 属性，或模板 `settings` 里的同名设置。只读仍可提交，禁用不能提交。
+- 单个节点：`basic.readOnly`、`basic.disabled`、`basic.hidden`，联动规则可以按条件改变它们，见[校验与联动](./validation)。
+- 宿主强制：控制器的 `setHidden`、`setDisabled`、`setReadOnly` 盖过模板与联动，传 `null` 撤销。
+
+```ts
+// ready 之后拿到控制器；模板、扩展、表达式引擎或选项加载函数一换就是新的控制器
+renderer.addEventListener('ready', () => {
+  const controller = renderer.controller!
+  controller.setReadOnly(['applicant'], true) // 强制只读，盖过联动
+  controller.setHidden('f-remark', true) // 也可以用节点 id
+  controller.setReadOnly(['applicant'], null) // null 撤销强制
+})
+```
+
+## 文案
+
+内置文案缺省是英文，各语言的语言包（如中文的 `formZhCN`）与 XiHan.UI 同一语言的语言包合并后经 `setXhConfig` 全局生效，见[快速开始](../quickstart#界面语言)。某一个渲染器要用别的说法时，给它的 `translations` 传要覆盖的键，如错误摘要的标题 `errorSummary` 与新增行的 `addRow`；规则写了 `message` 时问题提示用规则的，键见[渲染器参考](../reference/renderer#formrenderertranslations)。
+
+## 不经界面使用
+
+`createFormController` 是渲染器背后的表单控制器：同一套取值、联动、选项与校验，不碰 DOM，可以在没有界面的地方处理表单数据，或给自己写的界面用。
+
+```ts
+const controller = createFormController({
+  document: schema,
+  expressionEngine: createExpressionEngine(),
+  values: { type: 'travel' },
+  loadOptions,
+})
+
+const unsubscribe = controller.subscribe((event) => {
+  if (event.type === 'values')
+    sync(controller.getFormData())
+})
+
+controller.setValue(['city'], '杭州')
+const outcome = controller.validate() // { valid, issues }
+
+unsubscribe()
+controller.dispose()
+```
+
+只做校验时，也可以直接用 `@xihan-form/core` 的 `validateValues`，见[与宿主集成](./host#服务端复核)。
+
+---
+
+来源：https://form.docs.xihanfun.com/guide/template
+
+# 模板结构
+
+表单模板是一份 `FormDocument`，纯 JSON，不含函数，也不含任何会被执行的代码。它可以存进数据库、写成文件、在网络上传输，导入时只做结构检查。
+
+## 文档
+
+| 字段 | 内容 |
+| --- | --- |
+| `schemaVersion` | 结构版本，当前是 `1`（`FORM_SCHEMA_VERSION`） |
+| `settings` | 表单设置：标签位置、尺寸、整表禁用与只读，见[表单设置](#settings) |
+| `children` | 顶层节点，按顺序排列 |
+| `extensions` | 可省，各扩展放在文档上的数据，见[扩展数据](#extension-data) |
+
+每个类型的完整字段见[模板类型](../reference/schema)。
+
+## 节点
+
+节点分三类，`type` 区分：
+
+| `type` | 是什么 | 有值吗 |
+| --- | --- | --- |
+| `field` | 字段：文本、数字、选择、日期、上传等 | 有，存在表单数据的 `key` 下 |
+| `container` | 容器：栅格、卡片、标签页等布局，以及子表单、子表两种列表 | 布局容器没有；列表容器的值是行的数组 |
+| `static` | 静态元素：分隔线、段落、标题、提示、图片、条码、二维码 | 没有 |
+
+每个节点都有：
+
+- `id`：在整份文档里唯一。设计器的选择、问题的定位、联动的实例都按它找节点。
+- `kind`：种类，如 `text`、`grid`、`divider`，决定渲染成哪个元素、能写哪些属性。
+- 三个属性包 `basic`、`data`、`appearance`：基础（标签、提示、初始值、隐藏与禁用）、数据（选项、精度、数据来源）与外观（尺寸、前后缀）。只写用到的属性，各种类的属性与取值见[种类与属性](../reference/kinds)。
+- `linkage`：联动规则；字段与容器还有校验规则 `validation`。规则的写法见[校验与联动](./validation)。
+
+容器另有区域 `regions`：一个区域是放子节点的一格，带自己的属性 `props`，如栅格一列的跨度、标签页一页的标题。
+
+## 字段与表单数据
+
+字段的数据键 `key` 是它的值在表单数据里的键：ASCII 字母或 `_` 开头，后接字母、数字或 `_`，在所在作用域里不能重复；`$` 开头的名字留给表达式里的变量。
+
+值的形状随种类：文本是字符串，数字是数值，开关是布尔，多选组是字符串数组。打开某些属性会改变形状，如下拉打开「多选」后值是字符串数组。每个种类的值形状与空值见[种类与属性](../reference/kinds)。
+
+渲染时字段的初始值取 `basic.initialValue`，没写就是种类的空值；交给渲染器的 `values` 叠在上面。
+
+布局容器对数据透明：放在栅格、卡片、标签页里的字段，值仍在表单数据的顶层。列表容器（子表单、子表）有自己的数据键，值是行对象的数组，行里字段的键相对于行对象。下面这张出差申请的数据长这样：
+
+```ts
+export const values = {
+  applicant: '张三',
+  department: 'rd',
+  companions: [{ name: '李四', phone: '13800000001' }],
+  segments: [{ from: '杭州', to: '北京', by: 'train' }],
+  nights: 3,
+}
+```
+
+## 布局容器
+
+| 种类 | 用法 |
+| --- | --- |
+| 栅格 `grid` | 按 12 列排版，每个区域是一格，`props.span` 是这一格占几列，排满一行自动换到下一行 |
+| 卡片 `card` | 带标题 `basic.title` 的一块面板，只有一个区域 |
+| 分组 `fieldset` | 带分组标题 `basic.legend` 的一组，只有一个区域 |
+| 标签页 `tabs` | 每个区域是一页，页签文字是区域的 `props.title` |
+| 折叠面板 `collapse` | 每个区域是一项，标题是 `props.title`，`props.expanded` 决定初始是否展开 |
+| 表格布局 `table` | `appearance.rows` × `appearance.columns` 的格子，每个区域用 `props.row`、`props.column`、`props.rowSpan`、`props.columnSpan` 占一块；全部区域要恰好铺满表格，不能越界、重叠或留空 |
+
+容器可以嵌套。卡片里放一个两列的栅格：
+
+```ts
+{
+  type: 'container',
+  id: 'c-basic',
+  kind: 'card',
+  basic: { title: '基本信息' },
+  data: {},
+  appearance: {},
+  validation: [],
+  linkage: [],
+  regions: [{
+    id: 'c-basic-body',
+    props: {},
+    children: [{
+      type: 'container',
+      id: 'c-basic-grid',
+      kind: 'grid',
+      basic: {},
+      data: {},
+      appearance: {},
+      validation: [],
+      linkage: [],
+      regions: [
+        {
+          id: 'c-basic-left',
+          props: { span: 6 },
+          children: [{
+            type: 'field',
+            id: 'f-applicant',
+            kind: 'text',
+            key: 'applicant',
+            basic: { label: '申请人' },
+            data: {},
+            appearance: {},
+            validation: [{ id: 'r-applicant', kind: 'required' }],
+            linkage: [],
+          }],
+        },
+        {
+          id: 'c-basic-right',
+          props: { span: 6 },
+          children: [{
+            type: 'field',
+            id: 'f-department',
+            kind: 'select',
+            key: 'department',
+            basic: { label: '部门' },
+            data: { options: [{ value: 'rd', label: '研发部' }, { value: 'sales', label: '销售部' }, { value: 'finance', label: '财务部' }] },
+            appearance: {},
+            validation: [{ id: 'r-department', kind: 'required' }],
+            linkage: [],
+          }],
+        },
+      ],
+    }],
+  }],
+},
+```
+
+标签页的每个区域是一页：
+
+```ts
+{
+  type: 'container',
+  id: 'c-more',
+  kind: 'tabs',
+  basic: {},
+  data: {},
+  appearance: {},
+  validation: [],
+  linkage: [],
+  regions: [
+    {
+      id: 'c-more-hotel',
+      props: { title: '住宿' },
+      children: [{ type: 'field', id: 'f-nights', kind: 'number', key: 'nights', basic: { label: '住几晚' }, data: { precision: 0 }, appearance: {}, validation: [{ id: 'r-nights', kind: 'range', min: 0, max: 30 }], linkage: [] }],
+    },
+    {
+      id: 'c-more-note',
+      props: { title: '备注' },
+      children: [{ type: 'field', id: 'f-note', kind: 'textarea', key: 'note', basic: { label: '备注' }, data: {}, appearance: {}, validation: [], linkage: [] }],
+    },
+  ],
+},
+```
+
+## 列表
+
+子表单与子表让用户按行录入，行可以新增、删除，`data.movable` 不为 `false` 时还能上下换序；`data.initialRows` 是没有数据时先给几行。
+
+- **子表单** `subform`：每一行照着区域里的节点排一遍，区域里能放任意节点，包括栅格与另一个列表。
+- **子表** `subtable`：按表格排，区域里只能放字段，一个字段是一列，列头取字段的标签。字段的外观 `columnMinWidth`（像素）是这一列的最小宽度，金额这类值长的列给它，免得被截；各列下限加起来超过子表宽时，表格区横向滚动，行号与把手留在两侧。这一项只在字段放在子表里时生效，属性面板也只在那时列出它。
+
+子表的区域里放两个字段，就是两列：
+
+```ts
+{
+  type: 'container',
+  id: 'c-companions',
+  kind: 'subtable',
+  key: 'companions',
+  basic: { title: '同行人员' },
+  data: { movable: false },
+  appearance: {},
+  validation: [],
+  linkage: [],
+  regions: [{
+    id: 'c-companions-row',
+    props: {},
+    children: [
+      {
+        type: 'field',
+        id: 'f-companion-name',
+        kind: 'text',
+        key: 'name',
+        basic: { label: '姓名' },
+        data: {},
+        appearance: {},
+        validation: [{ id: 'r-companion-name', kind: 'required' }],
+        linkage: [],
+      },
+      {
+        type: 'field',
+        id: 'f-companion-phone',
+        kind: 'text',
+        key: 'phone',
+        basic: { label: '手机号' },
+        data: { inputType: 'tel' },
+        appearance: {},
+        validation: [],
+        linkage: [],
+      },
+    ],
+  }],
+},
+```
+
+列表容器自己也能写校验：必填表示至少一行，长度按行数计。
+
+## 静态元素
+
+静态元素只展示、没有值：分隔线 `divider`、段落 `paragraph`、标题 `heading`、提示 `alert`、图片 `image`、条码 `barcode` 与二维码 `qrcode`。它们只有联动，没有校验，联动也只有显示与隐藏。
+
+```ts
+{
+  type: 'static',
+  id: 's-title',
+  kind: 'heading',
+  basic: { content: '出差申请' },
+  data: {},
+  appearance: { level: 3 },
+  linkage: [],
+},
+```
+
+## 表单设置 {#settings}
+
+`settings` 管整张表单：
+
+| 属性 | 取值 |
+| --- | --- |
+| `labelPlacement` | 标签在控件上方 `top`（缺省）还是左侧 `start` |
+| `size` | 控件尺寸 `sm`、`md`、`lg`；字段自己写了 `appearance.size` 时以字段的为准 |
+| `disabled` | 整表禁用，不能提交 |
+| `readOnly` | 整表只读，仍可提交 |
+
+## 扩展数据 {#extension-data}
+
+文档与每个节点都可以带 `extensions`：扩展 id → 这个扩展自己的 JSON 对象。它只给扩展用，与业务属性分开，设计器编辑与复制粘贴时原样带着走。登记扩展的写法见[扩展](./extensions)。
+
+## 用代码拼模板
+
+不经设计器、在代码里拼模板时，用 `createNode` 按种类新建节点：它会写好属性的缺省值，容器还会带上缺省的区域。拼好后用 `validateDocument` 自检：
+
+```ts
+const { registry } = createFormModel()
+const ids = createIdAllocator('n')
+
+const name = createNode(registry, 'text', ids, { key: 'name' }) as FieldNode
+const document: FormDocument = {
+  ...createDocument(),
+  children: [
+    { ...name, basic: { ...name.basic, label: '姓名' }, validation: [{ id: ids.next(), kind: 'required' }] },
+  ],
+}
+
+const issues = validateDocument(document)
+```
+
+`validateDocument` 返回问题列表，空数组表示没有问题。问题码见[问题码](../reference/issues)。
+
+## 示例
+
+出差申请：卡片里的栅格、子表、子表单与标签页。改一个值，下方显示整份表单数据。
+
+---
+
+来源：https://form.docs.xihanfun.com/guide/validation
+
+# 校验与联动
+
+校验与联动都是写在模板里的规则：字段与容器的 `validation` 是校验规则，`linkage` 是联动规则。需要计算的地方写成受限表达式，表达式只能读表单数据与宿主给的变量，不能执行任何代码。
+
+## 校验规则
+
+| `kind` | 不通过的情况 | 规则里的字段 |
+| --- | --- | --- |
+| `required` | 值为空：`null`、只含空白的字符串、空数组，或元素全为空的数组；`false` 与 `0` 不算空 | — |
+| `accepted` | 值不是 `true`，用于「必须勾选同意」，只适用于布尔值字段 | — |
+| `length` | 字符串的字数或数组的元素个数不在 `[min, max]` 里；字数按用户看到的字计，一个表情算一个 | `min`、`max`，至少给一个 |
+| `range` | 数值不在 `[min, max]` 里 | `min`、`max`，至少给一个 |
+| `pattern` | 整串不匹配正则 | `pattern`（不带两边的斜杠）、`flags`（只允许 `i`、`m`、`s`、`u`） |
+| `expression` | 表达式的结果是 `false`；`true` 与 `null` 都算通过 | `expression`，`$value` 是字段自己的值 |
+
+每条规则都有 `id`，在所在规则列表里唯一；`message` 可省，写了就是不通过时给用户看的提示，不写时用渲染器按问题码给的缺省文案，见[问题码](../reference/issues#value)。每个种类适用哪些规则见[种类与属性](../reference/kinds)，写了不适用的规则时模板自检报 `rule.notApplicable`。
+
+校验的约定：
+
+- 值为空时只看 `required` 与 `accepted`，其余规则跳过，「选填但填了就要合规」不必另写条件。
+- 隐藏或禁用的字段不校验，连同被隐藏、禁用的容器里的全部字段；只读的字段照常校验。
+- 列表容器（子表单、子表）自己的规则针对整份列表：`required` 表示至少一行，`length` 按行数计；行里的字段各按各的规则校验。
+
+```ts
+{
+  type: 'field',
+  id: 'f-invoices',
+  kind: 'number',
+  key: 'invoices',
+  basic: { label: '发票张数' },
+  data: { precision: 0 },
+  appearance: {},
+  validation: [
+    { id: 'r-invoices-required', kind: 'required' },
+    { id: 'r-invoices-max', kind: 'expression', expression: '$value <= 20', message: '一次最多报销 20 张发票' },
+  ],
+  linkage: [],
+},
+{
+  type: 'field',
+  id: 'f-agree',
+  kind: 'checkbox',
+  key: 'agree',
+  basic: { label: '我确认以上费用真实发生' },
+  data: {},
+  appearance: {},
+  validation: [{ id: 'r-agree', kind: 'accepted', message: '提交前请先确认' }],
+  linkage: [],
+},
+```
+
+## 什么时候校验
+
+- 一个字段第一次校验的时机由渲染器的 `validateOn` 决定：缺省 `blur` 是离开字段时，`change` 是改值时，`submit` 是提交时。校验过的字段此后随改值重算。
+- 提交时校验全部字段。没通过时派发 `invalid`，焦点移到第一个出问题的字段，表单上方列出错误摘要；通过时派发 `submit`。
+- 宿主也可以随时调用 `validate()` 校验全部字段、`validateField(path)` 校验一个字段，两者都返回 `{ valid, issues }`，不派发提交事件。
+
+## 联动规则
+
+联动规则按条件改变节点的状态，或给字段赋值：
+
+| `action` | 条件成立时 | 适用于 |
+| --- | --- | --- |
+| `show` / `hide` | 显示 / 隐藏 | 字段、容器、静态元素 |
+| `enable` / `disable` | 可用 / 禁用 | 字段、容器 |
+| `require` / `optional` | 必填 / 不必填 | 字段 |
+| `assign` | 把 `value` 表达式的结果赋给字段 | 字段 |
+
+`when` 是条件，结果为 `true` 时成立；不写表示总是成立。条件不成立时节点回到模板里的静态设定：`basic.hidden`、`basic.disabled`、`basic.readOnly`，以及有没有 `required` 规则。
+
+按类型显示、按条件必填：
+
+```ts
+{
+  type: 'field',
+  id: 'f-city',
+  kind: 'text',
+  key: 'city',
+  basic: { label: '出差城市' },
+  data: {},
+  appearance: {},
+  validation: [],
+  linkage: [
+    { id: 'l-city-hide', action: 'hide', when: 'type != \'travel\'' },
+    { id: 'l-city-require', action: 'require', when: 'type == \'travel\'' },
+  ],
+},
+```
+
+联动的约定：
+
+- 每个节点从静态设定出发，按文档顺序依次执行条件成立的规则，同一状态有多条规则成立时排在后面的生效。
+- 赋值立即生效，后面的表达式读到的是新值；赋值引起的连锁变化会重算到稳定为止，仍不稳定时渲染器派发 `linkage-error`。
+- 隐藏与禁用向下叠加：容器隐藏了，里面的节点都隐藏。
+- 被隐藏的字段保留它的值，重新显示时还在；提交时交出的数据不含隐藏字段的值。
+- `require` 让没有 `required` 规则的字段变成必填，提示用缺省文案；`optional` 让有 `required` 规则的字段暂时不必填。
+
+## 表达式
+
+表达式是 [XiHan.UI 的受限表达式](https://ui.docs.xihanfun.com/runtime/expression)：有四则运算、比较、`&&`、`||`、`!`、条件运算 `?:`，以及逻辑、数学、聚合、文本与日期函数，不能调用宿主代码以外的任何东西。数字按十进制计算，`0.1 + 0.2 == 0.3` 成立。
+
+表达式里能用的名字：
+
+| 名字 | 是什么 |
+| --- | --- |
+| 顶层的数据键 | 表单数据顶层的值，如 `type`、`total`；列表容器的键是行的数组，如 `items` |
+| `$value` | 字段或列表容器自己的值 |
+| `$row` | 列表里的节点所在的那一行，如 `$row.qty` |
+| `$index` | 列表里的节点所在的行号，从 0 起 |
+| `$` 开头的宿主变量 | 渲染器 `variables` 属性给的值，如 `$limit` |
+
+`a.b` 在 `a` 是数组时逐行取字段，聚合函数会把数组展开，所以 `SUM(items.amount)` 就是明细各行小计之和。值为 `null` 时运算大多得到 `null`，条件是 `null` 时不成立。
+
+行里的小计与表单的合计都用赋值算出：
+
+```ts
+{
+  type: 'container',
+  id: 'c-items',
+  kind: 'subtable',
+  key: 'items',
+  basic: { title: '明细' },
+  data: { initialRows: 1 },
+  appearance: {},
+  validation: [{ id: 'r-items', kind: 'required', message: '至少填写一条明细' }],
+  linkage: [],
+  regions: [{
+    id: 'c-items-row',
+    props: {},
+    children: [
+      { type: 'field', id: 'f-item', kind: 'text', key: 'name', basic: { label: '名目' }, data: {}, appearance: { columnMinWidth: 120 }, validation: [{ id: 'r-item', kind: 'required' }], linkage: [] },
+      { type: 'field', id: 'f-qty', kind: 'number', key: 'qty', basic: { label: '数量' }, data: { precision: 0 }, appearance: { columnMinWidth: 104 }, validation: [{ id: 'r-qty', kind: 'range', min: 1 }], linkage: [] },
+      { type: 'field', id: 'f-price', kind: 'number', key: 'price', basic: { label: '单价' }, data: { precision: 2 }, appearance: { columnMinWidth: 144 }, validation: [], linkage: [] },
+      {
+        type: 'field',
+        id: 'f-amount',
+        kind: 'number',
+        key: 'amount',
+        basic: { label: '小计', readOnly: true },
+        data: { precision: 2 },
+        appearance: { columnMinWidth: 144 },
+        validation: [],
+        linkage: [{ id: 'l-amount', action: 'assign', value: '$row.qty * $row.price' }],
+      },
+    ],
+  }],
+},
+```
+
+```ts
+{
+  type: 'field',
+  id: 'f-total',
+  kind: 'number',
+  key: 'total',
+  basic: { label: '合计（元）', readOnly: true },
+  data: { precision: 2 },
+  appearance: {},
+  validation: [],
+  linkage: [{ id: 'l-total', action: 'assign', value: 'SUM(items.amount)' }],
+},
+{
+  type: 'field',
+  id: 'f-reason',
+  kind: 'textarea',
+  key: 'reason',
+  basic: { label: '事由', hint: '合计超过限额时必填' },
+  data: {},
+  appearance: {},
+  validation: [{ id: 'r-reason', kind: 'length', max: 200 }],
+  linkage: [{ id: 'l-reason', action: 'require', when: 'total > $limit' }],
+},
+```
+
+合计超过宿主给的限额时，事由变成必填。限额经渲染器的 `variables` 传入，名字以 `$` 开头：
+
+```ts
+export const variables = { $limit: 5000 }
+```
+
+```ts
+const renderer = document.createElement('xh-form-renderer')
+renderer.schema = schema
+renderer.values = values
+renderer.variables = variables
+```
+
+模板自检会检查每条表达式：写错语法、用了不认识的名字或函数，都报 `expression.invalid`。宿主变量要告诉自检：`validateDocument(schema, { expressionEngine, identifiers: ['$limit'] })`。
+
+## 示例
+
+切到「差旅」，出差城市出现并变成必填；改数量或单价，小计与合计跟着变；合计超过 5000 时事由变成必填。直接提交，下方列出没通过的规则。

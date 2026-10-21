@@ -1,0 +1,37 @@
+# 曦寒表单设计器
+
+> 框架无关的表单设计器与渲染器：以原生 Web Components 交付，模板是纯 JSON，按模板渲染出带排布、校验、联动、异步选项与列表的表单；设计器可视化编辑模板，按实例传入的扩展登记新种类、属性编辑器、命令与面板。
+
+本文件由文档站构建期生成，内容与仓库文档同源。
+
+## 机读资产
+
+- [llms-full.txt](https://form.docs.xihanfun.com/llms-full.txt): 全部 16 页正文
+- [llms-guide.txt](https://form.docs.xihanfun.com/llms-guide.txt): 6 页指南
+- [llms-reference.txt](https://form.docs.xihanfun.com/llms-reference.txt): 6 页参考
+- 每页 Markdown：把站点地址后缀成 `.md`，如 https://form.docs.xihanfun.com/guide/designer.md
+
+## 开始
+
+- [更新日志](https://form.docs.xihanfun.com/changelog): 本页记录 `@xihan-form/core`、`@xihan-form/runtime`、`@xihan-form/designer` 各版本使用者能感知的变更，每条标注 新增 / 修复 / 调整 / 移除。
+- [曦寒表单设计器](https://form.docs.xihanfun.com/): 框架无关的表单设计、渲染与校验
+- [介绍](https://form.docs.xihanfun.com/introduction): 曦寒表单设计器（XiHan.FormDesigner）是一款框架无关的表单设计器：以原生 Web Components 交付，可视化编辑表单模板，在业务页面里按模板渲染出带排布、校验、联动、异步选项与列表录入的表单。
+- [快速开始](https://form.docs.xihanfun.com/quickstart): 这一页在任意前端项目里装包、渲染一张表单并拿到提交的数据。
+
+## 指南
+
+- [设计器](https://form.docs.xihanfun.com/guide/designer): `<xh-form-designer>` 是可视化的表单设计器：物料、画布、属性与问题列表都在里面，可以切到预览看真实效果。
+- [扩展](https://form.docs.xihanfun.com/guide/extensions): 新的字段种类、渲染方式、属性编辑器、模板规则、命令与面板都写成扩展：一个普通对象，经元素的 `extensions` 属性传入，只对这一个实例生效，同一页面的其它实例不受影响。
+- [与宿主集成](https://form.docs.xihanfun.com/guide/host): 组件只管设计、渲染与校验，不发网络请求，也不碰存储与权限。
+- [渲染器](https://form.docs.xihanfun.com/guide/renderer): `<xh-form-renderer>` 按模板渲染出表单：字段、布局、列表、校验与联动都按模板来，选项与附件经回调交给宿主，组件自己不发请求。
+- [模板结构](https://form.docs.xihanfun.com/guide/template): 表单模板是一份 `FormDocument`，纯 JSON，不含函数，也不含任何会被执行的代码。
+- [校验与联动](https://form.docs.xihanfun.com/guide/validation): 校验与联动都是写在模板里的规则：字段与容器的 `validation` 是校验规则，`linkage` 是联动规则。
+
+## 参考
+
+- [模型层 core](https://form.docs.xihanfun.com/reference/core): `@xihan-form/core` 是纯 TypeScript 的模型层：模板类型、模板自检、取值校验、联动求值与编辑操作，不依赖 DOM，浏览器、Node.js 与其它 JavaScript 运行环境里都能用。
+- [设计器](https://form.docs.xihanfun.com/reference/designer): `@xihan-form/designer` 的公开接口。
+- [问题码](https://form.docs.xihanfun.com/reference/issues): 问题都不带文案，只有问题码、定位与参数；下表的说明来自中文语言包 `formZhCN`，其中的 {名} 是参数。
+- [种类与属性](https://form.docs.xihanfun.com/reference/kinds): 内置种类按物料面板的分类列出。
+- [渲染器](https://form.docs.xihanfun.com/reference/renderer): `@xihan-form/runtime` 的公开接口：渲染器元素、表单控制器与相关类型。
+- [模板类型](https://form.docs.xihanfun.com/reference/schema): 表单文档 `FormDocument` 的全部类型，按 `@xihan-form/core` 的源码列出。

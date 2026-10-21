@@ -1,0 +1,2329 @@
+# 曦寒表单设计器 · 参考
+
+共 6 页。索引见 https://form.docs.xihanfun.com/llms.txt
+
+---
+
+来源：https://form.docs.xihanfun.com/reference/core
+
+# 模型层 core
+
+<!-- 本页由 docs/scripts/gen-reference.mjs 从源码生成，不要手改；源码变了之后在 docs/ 运行 pnpm gen。 -->
+
+`@xihan-form/core` 是纯 TypeScript 的模型层：模板类型、模板自检、取值校验、联动求值与编辑操作，不依赖 DOM，浏览器、Node.js 与其它 JavaScript 运行环境里都能用。模板类型的字段见[模板类型](./schema)，种类的属性见[种类与属性](./kinds)。
+
+## 检查与校验
+
+### validateDocument() {#validatedocument}
+
+```ts
+declare function validateDocument(document: unknown, options?: ValidateDocumentOptions): readonly FormSchemaIssue[]
+```
+
+校验文档：输入可以是任意值（如反序列化的 JSON），逐项核对后返回全部问题，没有问题时返回空数组。种类、表单设置、编辑方式与规则按 `extensions` 合出的模型认；文档与各节点上的扩展数据只查形状。问题的路径从文档根算起，只用键与下标；问题落在节点、区域或规则上时由 target 标出。提供表达式引擎时，再按各规则所在位置可引用的名字检查表达式。文档与各节点的必需部分齐全、类型都对时，最后按扩展顺序跑各扩展的规则。严重程度缺省为 error，可用 `severity` 按问题码改。扩展冲突时抛 `DesignerExtensionError`。
+
+### ValidateDocumentOptions {#validatedocumentoptions}
+
+schema 自校验的选项。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `extensions?` | `readonly FormCoreExtension[]` | 种类、表单设置、编辑方式与规则都从这组扩展来，内置扩展自动排在最前；与渲染器、设计器的 extensions 是同一份。 |
+| `expressionEngine?` | `ExpressionEngine` | 表达式引擎；提供时逐条检查规则里的表达式。 |
+| `identifiers?` | `readonly string[]` | 宿主提供给表达式的额外顶层名字。 |
+| `maxDepth?` | `number` | 节点嵌套层数上限，缺省 32。 |
+| `severity?` | `Readonly<Partial<Record<FormSchemaIssueCode \| (string & {}), IssueSeverity \| 'off'>>>` | 按问题码改严重程度，`off` 去掉该码；缺省全部为 error。扩展规则的问题码也认。 |
+
+### validateValues() {#validatevalues}
+
+```ts
+declare function validateValues(document: FormDocument, values: Readonly<Record<string, JsonValue>>, options?: ValidateValuesOptions): readonly ValueIssue[]
+```
+
+按声明式规则校验表单值，返回全部问题。隐藏或禁用的实例连同其后代都不校验；值为空时只看必填与 accepted（必须为 true），其余规则跳过；必填由节点状态决定，联动可以加上或去掉。正则整串匹配。有表达式规则却没有提供 expressionEngine 时抛 `TypeError`。
+
+### ValidateValuesOptions {#validatevaluesoptions}
+
+值校验的选项。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `expressionEngine?` | `ExpressionEngine` | 表达式引擎；有表达式规则时必须提供。 |
+| `states?` | `ReadonlyMap<string, NodeState>` | 联动求出的节点状态；缺省时按静态设定：`basic.hidden` / `disabled` 与有没有必填规则。 |
+| `variables?` | `Readonly<Record<string, unknown>>` | 宿主提供给表达式的额外变量。 |
+
+### ValueIssue {#valueissue}
+
+值校验的问题：在表单问题之上带着实例路径与规则里作者写的提示。
+
+继承 `FormIssue`。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `path` | `readonly (string \| number)[]` | 出问题的值在表单数据里的路径，列表里的字段带行号。 |
+| `message?` | `string` | 规则里作者写的提示；没写时不带，由界面按问题码给出文案。 |
+
+## 联动
+
+### resolveLinkage() {#resolvelinkage}
+
+```ts
+declare function resolveLinkage(document: FormDocument, values: Readonly<Record<string, JsonValue>>, options?: ResolveLinkageOptions): LinkageResult
+```
+
+按文档顺序求联动：每个节点实例从静态设定（`basic.hidden` / `disabled` / `readOnly`、有没有必填规则）出发，依次执行条件成立的规则，排在后面的覆盖前面的；赋值立即写进工作副本，后面的表达式读到的是新值。规则执行完后叠上宿主的强制设定，再与表单设置的 `disabled` / `readOnly`、祖先容器的隐藏与禁用向下叠加。有带表达式的规则却没有提供 expressionEngine 时抛 `TypeError`。
+
+### ResolveLinkageOptions {#resolvelinkageoptions}
+
+联动求值的选项。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `expressionEngine?` | `ExpressionEngine` | 表达式引擎；有带条件或赋值的规则时必须提供。 |
+| `variables?` | `Readonly<Record<string, unknown>>` | 宿主提供给表达式的额外变量，名字建议以 `$` 开头，避免与数据键冲突。 |
+| `overrides?` | `ReadonlyMap<string, StateOverride>` | 宿主的强制设定，键是节点 id（作用于全部实例）或实例键（只作用于该实例，叠在节点 id 的设定之上）。 |
+
+### LinkageResult {#linkageresult}
+
+联动求值的结果。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `states` | `ReadonlyMap<string, NodeState>` | 各节点实例的状态，键由 `instanceKey` 生成。 |
+| `values` | `Record<string, JsonValue>` | 执行赋值之后的表单值；输入不会被修改。 |
+| `assignments` | `readonly Assignment[]` | 按执行顺序列出的赋值。 |
+| `issues` | `readonly FormIssue[]` | 求值中出的问题，如表达式求值失败、条件结果不是布尔。 |
+
+### NodeState {#nodestate}
+
+节点实例的状态：已经叠加了祖先容器的隐藏与禁用。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `hidden` | `boolean` | 隐藏：不显示，不参与校验。 |
+| `disabled` | `boolean` | 禁用：不能编辑，不参与校验。 |
+| `readOnly` | `boolean` | 只读：不能编辑，仍参与校验。 |
+| `required` | `boolean` | 必填。 |
+
+## 新建
+
+### createDocument() {#createdocument}
+
+```ts
+declare function createDocument(settings?: PropertyBag): FormDocument
+```
+
+新建一份空文档。
+
+### createNode() {#createnode}
+
+```ts
+declare function createNode(registry: KindRegistry, kind: string, ids: IdAllocator, options?: CreateNodeOptions): FormNode
+```
+
+按种类原型新建节点；种类没有登记时抛 `TypeError`。
+
+### CreateNodeOptions {#createnodeoptions}
+
+新建节点的选项。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `key?` | `string` | 字段与列表容器的数据键；缺省由种类名与 id 派生。 |
+
+## 扩展
+
+### FormCoreExtension {#formcoreextension}
+
+表单 core 层的扩展：种类（字段、容器、静态元素）、表单设置的属性、编辑方式与规则。运行时层与设计器层的扩展在它之上再加渲染、命令与面板，core 函数只读这里的字段。
+
+继承 `DesignerExtensionCore<FormDocument, FormRuleContext>`。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `kinds?` | `readonly KindDefinition[]` | 种类；种类名不能与内置的或别的扩展的重名。 |
+| `documentProperties?` | `readonly FormPropertyDescriptor[]` | 表单设置的属性，path 是设置里的名字，追加在内置之后；没选中任何节点时属性面板编辑它们。 |
+
+| 方法 | 说明 |
+| --- | --- |
+| `issueText(issue: FormSchemaIssue): string \| undefined` | 这个扩展自己的问题码（规则与编辑方式给出的）的说明文字；返回 undefined 时交给设计器的文案。 |
+
+### createFormModel() {#createformmodel}
+
+```ts
+declare function createFormModel(extensions?: readonly FormCoreExtension[]): FormModel
+```
+
+合出表单模型：内置扩展 `FORM_CORE_EXTENSION` 在前，`extensions` 按顺序在后。扩展 id、种类名、表单设置的属性名、编辑方式等重名时抛 `DesignerExtensionError`；种类名不合规或容器区域个数的上下限不合法时抛 `TypeError`。同一个数组只合一次：元素把同一份 extensions 交给各个 core 函数时不重复合并。
+
+## 全部导出
+
+### bindings
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `createInitialValues` | 函数 | 由文档得出表单的初始值：字段取 `basic.initialValue`，没有则取种类的空值；列表容器取 `data.initialRows` 行。 |
+| `createRowValues` | 函数 | 列表容器新增一行时的行对象：行内各字段取初始值，嵌套列表取各自的初始行数。 |
+| `DataBinding` | 接口 | 一处数据绑定：字段，或带数据键的列表容器。 |
+| `formDataFields` | 函数 | 表单数据的字段树（designer-kit 的 DataField）：字段是 value，标签取 `basic.label`；列表容器是 list，标签取 `basic.title`，子字段是一行里的字段；布局容器不占层级。 |
+| `identifiersAt` | 函数 | 节点上的表达式可以引用的顶层名字：顶层作用域的全部数据键、`extra`，字段与列表容器另有 `$value`，位于列表容器里的节点另有 `$row` 与 `$index`。 |
+| `isValueOfKind` | 函数 | 值是否符合值形状；`null` 只对标量与对象表示「没有值」。 |
+| `listBindings` | 函数 | 按文档顺序列出全部数据绑定。 |
+| `scopeKeys` | 函数 | 某个作用域里直接绑定的数据键，按文档顺序。 |
+
+### copy
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `cloneNodesForInsert` | 函数 | 把节点改造成能插进 parent 区域（`null` 为文档顶层）的副本：节点、区域与规则的 id 全部由 ids 重新分配；直接落在目标作用域里的数据键与该作用域已有的键或彼此冲突时，改为 `deriveKey(种类, 新 id)`。 |
+| `regionScope` | 函数 | 区域所在的数据作用域：最近的列表容器 id，文档顶层与不在列表里的区域为 `null`；区域不存在时返回 `undefined`。 |
+
+### create
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `createDocument` | 函数 | 新建一份空文档。 |
+| `createNode` | 函数 | 按种类原型新建节点；种类没有登记时抛 `TypeError`。 |
+| `CreateNodeOptions` | 接口 | 新建节点的选项。 |
+| `createRegion` | 函数 | 按容器种类新建一个区域；`props` 覆盖区域属性的缺省值。 |
+| `deriveKey` | 函数 | 由种类名与 id 派生字段键：种类名转成小驼峰，接 `_` 与 id 里的字母数字。 |
+| `FORM_SETTING_PROPERTIES` | 常量 | 表单设置的属性描述：标签位置、尺寸、整表禁用与只读，存放在文档的 `settings` 里。 |
+| `isValidKey` | 函数 | 字段键是否合法：ASCII 字母或 `_` 开头，后接字母、数字、`_`，不是保留字；`$` 开头的名字留给运行时变量。 |
+
+### expression
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `RUNTIME_VARIABLES` | 常量 | 运行时变量：当前字段的值、所在行与行号。 |
+
+### extensions
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `createFormModel` | 函数 | 合出表单模型：内置扩展 `FORM_CORE_EXTENSION` 在前，`extensions` 按顺序在后。 |
+| `FORM_CORE_EXTENSION` | 常量 | 内置扩展：内置种类与表单设置。 |
+| `FORM_EXTENSION_SPACES` | 常量 | 表单各层扩展共用的名字空间：种类名与表单设置的属性名。 |
+| `FormCoreExtension` | 接口 | 表单 core 层的扩展：种类（字段、容器、静态元素）、表单设置的属性、编辑方式与规则。 |
+| `FormModel` | 接口 | 一组扩展合出的表单模型。 |
+| `FormRuleContext` | 接口 | 规则拿到的上下文：合并后的种类登记表。 |
+
+### issues
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `FormIssue` | 接口 | 一条值校验或联动问题。 |
+| `FormIssueCode` | 类型 | 值校验与联动的问题码： |
+| `FormIssueData` | 类型 | 问题附带的定位数据：名字、数量、区间，不放文案。 |
+| `FormSchemaIssue` | 类型 | 一条模板结构问题：路径从文档根算起，节点、区域、规则用 target 标出（kind 为 node、region、rule）。 |
+| `FormSchemaIssueCode` | 类型 | 模板结构问题的问题码：通用问题码加表单专属问题码。 |
+| `FormSchemaProductCode` | 类型 | 模板结构问题里表单专属的问题码（通用问题码见 designer-kit/schema 的 CommonIssueCode）： |
+
+### linkage
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `Assignment` | 接口 | 一次赋值：字段的实例路径与赋进去的值。 |
+| `instanceKey` | 函数 | 节点实例的键：顶层节点是它的 id，列表里的节点在 id 后接 `#` 与逐层行号。 |
+| `LinkageResult` | 接口 | 联动求值的结果。 |
+| `NodeState` | 接口 | 节点实例的状态：已经叠加了祖先容器的隐藏与禁用。 |
+| `resolveLinkage` | 函数 | 按文档顺序求联动：每个节点实例从静态设定（`basic.hidden` / `disabled` / `readOnly`、有没有必填规则）出发，依次执行条件成立的规则，排在后面的覆盖前面的；赋值立即写进工作副本，后面的表达式读到的是新值。 |
+| `ResolveLinkageOptions` | 接口 | 联动求值的选项。 |
+| `StateOverride` | 接口 | 宿主对节点自身状态的强制设定：给出的项覆盖联动结果，祖先的隐藏、禁用、只读仍向下叠加。 |
+
+### operations
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `applyOperation` | 函数 | 对文档应用一个操作，返回新文档与逆操作。 |
+| `applyOperations` | 函数 | 依次应用一组操作；逆操作是各操作逆操作按反序拼接。 |
+| `FormOperation` | 类型 | 编辑操作。 |
+| `FormOperationError` | 类 | 编辑操作无法应用时抛出；`message` 就是错误码，不带文案。 |
+| `FormOperationErrorCode` | 类型 | 编辑操作的错误码。 |
+| `OperationResult` | 接口 | 操作的结果：新文档与逆操作；没有带来变化时返回同一个文档、逆操作为空。 |
+| `RuleList` | 类型 | 规则所在的列表。 |
+
+### registry/builtin
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `BUILTIN_KINDS` | 常量 | 全部内置种类：字段、容器、静态元素。 |
+
+### registry/builtin-containers
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `BUILTIN_CONTAINERS` | 常量 | 内置容器种类。 |
+| `BUILTIN_STATICS` | 常量 | 内置静态元素种类。 |
+| `tableCells` | 函数 | 读表格布局的全部单元格，`id` 是单元格区域的 id。 |
+| `tableSize` | 函数 | 读表格布局的行数与列数。 |
+
+### registry/builtin-fields
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `BUILTIN_FIELDS` | 常量 | 内置字段种类。 |
+
+### registry/kinds
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `ContainerKindDefinition` | 接口 | 容器种类。 |
+| `createKindRegistry` | 函数 | 创建种类登记表；种类名必须是小写短横线形式且不重复，否则抛 `TypeError`。 |
+| `FieldKindDefinition` | 接口 | 字段种类。 |
+| `KindDefinition` | 类型 | 节点种类。 |
+| `kindLabel` | 函数 | 种类在某种语言下的显示名：先取语言标记完全相同的，再取同一语种的（zh-TW 没写时用 zh-CN），再取 en-US；种类没写 label、或这几样都没有时为 undefined。 |
+| `KindLabel` | 类型 | 种类自带的显示名：键是 BCP 47 语言标记（如 en-US、zh-CN），值是这种语言下的名字。 |
+| `KindRegistry` | 接口 | 节点种类登记表。 |
+| `LINKAGE_ACTIONS` | 常量 | 各类节点可用的联动动作。 |
+| `StaticKindDefinition` | 接口 | 静态元素种类。 |
+| `StructureProblem` | 接口 | 容器的结构问题，由容器种类自行检查，问题码不带文案：给出 regionId 时落在该区域上，否则落在容器本身。 |
+| `ValueKind` | 类型 | 字段值的形状： |
+
+### registry/properties
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `checkFormPropertyValue` | 函数 | 检查属性值是否符合编辑方式；符合时为 `undefined`，否则给出问题码。 |
+| `EMPTY_PROPERTY_SCHEMA` | 常量 | 空的属性描述表。 |
+| `findFormPropertyValueIssue` | 函数 | 找出属性值第一处不符合编辑方式的地方；符合时为 `undefined`。 |
+| `FORM_PROPERTY_EDITORS` | 常量 | 表单内置的属性编辑器查找表，交给 designer-kit 的 `resolvePropertyEditor` 使用：按编辑方式取缺省编辑器，字段初始值按路径另用 `value` 编辑器（形状随字段种类）。 |
+| `FormPropertyControl` | 类型 | 表单的编辑方式：designer-kit 的内建编辑方式，或扩展登记的编辑方式（`kind` 是登记的键）。 |
+| `FormPropertyDescriptor` | 类型 | 表单的属性描述：`path` 是属性在所在属性包（basic / data / appearance、区域或表单设置）里的路径，表单只用一段 `[名字]`。 |
+| `FormPropertyValueIssue` | 接口 | 属性值的一处问题：`path` 相对这个值，落在值本身时是 `[]`。 |
+| `isValidPropertyValue` | 函数 | 属性值是否符合描述；`controls` 同 `checkFormPropertyValue`。 |
+| `numberControl` | 函数 | 内建的数字编辑方式：control 是 number 时原样返回，否则为 undefined。 |
+| `propertyName` | 函数 | 属性名，即属性路径唯一的一段。 |
+| `PropertySchema` | 类型 | 按分组列出的属性描述。 |
+
+### schema
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `AcceptedRule` | 接口 | 必须为 `true`：用于「必须勾选同意」，值为 `false` 或空时都不通过。 |
+| `ContainerNode` | 接口 | 容器：子节点放在区域里。 |
+| `ExpressionRule` | 接口 | 表达式：结果为 `false` 时不通过，为 `true` 或 `null` 时通过。 |
+| `ExtensionData` | 类型 | 扩展数据：扩展 id → 这个扩展自己的 JSON 对象。 |
+| `FieldNode` | 接口 | 字段：有数据键与值。 |
+| `FORM_SCHEMA_VERSION` | 常量 | 当前的文档结构版本。 |
+| `FormDocument` | 接口 | 表单文档：纯 JSON，不含任何代码。 |
+| `FormNode` | 类型 | 表单节点。 |
+| `LengthRule` | 接口 | 长度：字符串按字素计（`@xihan-ui/headless` 的 `graphemeLength`，与文本框的字数一致）、列表按元素个数，闭区间。 |
+| `LinkageAction` | 类型 | 联动动作：条件成立时生效，不成立时回到节点的静态设定。 |
+| `LinkageRule` | 接口 | 声明式联动规则；`when` 缺省表示总是成立。 |
+| `NodeType` | 类型 | 节点类型。 |
+| `PatternRule` | 接口 | 正则：`flags` 只允许 `i`、`m`、`s`、`u`，整串不匹配即不通过。 |
+| `PROPERTY_GROUPS` | 常量 | 全部属性分组。 |
+| `PropertyBag` | 类型 | 属性包：一组按名字存放的 JSON 值。 |
+| `PropertyGroup` | 类型 | 节点的属性分组：基础、数据、外观。 |
+| `RangeRule` | 接口 | 数值范围，闭区间。 |
+| `Region` | 接口 | 区域：容器里放子节点的一格，如栅格的一列、标签页的一页、表格布局的一个单元格。 |
+| `RequiredRule` | 接口 | 必填：值为空时不通过，空值判定取 `@xihan-ui/headless` 的 `isEmptyFormValue`：null、只含空白的字符串、空列表与元素全为空的列表算空，`false` 与 `0` 不算空。 |
+| `StaticNode` | 接口 | 静态元素：只展示，没有值，如分隔线、说明文字。 |
+| `ValidationKind` | 类型 | 校验规则的种类。 |
+| `ValidationRule` | 类型 | 声明式校验规则。 |
+
+### table-commands
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `insertTableLine` | 函数 | 在第 `at` 行（或列）之前插入一整行（列），`at` 等于行数时追加在末尾。 |
+| `mergeTableCells` | 函数 | 合并单元格：所选单元格必须恰好拼成一个矩形，且矩形里没有未选的单元格。 |
+| `removeTableLine` | 函数 | 删除第 `at` 行（或列）：只占这一行（列）的单元格删除，跨过它的单元格缩短，其后的单元格前移；表格至少保留一行（列）。 |
+| `splitTableCell` | 函数 | 拆分单元格：跨行跨列都还原成 1，空出来的位置按行优先补上新的空单元格，紧跟在原单元格之后。 |
+
+### traverse
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `collectDocumentIds` | 函数 | 文档里已用的全部 id：节点、区域与规则共用一个命名空间。 |
+| `collectIds` | 函数 | 把节点、区域、规则里的全部 id 按出现顺序收进 out；不是对象的值跳过。 |
+| `descendantsOf` | 函数 | 节点自身及全部后代。 |
+| `findNode` | 函数 | 按 id 查节点；找不到返回 `undefined`。 |
+| `findRegion` | 函数 | 按 id 查区域；找不到返回 `undefined`。 |
+| `FoundNode` | 接口 | 节点的查找结果。 |
+| `FoundRegion` | 接口 | 区域的查找结果：所在容器、容器链与区域下标。 |
+| `NodeLocation` | 接口 | 节点在树里的位置：所在区域（文档顶层为 `null`）与下标。 |
+| `NodeVisitor` | 类型 | 访问函数返回 `false` 时不再进入该节点的子节点。 |
+| `VisitContext` | 接口 | 遍历时传给访问函数的上下文。 |
+| `walkNodes` | 函数 | 按文档顺序深度优先访问全部节点。 |
+
+### validate-document
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `validateDocument` | 函数 | 校验文档：输入可以是任意值（如反序列化的 JSON），逐项核对后返回全部问题，没有问题时返回空数组。 |
+| `ValidateDocumentOptions` | 接口 | schema 自校验的选项。 |
+
+### validate-values
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `validateValues` | 函数 | 按声明式规则校验表单值，返回全部问题。 |
+| `ValidateValuesOptions` | 接口 | 值校验的选项。 |
+| `ValueIssue` | 接口 | 值校验的问题：在表单问题之上带着实例路径与规则里作者写的提示。 |
+
+---
+
+来源：https://form.docs.xihanfun.com/reference/designer
+
+# 设计器
+
+<!-- 本页由 docs/scripts/gen-reference.mjs 从源码生成，不要手改；源码变了之后在 docs/ 运行 pnpm gen。 -->
+
+`@xihan-form/designer` 的公开接口。样式在 `@xihan-form/designer/style.css`，还要同时引入 `@xihan-ui/designer-shell/style.css` 与 `@xihan-form/runtime/style.css`。
+
+## `<xh-form-designer>`
+
+注册 &lt;xh-form-designer&gt; 与它用到的全部元素：渲染器（画布与预览共用）及其库内元素、工具栏与菜单等库内元素、设计器零件；重复调用不报错。宿主自定义字段渲染器用到的元素由宿主注册。
+
+### 属性
+
+| 属性 | attribute | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `expressionEngine` | — | `ExpressionEngine \| undefined` | 校验表达式与预览用，缺省为 createExpressionEngine()。 |
+| `commandLayout` | — | `DesignerCommandLayout \| undefined` | 菜单栏、工具栏、右键菜单与选中工具条的排列：位置（menubar:file、menubar:edit、menubar:view、menubar:help 与扩展登记的菜单 menubar:&lt;菜单 id&gt;，toolbar、menu:node、menu:region、menu:cell、menu:blank、selection:node）→ 若干组命令 id，内置命令与扩展命令混排。写了某个位置就只显示列出的；没写的位置用内置的缺省排列，再把 placement 含它的扩展命令追加成一组。 |
+| `previewValues` | — | `Readonly<Record<string, JsonValue>> \| undefined` | 预览的示例数据。 |
+| `loadOptions` | — | `OptionLoader \| undefined` | 预览的选项加载。 |
+| `uploadFile` | — | `FileUploader \| undefined` | 预览里文件字段的上传函数，与渲染器的同名属性一样交给 xh-file-upload；组件自己不发请求。 |
+| `translations` | — | `Partial<FormDesignerTranslations> \| undefined` | 元素自己的文案，压在全局配置之上。 |
+| `readonly` | `readonly` | `boolean \| undefined` | 可选择、浏览与预览，不能修改。attribute 按三态读：没写或写 "false" 为可修改，其余写法为只读。 |
+| `mode` | `mode` | `FormDesignerMode \| undefined` | 设计态或预览态，缺省 design。 |
+| `previewWidth` | `preview-width` | `FormPreviewWidth \| undefined` | 预览宽度，缺省 full。 |
+| `defaultLayout` | — | `DesignerLayout \| undefined` | 宿主的缺省面板布局：用户没存过布局（settings 里没有 layout.panels）时用它，「恢复默认布局」也回到它；写了的字段整项覆盖内置缺省（物料在左栏、属性在右栏、问题在下栏，全部显示）。面板 id 见 FORM_DESIGNER_PANELS。用户挪了面板、改了显隐或大小，整份布局写进设置的 layout.panels 并派发 settings-change。预览态不显示面板，不动布局。 |
+| `settings` | — | `DesignerSettings \| undefined` | 设置的值：扁平的键值，键是「分区 id.条目 id」，如 general.theme；没写的键取条目的缺省值。赋值即生效；用户在设置对话框里改了以后设计器换成新的一份并派发 settings-change。 |
+| `settingsPolicy` | — | `DesignerSettingsPolicy \| undefined` | 宿主对设置条目的管控：键是条目键或分区 id，hidden 不显示，locked 只读、说明换成「由所在系统管理」。 |
+| `settingsStorageKey` | `settings-storage-key` | `string \| undefined` | 设置存在根所在窗口 localStorage 的哪个键下：给了，连上文档时若没赋 settings 就从这里读，用户改了设置就写回去，标了 secret 的条目不存；读写失败派发 settings-storage-error。不给就不读写。同名 attribute settings-storage-key。 |
+| `draftKey` | `draft-key` | `string \| undefined` | 自动保存草稿的键：区分同一页、同一种设计器里的不同模板（宿主写模板 id）；不给时按页面地址区分。设置里开着自动保存时，未保存的修改停手约一秒存成这台浏览器里的草稿；下次装进同一个键的模板、和草稿不一样时问恢复还是丢弃。同名 attribute draft-key。 |
+| `historyLimit` | `history-limit` | `number \| undefined` | 撤销步数上限，缺省 100；在下一次装载（赋 schema）时生效。同名 attribute history-limit。 |
+| `autoTour` | `auto-tour` | `boolean \| undefined` | 第一次铺好画布后自动开始新手引导，缺省开；设置里记着引导已经走完或跳过（help.tourDone）时不开。写 false 不自动开始，仍能用 startTour() 或命令 start-tour 开。同名 attribute auto-tour，写 "false" 为关。 |
+
+### 存取器
+
+| 属性 | 读写 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `schema` | 可读写 | `FormDocument` | 当前模板；赋值即装载：清空历史与选择，赋回当前这一份不重新装载；同一个草稿键下有不一样的草稿时问恢复还是丢弃。 |
+| `extensions` | 可读写 | `readonly FormDesignerExtension[] \| undefined` | 扩展：种类、渲染、属性编辑器、编辑方式、规则、命令与面板都从这里来，内置扩展自动排在最前；画布、预览与校验用同一份。赋值时当场合并查重，冲突抛 DesignerExtensionError、什么都不变；各扩展的 setup 在元素连上文档时调用、断开时清理。同一个扩展对象换了引用当作卸下再装上，宿主要保持引用稳定。 |
+| `canUndo` | 只读 | `boolean` | 有可撤销的修改。 |
+| `canRedo` | 只读 | `boolean` | 有可重做的修改。 |
+| `canPaste` | 只读 | `boolean` | 内部剪贴板里有内容可粘贴。 |
+| `xhConfig` | 只读 | `XhConfig` | 设计器这棵子树的配置：设置里选了语言时是这一语言的 UI、designer-shell 与表单语言包，跟随页面时是空对象。设计器自己、里面的元素与它弹出的浮层都按它取 locale 与文案，页面别处不受影响。 |
+| `dirty` | 只读 | `boolean` | 有没保存的修改：上次 `markSaved` 之后改过。 |
+| `historyState` | 只读 | `HistorySnapshot` | 撤销历史的快照：各步的说明按此刻的语言取好，位置号用于 goToHistory。 |
+
+### 方法
+
+| 方法 | 说明 |
+| --- | --- |
+| `goToHistory(position: number): boolean` | 跳到撤销历史里的一步或起点（historyState 里的位置号），一次跳到；只读、预览、拖动中或位置号不认识时返回 false。 |
+| `clearHistory(): void` | 清空撤销与重做；模板与是否已保存不变。只读或拖动中什么都不做。 |
+| `execute(operations: readonly FormOperation[], options?: ExecuteOptions): FormDocument` | 执行一组操作并记为一步撤销；返回新模板。 |
+| `undo(): boolean` | 撤销一步；只读、正在拖动跨度或没有可撤销的时返回 false。 |
+| `redo(): boolean` | 重做一步；只读、正在拖动跨度或没有可重做的时返回 false。 |
+| `markSaved(): void` | 把当前模板记为已保存：`dirty` 变为 false，并派发 `dirty-change`。 |
+| `addNode(kind: string, target?: FormDropTarget): FormNode \| undefined` | 按种类新建节点并选中它；目标缺省为选中节点之后，没有选中时为末尾。目标不收时返回 undefined。 |
+| `select(selection: Partial<FormSelection>): void` | 选中节点或区域：给了非空的 regions 就选区域，否则选 nodes。 |
+| `getSelection(): FormSelection` | 当前的选择。 |
+| `startTour(): boolean` | 开始新手引导，从第一步起；同一页别的设计器的引导开着时先收起它。没有能走的步骤时返回 false。引导收起时派发 tour-end，并在设置里记下 help.tourDone。命令 start-tour 与设置对话框帮助页的「开始引导」都走这里。 |
+| `openJsonEditor(): void` | 打开 JSON 编辑框，写出此刻的整份模板。改一次就按 validate() 同一套检查一次，有错误时不能应用；应用后整份换上，作为一步进撤销栈。只读或预览态时只能看、能复制，不能应用。 |
+| `openSettings(section?: string): void` | 打开设置对话框，给了分区 id 就显示那一页：基础是 general，扩展的分区用它们自己的 id。 |
+| `deleteSelection(): boolean` | 删除选中的节点或区域；只读或什么都没删时返回 false。 |
+| `copy(): FormClipboard \| undefined` | 复制选中的节点，放进这个设计器的剪贴板并返回；没有选中时返回 undefined。 |
+| `cut(): FormClipboard \| undefined` | 复制并删除选中的节点；只读或没有选中时返回 undefined。 |
+| `paste(clipboard?: FormClipboard, options?: { readonly at?: FormDropTarget }): FormSelection` | 粘贴：给了内容就粘贴它，否则粘贴最近一次复制或剪切的内容；返回新的选择。给了 at 就粘贴到那里（如物料来源的条目拖到画布上的落点），不给时在选中节点之后，没有选中时在末尾。 |
+| `duplicate(): FormSelection` | 复制选中节点并紧跟在原节点之后粘贴，不改动剪贴板；返回新的选择。 |
+| `validate(): readonly FormSchemaIssue[]` | 检查模板结构，规则里的表达式用 expressionEngine 检查。 |
+| `scrollToNode(id: string): void` | 滚动到节点：必要时先切到所在的标签页、展开所在的折叠项。 |
+| `revealNode(id: string): void` | 节点不在可见区内时才滚动到它。 |
+
+### 事件
+
+事件都是冒泡的 `CustomEvent`。
+
+| 事件 | detail | 说明 |
+| --- | --- | --- |
+| `schema-change` | `{ schema: FormDocument, operations: readonly FormOperation[], kind: FormSchemaChangeKind }` | 模板变了：执行操作、撤销、重做或换了 `schema`；`schema` 是变化后的模板，`operations` 是这一步实际应用的操作。 |
+| `selection-change` | `FormSelection` | 选择变了。 |
+| `dirty-change` | `{ dirty: boolean }` | 有没有未保存修改的状态变了。 |
+| `issues-change` | `{ issues: readonly FormSchemaIssue[] }` | 模板问题变了；`issues` 是当前全部问题。 |
+| `save` | `Record<string, never>` | 用户要保存：按了 Ctrl / ⌘ + S 或点了保存命令（designer-shell 内置的 save）。保存由宿主做，存好后调用 `markSaved()`。 |
+| `node-dblclick` | `{ id: string }` | 双击了画布上的节点。 |
+| `node-contextmenu` | `{ id: string, x: number, y: number }` | 要在节点上打开右键菜单，`x`、`y` 是视口坐标；可取消，取消后不打开内建菜单。 |
+| `blank-contextmenu` | `{ x: number, y: number }` | 要在画布空白处打开右键菜单；可取消，取消后不打开内建菜单。 |
+| `mode-change` | `{ mode: FormDesignerMode }` | 在设计态与预览态之间切换了。 |
+| `settings-change` | `{ key: string, value: JsonValue \| undefined, settings: DesignerSettings }` | 在设置对话框里改了一条设置，或在外框上挪了面板（键是 layout.panels，值是整份布局）：设计器已换成新的 settings 并生效（主题、主题色、状态栏与面板布局）；value 为 undefined 表示删掉这个键、回到缺省值。宿主存起来，下次赋回 settings。 |
+| `settings-storage-error` | `VisualEnvironmentStorageError` | 读写 settingsStorageKey 指的本机存储失败（内容不是对象、无痕窗口、配额满）；设置留在内存里。 |
+| `history-change` | `HistorySnapshot` | 撤销历史变了：执行（含并入上一步）、撤销、重做、跳转、装载、清空与保存之后都派发，拖动跨度这样的事务进行中不派发。detail 是此刻的 historyState。 |
+| `tour-end` | `{ reason: 'complete' \| 'skip' \| 'close', step: string \| undefined }` | 新手引导收起了：reason 是 complete（走完）、skip（跳过或 Esc）或 close（关闭钮），step 是收起时那一步的 id。设计器同时在设置里记下 help.tourDone（会派发 settings-change），下次不再自动开始。 |
+
+## 类型
+
+### FormDesignerMode {#formdesignermode}
+
+设计态或预览态。取值：`design`、`preview`。
+
+### FormPreviewWidth {#formpreviewwidth}
+
+预览宽度：全宽、平板、手机，设计态画布同样生效。取值：`full`、`tablet`、`phone`。
+
+### FORM_DESIGNER_PANELS {#form_designer_panels}
+
+设计器的面板 id：宿主写 defaultLayout、settingsPolicy（layout.panels.&lt;面板 id&gt;）时用；每块面板有一条开关命令 panel:&lt;面板 id&gt;。
+
+```ts
+const FORM_DESIGNER_PANELS = { palette: 'palette', outline: 'outline', properties: 'properties', issues: 'issues', history: 'history' } as const
+```
+
+### FormSchemaChangeKind {#formschemachangekind}
+
+schema-change 的来源。取值：`execute`、`undo`、`redo`、`load`。
+
+### FormSelection {#formselection}
+
+选择：选中的节点，或同一个容器里的区域（栅格的列、标签页、折叠项、表格单元格），二者互斥，按选中的先后。选中区域时 nodes 为空。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `nodes` | `readonly string[]` | 选中节点的 id。 |
+| `regions?` | `readonly string[]` | 选中区域的 id，都在同一个容器里。 |
+
+### FormDropTarget {#formdroptarget}
+
+放置位置：区域 id（`null` 为文档顶层）与放在该区域现有子节点里的第几个之前，缺省放到末尾。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `parent` | `string \| null` | 区域 id；`null` 为文档顶层。 |
+| `index?` | `number` | 放在该区域现有子节点里的第几个之前，从 0 起；缺省放到末尾。 |
+
+### FormClipboard {#formclipboard}
+
+剪贴板内容：被复制的节点，按文档顺序，不含被选中节点的后代里重复选中的那些。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `nodes` | `readonly FormNode[]` | 被复制的节点，粘贴时 id 全部换新。 |
+
+## 扩展与命令
+
+### FormDesignerExtension {#formdesignerextension}
+
+表单设计器层的扩展：运行时层的全部字段，加上属性编辑器、命令、面板、物料来源、导入导出与 setup。物料来源的条目拖到画布上放下时，落点是 FormDropTarget。
+
+其余成员见视图组件文档的 [designer-shell](https://ui.docs.xihanfun.com/runtime/designer-shell)。
+
+继承 `FormRuntimeExtension`、`DesignerShellExtension<FormDesignerContext, FormPropertyEditor, FormDocument, FormRuleContext, FormDropTarget>`。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `kindIcons?` | `Readonly<Record<string, IconRecord>>` | 本扩展登记的种类的图标，物料面板与页面结构用；键是种类名，只能给本扩展 kinds 里的种类。 |
+
+### FormDesignerContext {#formdesignercontext}
+
+命令、面板与扩展装上时拿到的上下文。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `designer` | `XhFormDesigner` | 这个设计器实例。 |
+| `translations` | `FormDesignerTranslations` | 此刻生效的设计器文案。 |
+| `commands` | `DesignerCommandsTranslations` | 此刻生效的共用命令文案（designer-shell 语言包的 xh-designer-commands）：撤销、剪切、删除、设计与预览这些四款都有的命令。 |
+| `settings` | `DesignerSettings` | 此刻生效的设置：键是「分区 id.条目 id」，各分区没写的条目取了缺省值。 |
+| `frame` | `XhDesignerFrameElement \| undefined` | 设计器的外框：面板的开关经它；外框还没建出来时为 undefined。 |
+
+### FormDesignerCommand {#formdesignercommand}
+
+设计器的命令。
+
+```ts
+type FormDesignerCommand = DesignerCommand<FormDesignerContext>
+```
+
+### FormMenuSubject {#formmenusubject}
+
+右键菜单落在哪类对象上：节点、区域、表格布局的单元格，或空白处。取值：`node`、`region`、`cell`、`blank`。
+
+### FormSelectionSubject {#formselectionsubject}
+
+选中工具条落在哪类选中上：眼下只有单个节点。取值：`node`。
+
+## 文案
+
+### FormDesignerTranslations {#formdesignertranslations}
+
+表单设计器的文案：无参的是字符串，带参的是函数。
+
+文案键是 `xh-form-designer`，各语言的文案在 `@xihan-form/runtime/locale`，如中文的 `formZhCN`。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `label` | `string` | 设计器的可访问名。 |
+| `canvas` | `string` | 画布的可访问名。 |
+| `palette` | `string` | 物料面板的标题。 |
+| `properties` | `string` | 属性面板的标题。 |
+| `issues` | `string` | 问题列表的标题。 |
+| `paletteHelp` | `string` | 物料面板头的帮助。 |
+| `propertiesHelp` | `string` | 属性面板头的帮助。 |
+| `issuesHelp` | `string` | 问题列表面板头的帮助。 |
+| `selectParent` | `string` | 选中上一级命令。 |
+| `moveUp` | `string` | 上移命令。 |
+| `moveDown` | `string` | 下移命令。 |
+| `clear` | `string` | 清空命令。 |
+| `previewWidth` | `string` | 预览宽度这组按钮的可访问名。 |
+| `widthFull` | `string` | 全宽。 |
+| `widthTablet` | `string` | 平板宽度。 |
+| `widthPhone` | `string` | 手机宽度。 |
+| `propertiesTab` | `string` | 属性区的「属性」页签。 |
+| `validationTab` | `string` | 属性区的「校验」页签。 |
+| `linkageTab` | `string` | 属性区的「联动」页签。 |
+| `emptyCanvas` | `string` | 画布为空时的提示。 |
+| `emptyRegion` | `string` | 区域为空时的提示。 |
+| `settings` | `string` | 什么都没选时属性区的标题。 |
+| `addRule` | `string` | 新增规则的按钮。 |
+| `removeRule` | `string` | 删除规则的按钮。 |
+| `ruleMessage` | `string` | 规则的「提示」输入框。 |
+| `ruleWhen` | `string` | 联动规则的「条件」输入框。 |
+| `ruleValue` | `string` | 联动赋值的「取值」输入框。 |
+| `ruleMin` | `string` | 规则的「最小值」输入框。 |
+| `ruleMax` | `string` | 规则的「最大值」输入框。 |
+| `rulePattern` | `string` | 正则规则的「正则」输入框。 |
+| `ruleFlags` | `string` | 正则规则的「标志」输入框。 |
+| `ruleExpression` | `string` | 表达式规则的「表达式」输入框。 |
+| `ruleAction` | `string` | 联动规则的「动作」选择框。 |
+| `noRules` | `string` | 还没有规则时的提示。 |
+| `variableValue` | `string` | 表达式补全里运行时变量 `$value` 的说明。 |
+| `variableRow` | `string` | 表达式补全里运行时变量 `$row` 的说明。 |
+| `variableIndex` | `string` | 表达式补全里运行时变量 `$index` 的说明。 |
+| `mergeCells` | `string` | 表格布局右键菜单：合并单元格。 |
+| `splitCell` | `string` | 表格布局右键菜单：拆分单元格。 |
+| `insertRowAbove` | `string` | 表格布局右键菜单：在上方插入行。 |
+| `insertRowBelow` | `string` | 表格布局右键菜单：在下方插入行。 |
+| `insertColumnLeft` | `string` | 表格布局右键菜单：在左侧插入列。 |
+| `insertColumnRight` | `string` | 表格布局右键菜单：在右侧插入列。 |
+| `removeRow` | `string` | 表格布局右键菜单：删除行。 |
+| `removeColumn` | `string` | 表格布局右键菜单：删除列。 |
+| `history` | `FormHistoryTranslations` | 撤销历史里各步的说明。 |
+| `tour` | `FormTourTranslations` | 新手引导里表单自己的几步。 |
+| `help` | `FormHelpTranslations` | 设置对话框「帮助」「关于」两页里表单自己的文字。 |
+| `keys` | `FormKeyTranslations` | 快捷键表里不是命令的按键。 |
+| `sourceStructure` | `string` | 问题列表里结构问题的来源小标签。 |
+| `sourceBinding` | `string` | 问题列表里数据绑定问题的来源小标签。 |
+
+| 方法 | 说明 |
+| --- | --- |
+| `statusFields(count: number): string` | 状态栏：什么都没选中时写表单里的字段数。 |
+| `statusSelected(count: number): string` | 状态栏：选中多项时写已选的个数。 |
+| `nodeTag(kind: string, key: string \| undefined): string` | 画布上选中节点的标签，如「单行文本 · name」。 |
+| `category(category: string): string` | 物料分类名，按种类的 category。 |
+| `kind(kind: string): string` | 种类名，按 kind。 |
+| `group(group: string): string` | 属性分组名：basic / data / appearance / region / settings。 |
+| `property(kind: string, group: string, name: string): string` | 属性名：先按「种类:分组.名」，再按「分组.名」，最后按名查。 |
+| `option(name: string, value: string): string` | select 选项的文案，按属性名与选项值。 |
+| `ruleKind(kind: string): string` | 校验规则种类名。 |
+| `linkageAction(action: string): string` | 联动动作名。 |
+| `outlineColumn(n: number): string` | 页面结构里栅格的一列，n 从 1 起。 |
+| `outlineCell(row: number, column: number): string` | 页面结构里表格布局的一格，行与列从 1 起。 |
+| `outlineRegion(n: number): string` | 页面结构里没有标题的区域，n 从 1 起。 |
+| `unboundKey(key: string): string` | 数据键不在宿主数据模型里。 |
+| `issue(issue: FormSchemaIssue): string` | 模板结构问题的说明，按问题码与参数；扩展给出的问题码先取扩展的 issueText，都没有时显示问题码本身。 |
+
+## 编辑模型
+
+设计器内部的编辑模型也一并导出，不显示界面、只想按操作改模板时可以直接用。创建表单编辑模型。
+
+```ts
+declare function createFormEditor(options: FormEditorOptions): FormEditor
+```
+
+### FormEditorOptions {#formeditoroptions}
+
+创建编辑模型的选项。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `document` | `FormDocument` | 初始文档。 |
+| `extensions?` | `readonly FormCoreExtension[]` | 种类、编辑方式与规则从这组扩展来，内置扩展自动排在最前；与设计器的 extensions 是同一份。 |
+| `expressionEngine?` | `ExpressionEngine` | 校验时检查表达式用的引擎，不给时不检查表达式内容。 |
+| `identifiers?` | `readonly string[]` | 宿主提供给表达式的额外顶层名字。 |
+| `historyLimit?` | `number` | 撤销步数上限，缺省 100。 |
+| `mergeWithin?` | `number` | 同一合并键相隔多少毫秒内并入上一步，缺省 1000。 |
+
+| 方法 | 说明 |
+| --- | --- |
+| `now(): number` | 取当前时间（毫秒），合并相邻修改时用；缺省 `Date.now`。 |
+| `describe(operations: readonly FormOperation[], before: FormDocument): HistoryLabel \| undefined` | 没写说明的一步按它的操作与应用前的文档生成说明，如 describeFormOperations；不给时这些步没有说明。 |
+
+### FormEditor {#formeditor}
+
+表单编辑模型：当前文档、撤销历史与选择，以及各种编辑操作；不碰 DOM。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `document` | `FormDocument` | 当前文档。 |
+| `registry` | `KindRegistry` | 按扩展合出的种类登记表。 |
+| `history` | `History<FormDocument, FormOperation>` | 撤销历史：能否撤销、重做，是否有未保存的修改。装载时按新的步数上限重建过的话，这里换成新的一份。 |
+| `selection` | `FormSelection` | 当前的选择。 |
+
+| 方法 | 说明 |
+| --- | --- |
+| `setExtensions(extensions: readonly FormCoreExtension[]): void` | 换一组扩展：之后新建、放置与校验都按它；冲突时抛 DesignerExtensionError、什么都不变。 |
+| `load(document: FormDocument, options?: FormEditorLoadOptions): void` | 装载新文档：清空历史与选择，剪贴板保留；文档变化的 cause 为 reset。给了与此刻不同的 historyLimit 时按它重建撤销历史，之后的 history 是新的一份。 |
+| `execute(operations: readonly FormOperation[], options?: ExecuteOptions): FormDocument` | 执行一组操作并记为一步撤销；返回新文档。 |
+| `undo(): boolean` | 撤销一步；没有可撤销的时返回 false。 |
+| `redo(): boolean` | 重做一步；没有可重做的时返回 false。 |
+| `seal(): void` | 封口：此后带同一合并键的修改另起一步；选择变了时自动封口。 |
+| `transact<T>(run: () => T, label?: HistoryLabel): T` | 把 run 里的全部修改合为一步撤销。 |
+| `markSaved(): void` | 把当前文档记为已保存，此后 `history.dirty` 为 false，直到再改。 |
+| `select(selection: Partial<FormSelection>, mode?: FormSelectMode): void` | 选中节点或区域：给了非空的 regions 就选区域（只留与第一个同一容器的），否则选 nodes。 |
+| `clearSelection(): void` | 清空选择。 |
+| `canDrop(nodeIds: readonly string[], target: FormDropTarget): boolean` | 节点能否放到目标位置：目标区域存在，不放进自己或自己的后代，目标区域收这种节点（如子表只收字段）。 |
+| `canAdd(kind: string, target: FormDropTarget): boolean` | 种类能否新建到目标位置；种类未登记时为 false。 |
+| `canPasteAt(clipboard: FormClipboard, target: FormDropTarget): boolean` | 一段剪贴板内容能否粘贴到目标位置：非空、目标区域收这些节点、种类都已登记。 |
+| `addNode(kind: string, target?: FormDropTarget, options?: ExecuteOptions): FormNode \| undefined` | 按种类新建节点并选中它；目标缺省为选中节点之后，没有选中时为顶层末尾。种类未登记时抛错；目标不收时返回 undefined。 |
+| `moveNodes(nodeIds: readonly string[], target: FormDropTarget, options?: ExecuteOptions): boolean` | 移动一组节点到目标位置，保持它们在文档里的先后；放不下时返回 false。 |
+| `deleteSelection(options?: ExecuteOptions): boolean` | 删除选中的节点；选中区域时删除这些区域，删完要少于容器的区域下限或容器是表格布局时不删。什么都没删时返回 false。 |
+| `setProperty(nodeId: string, group: PropertyGroup, name: string, value: JsonValue \| undefined, options?: ExecuteOptions): void` | 写节点的属性；value 为 undefined 时删除该属性。连续写同一属性合为一步，直到 seal。 |
+| `setRegionProperty(regionId: string, name: string, value: JsonValue \| undefined, options?: ExecuteOptions): void` | 写区域的属性，合并规则同 setProperty。 |
+| `setSetting(name: string, value: JsonValue \| undefined, options?: ExecuteOptions): void` | 写表单设置，合并规则同 setProperty。 |
+| `setKey(nodeId: string, key: string, options?: ExecuteOptions): void` | 改数据键，合并规则同 setProperty。 |
+| `addRule(nodeId: string, list: RuleList, rule: FormRuleInit \| Omit<LinkageRule, 'id'>, index?: number, options?: ExecuteOptions): ValidationRule \| LinkageRule` | 新增一条规则并返回它；index 缺省为末尾。 |
+| `updateRule(nodeId: string, list: RuleList, rule: ValidationRule \| LinkageRule, options?: ExecuteOptions): void` | 整条替换规则，连续替换同一条规则合为一步。 |
+| `removeRule(nodeId: string, list: RuleList, ruleId: string, options?: ExecuteOptions): void` | 删除一条规则。 |
+| `moveRule(nodeId: string, list: RuleList, ruleId: string, index: number, options?: ExecuteOptions): void` | 把一条规则移到 index 处。 |
+| `addRegion(containerId: string, index?: number, props?: Readonly<Record<string, JsonValue>>, options?: ExecuteOptions): Region` | 给容器新增一个区域并返回它；index 缺省为末尾，props 覆盖区域属性的缺省值。 |
+| `removeRegion(regionId: string, options?: ExecuteOptions): void` | 删除一个区域，连同其中的节点。 |
+| `moveRegion(regionId: string, index: number, options?: ExecuteOptions): void` | 把一个区域移到容器里的 index 处。 |
+| `setGridSpan(regionId: string, span: number, options?: ExecuteOptions): void` | 设栅格区域的跨度：取整并夹在属性描述的上下限之间。 |
+| `mergeCells(containerId: string, regionIds: readonly string[], options?: ExecuteOptions): void` | 合并表格布局的单元格，所选单元格须恰好拼成一个矩形。 |
+| `splitCell(containerId: string, regionId: string, options?: ExecuteOptions): void` | 拆分表格布局的单元格。 |
+| `insertTableLine(containerId: string, axis: TableAxis, at: number, options?: ExecuteOptions): void` | 在表格布局的第 at 行或列之前插入一行或一列。 |
+| `removeTableLine(containerId: string, axis: TableAxis, at: number, options?: ExecuteOptions): void` | 删除表格布局的第 at 行或列。 |
+| `copy(): FormClipboard \| undefined` | 复制选中的节点；没有选中时返回 undefined。 |
+| `cut(options?: ExecuteOptions): FormClipboard \| undefined` | 复制并删除选中的节点。 |
+| `paste(clipboard?: FormClipboard, target?: FormDropTarget, options?: ExecuteOptions): FormSelection` | 粘贴并选中粘贴出的节点：id 全部换新，与目标作用域冲突的数据键改为派生键。内容缺省为最近一次 copy 的，目标缺省为选中节点之后、没有选中时为顶层末尾；目标不收时什么都不做，返回空选择。 |
+| `duplicate(options?: ExecuteOptions): FormSelection` | 复制选中节点并紧跟在原节点之后粘贴，不改动剪贴板。 |
+| `validate(): readonly FormSchemaIssue[]` | 按当前登记表做 schema 自校验。 |
+| `subscribe(listener: (change: FormEditorChange) => void): () => void` | 订阅文档与选择的变化，返回取消函数。 |
+
+## 全部导出
+
+### clipboard
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `checkFormClipboard` | 函数 | 检查一段剪贴板内容（如拖来的片段）：节点非空、结构合法、种类在内置种类与 extensions 里、id 不重复时原样返回，否则为 undefined。 |
+| `decodeFormClipboard` | 函数 | 解析剪贴板文本：不是表单的剪贴板包、版本不认得时返回 undefined，内容按 checkFormClipboard 检查。 |
+| `encodeFormClipboard` | 函数 | 把剪贴板内容序列化成剪贴板包的 JSON 文本。 |
+| `readFormClipboard` | 函数 | 从剪贴板事件的数据里读出表单的剪贴板内容：先取表单自己的类型，没有再取 text/plain。 |
+| `writeFormClipboard` | 函数 | 把剪贴板内容写进剪贴板事件的数据：表单自己的类型一份，text/plain 一份。 |
+
+### commands
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `FORM_COMMANDS` | 常量 | 内置命令。 |
+| `FORM_DESIGNER_HELP_URL` | 常量 | 表单文档站上设计器的一页，帮助菜单的「帮助」在新窗口打开它。 |
+| `FORM_DESIGNER_PANELS` | 常量 | 设计器的面板 id：宿主写 defaultLayout、settingsPolicy（layout.panels.&lt;面板 id&gt;）时用；每块面板有一条开关命令 panel:&lt;面板 id&gt;。 |
+| `FORM_MENU_LAYOUTS` | 常量 | 右键菜单各主体的缺省排列；commandLayout 没写 menu:&lt;主体&gt; 时用它。 |
+| `FORM_SELECTION_LAYOUTS` | 常量 | 选中工具条（命令落点 selection:&lt;主体&gt;）的缺省排列：选父级、上移、下移，创建副本、删除。 |
+| `FORM_TOOLBAR_LAYOUT` | 常量 | 工具栏的缺省排列；commandLayout 没写 toolbar 时用它，再把 placement 含 toolbar 的扩展命令追加成一组。 |
+| `FormDesignerCommand` | 类型 | 设计器的命令。 |
+| `FormDesignerContext` | 接口 | 命令、面板与扩展装上时拿到的上下文。 |
+| `FormMenuSubject` | 类型 | 右键菜单落在哪类对象上：节点、区域、表格布局的单元格，或空白处。 |
+| `FormSelectionSubject` | 类型 | 选中工具条落在哪类选中上：眼下只有单个节点。 |
+
+### editor
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `createFormEditor` | 函数 | 创建表单编辑模型。 |
+| `FormClipboard` | 接口 | 剪贴板内容：被复制的节点，按文档顺序，不含被选中节点的后代里重复选中的那些。 |
+| `FormDropTarget` | 接口 | 放置位置：区域 id（`null` 为文档顶层）与放在该区域现有子节点里的第几个之前，缺省放到末尾。 |
+| `FormEditor` | 接口 | 表单编辑模型：当前文档、撤销历史与选择，以及各种编辑操作；不碰 DOM。 |
+| `FormEditorChange` | 类型 | 编辑模型的变化：文档变化带上历史变化的种类与实际应用的操作；选择变化带上新的选择。 |
+| `FormEditorLoadOptions` | 接口 | 装载新文档时的选项。 |
+| `FormEditorOptions` | 接口 | 创建编辑模型的选项。 |
+| `FormRuleInit` | 类型 | 校验规则或联动规则，不带 id；id 由编辑模型分配。 |
+| `FormSelection` | 接口 | 选择：选中的节点，或同一个容器里的区域（栅格的列、标签页、折叠项、表格单元格），二者互斥，按选中的先后。 |
+| `FormSelectMode` | 类型 | 选择方式：替换、追加或切换。 |
+
+### extensions
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `createFormDesignerModel` | 函数 | 合出设计器用的模型；任何一处重名（设置分区与 general 重名、扩展面板与外框的区重名、扩展面板的开关命令与已有命令重名、引导步骤重名或用了 shell. 前缀、物料来源重名、菜单栏的菜单重名也算）都抛 DesignerExtensionError。 |
+| `FORM_DESIGNER_EXTENSION` | 常量 | 设计器的内置扩展：内置命令、页面结构与历史记录两块面板，以及引导里表单自己的几步。 |
+| `FormDesignerExtension` | 接口 | 表单设计器层的扩展：运行时层的全部字段，加上属性编辑器、命令、面板、物料来源、导入导出与 setup。 |
+| `FormDesignerModel` | 接口 | 一组设计器扩展合出的东西：运行时模型、命令表、属性编辑器表与设置分区。 |
+
+### form-designer
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `defineFormDesigner` | 函数 | 注册 &lt;xh-form-designer&gt; 与它用到的全部元素：渲染器（画布与预览共用）及其库内元素、工具栏与菜单等库内元素、设计器零件；重复调用不报错。 |
+| `FORM_DESIGNER_TAG` | 常量 | 设计器的标签名。 |
+| `FormDesignerEventMap` | 接口 | 设计器派发的事件。 |
+| `FormDesignerMode` | 类型 | 设计态或预览态。 |
+| `FormPreviewWidth` | 类型 | 预览宽度：全宽、平板、手机，设计态画布同样生效。 |
+| `FormSchemaChangeKind` | 类型 | schema-change 的来源。 |
+| `XhFormDesigner` | 类 | `<xh-form-designer>`：可视化编辑表单模板，物料、画布、属性与问题列表都在里面；模板的保存与权限交给宿主，经 `schema-change`、`save` 事件与 `markSaved()` 往来。 |
+
+### history-labels
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `describeFormOperations` | 函数 | 表单编辑模型的 describe：按这一步的正向操作与应用前的文档给出说明，文案经 translations 现取。 |
+
+### kind-icons
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `FORM_KIND_ICONS` | 常量 | 内置种类的图标，键是种类名。 |
+
+### palette
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `FormCanvasDragPayload` | 接口 | 从画布上拖动节点时的数据；owner 是发起拖动的设计器，只在同一个设计器里放下。 |
+| `FormDragSubject` | 类型 | 拖来的东西：新建的种类、未经检查的片段，或本设计器画布上的节点。 |
+| `FormFragmentDragPayload` | 接口 | 拖放片段：任意来源（如扩展的模板库面板）经 startDrag 交来的一段节点，松手时按粘贴的规则换 id 插入。 |
+| `FormPalettePayload` | 类型 | 物料随 item-activate 与拖动交出的数据：新建某个种类，或插入一段片段（如模板库里的一组字段）。 |
+
+### properties
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `FormPropertyEditor` | 类型 | 宿主的属性编辑器，经 `editors` 压在内建编辑器之上。 |
+
+### version
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `FORM_DESIGNER_VERSION` | 常量 | @xihan-form/designer 的版本号。 |
+
+---
+
+来源：https://form.docs.xihanfun.com/reference/issues
+
+# 问题码
+
+<!-- 本页由 docs/scripts/gen-reference.mjs 从源码生成，不要手改；源码变了之后在 docs/ 运行 pnpm gen。 -->
+
+问题都不带文案，只有问题码、定位与参数；下表的说明来自中文语言包 `formZhCN`，其中的 {名} 是参数。
+
+## 模板问题 {#schema}
+
+模板问题由 `validateDocument` 与设计器的问题列表给出，缺省都是错误级，`severity` 选项可以按问题码改为警告或去掉；有错误级问题的模板，渲染器不渲染、派发 `schema-error`。
+
+一条模板结构问题：路径从文档根算起，节点、区域、规则用 target 标出（kind 为 node、region、rule）。问题码除了 FormSchemaIssueCode，还有扩展给出的：扩展规则的问题码以「扩展 id 末段.」开头，扩展登记的编辑方式由它自己的 check 给出。
+
+### 通用问题码
+
+属性值与结构的通用检查，各款设计器共用。
+
+| 问题码 | 设计器里的说明 | 参数 |
+| --- | --- | --- |
+| `required` | 缺少必填的值 | — |
+| `invalid-type` | 取值类型不对 | — |
+| `invalid-value` | 取值无效 | — |
+| `out-of-range` | 取值超出范围 | — |
+| `not-integer` | 必须是整数 | — |
+| `invalid-option` | 不是可选的值 | — |
+| `invalid-color` | 颜色无效 | — |
+| `empty` | 不能为空 | — |
+| `unknown-key` | 未定义的属性 | — |
+| `duplicate-key` | 数据键 {key} 重复 | `key` |
+| `duplicate-id` | id {id} 重复 | `id` |
+| `duplicate-value` | 选项的值重复 | — |
+| `unknown-control` | 没有登记这种编辑方式 | — |
+
+### 表单问题码
+
+模板结构问题里表单专属的问题码（通用问题码见 designer-kit/schema 的 CommonIssueCode）：
+- `document.unsupportedVersion`：结构版本不受支持；`document.tooDeep`：嵌套层数超过上限。
+- `node.unknownKind` / `node.kindTypeMismatch`：种类没有登记 / 登记的类型与节点类型不符。
+- `region.childNotAllowed`：区域不收这种节点（如子表只收字段）。
+- `table.cellOutOfBounds` / `table.cellOverlap` / `table.cellGap`：表格布局的单元格越界、重叠、留空。
+- `rule.notApplicable`：校验规则不适用于字段的种类或值形状；`rule.boundsMissing`：长度或范围规则上下限都没给；`rule.invalidRange`：下限大于上限；`rule.invalidPattern`：正则编译不过，参数 reason 给出原因。
+- `linkage.actionNotApplicable`：联动动作不适用于节点类型。
+- `expression.invalid`：表达式引擎报出问题，参数带上引擎的问题码与源码区间。
+- `field.dependencyWithoutSource`：声明了选项依赖却没有选项来源；`field.unknownDependency`：依赖的键在所在作用域及其外层都找不到；`field.selfDependency`：依赖指向字段自己。
+
+| 问题码 | 设计器里的说明 | 参数 |
+| --- | --- | --- |
+| `document.unsupportedVersion` | 不支持的模板版本 {version} | `version` |
+| `document.tooDeep` | 嵌套超过 {max} 层 | `max` |
+| `node.unknownKind` | 未登记的种类 {kind} | `kind` |
+| `node.kindTypeMismatch` | 种类 {kind} 与节点类型不符 | `kind` |
+| `region.childNotAllowed` | 这里不能放{kind} | `kind` |
+| `table.cellOutOfBounds` | 单元格超出表格 | — |
+| `table.cellOverlap` | 单元格与其它单元格重叠 | — |
+| `table.cellGap` | 表格第 … 行第 … 列空着 | `row`、`column` |
+| `rule.notApplicable` | {kind}规则不适用于这个字段 | `kind` |
+| `rule.boundsMissing` | 最小值、最大值至少给一个 | — |
+| `rule.invalidRange` | 最小值大于最大值 | — |
+| `rule.invalidPattern` | 正则表达式无效 | — |
+| `linkage.actionNotApplicable` | 「{action}」不适用于这里 | `action` |
+| `expression.invalid` | 表达式有误 | — |
+| `field.dependencyWithoutSource` | 声明了选项依赖，但没有选项来源 | — |
+| `field.unknownDependency` | 找不到依赖的字段 {key} | `key` |
+| `field.selfDependency` | 字段不能依赖自己 | — |
+
+## 值问题 {#value}
+
+值问题由 `validateValues`、控制器与渲染器的校验给出，落在字段上，渲染器把文案写在字段下方并汇总到错误摘要。规则写了 `message` 时显示它，否则用下表的缺省文案。
+
+值校验与联动的问题码：
+- `XH_FORM_VALUE_REQUIRED`、`XH_FORM_VALUE_NOT_ACCEPTED`、`XH_FORM_VALUE_TOO_SHORT`、`XH_FORM_VALUE_TOO_LONG`、`XH_FORM_VALUE_TOO_SMALL`、`XH_FORM_VALUE_TOO_LARGE`、`XH_FORM_VALUE_PATTERN_MISMATCH`、`XH_FORM_VALUE_EXPRESSION_FALSE`：值不满足规则。
+- `XH_FORM_VALUE_TYPE_MISMATCH`：值的形状与字段不符，规则无法判定。
+- `XH_FORM_INVALID_PATTERN`：校验时正则编译不过。
+- `XH_FORM_EXPRESSION_FAILED`：求值失败；`XH_FORM_CONDITION_NOT_BOOLEAN`：条件结果不是布尔或 null。
+
+| 问题码 | 渲染器里的缺省文案 | 参数 |
+| --- | --- | --- |
+| `XH_FORM_VALUE_REQUIRED` | 此项必填 | — |
+| `XH_FORM_VALUE_NOT_ACCEPTED` | 请勾选此项 | — |
+| `XH_FORM_VALUE_TOO_SHORT` | 至少输入 {min} 个字符 | `min` |
+| `XH_FORM_VALUE_TOO_LONG` | 最多输入 {max} 个字符 | `max` |
+| `XH_FORM_VALUE_TOO_SMALL` | 不能小于 {min} | `min` |
+| `XH_FORM_VALUE_TOO_LARGE` | 不能大于 {max} | `max` |
+| `XH_FORM_VALUE_PATTERN_MISMATCH` | 格式不正确 | — |
+| `XH_FORM_VALUE_EXPRESSION_FALSE` | 取值不符合要求 | — |
+| `XH_FORM_VALUE_TYPE_MISMATCH` | 取值类型不正确 | — |
+| `XH_FORM_INVALID_PATTERN` | 校验用的正则表达式无效 | — |
+| `XH_FORM_EXPRESSION_FAILED` | 校验表达式求值失败 | — |
+| `XH_FORM_CONDITION_NOT_BOOLEAN` | 校验表达式的结果不是真或假 | — |
+
+## 运行时错误 {#runtime}
+
+运行时错误码：
+- `XH_FORM_RT_INVALID_DOCUMENT`：文档没通过 schema 自校验（有 error 级问题），全部问题在 `issues`。
+- `XH_FORM_RT_NO_ENGINE`：文档里有表达式，却没有提供表达式引擎。
+- `XH_FORM_RT_UNKNOWN_NODE` / `XH_FORM_RT_UNKNOWN_PATH`：节点 id 或数据路径找不到。
+- `XH_FORM_RT_INVALID_VALUE`：值的形状与字段不符。
+- `XH_FORM_RT_NOT_A_LIST`：路径指向的不是列表容器。
+- `XH_FORM_RT_INDEX_OUT_OF_RANGE`：行号越界。
+- `XH_FORM_RT_NO_OPTIONS`：目标不是选项类字段。
+- `XH_FORM_RT_NO_OPTION_LOADER`：字段有选项来源，却没有提供选项加载函数。
+- `XH_FORM_RT_NO_OPTION_SOURCE`：按搜索串或父节点加载选项，但字段没有选项来源（静态选项）。
+- `XH_FORM_RT_INVALID_OPTIONS`：加载函数为某个父节点返回的子项不符合字段的选项形状。
+- `XH_FORM_RT_DISPOSED`：控制器已经销毁。
+- `XH_FORM_RT_NOT_READY`：渲染器还没有可用的控制器（没给模板，或模板无效）。
+- `XH_FORM_RT_NO_RENDERER`：渲染器找不到某个种类的渲染方式，`data.kind` 是种类名。
+
+`FormRuntimeError` 的 `code` 是上面的错误码之一，`data` 带定位数据，模板无效时 `issues` 是全部模板问题。
+
+---
+
+来源：https://form.docs.xihanfun.com/reference/kinds
+
+# 种类与属性
+
+<!-- 本页由 docs/scripts/gen-reference.mjs 从源码生成，不要手改；源码变了之后在 docs/ 运行 pnpm gen。 -->
+
+内置种类按物料面板的分类列出。属性写成所在属性包里的路径（如 `basic.label` 即节点的 `basic` 里的 `label`）；「名称」是属性面板里的中文名；「新建时」是在设计器里新建节点时写入的值，过长的值以 … 代替。
+
+每个节点还有共有字段 `type`、`id`、`kind`、`validation`（静态元素没有）、`linkage` 与 `extensions`；字段与列表容器另有数据键 `key`，容器另有区域 `regions`。见[模板类型](./schema)。
+
+## 表单设置 {#settings}
+
+没有选中节点时，属性面板编辑表单设置，存放在文档的 `settings` 里。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `settings.labelPlacement` | 标签位置 | `top` 上方、`start` 左侧 | `"top"` |
+| `settings.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `settings.disabled` | 禁用 | 布尔 | `false` |
+| `settings.readOnly` | 只读 | 布尔 | `false` |
+
+## 输入 {#category-input}
+
+### 单行文本 `text` {#text}
+
+字段 · 渲染为 `<xh-text-field>` · 值：字符串，空值 `""` · 适用的校验：必填、长度、正则、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.placeholder` | 占位符 | 文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.inputType` | 输入类型 | `text` 文本、`email` 邮箱、`tel` 电话、`url` 网址 | `"text"` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+| `appearance.prefix` | 前缀 | 文本 | — |
+| `appearance.suffix` | 后缀 | 文本 | — |
+
+### 多行文本 `textarea` {#textarea}
+
+字段 · 渲染为 `<xh-text-field>` · 值：字符串，空值 `""` · 适用的校验：必填、长度、正则、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.placeholder` | 占位符 | 文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+| `appearance.minRows` | 最少行数 | 整数，≥ 1，≤ 50 | `3` |
+| `appearance.maxRows` | 最多行数 | 整数，≥ 1，≤ 50 | — |
+
+### 可提及文本 `mention` {#mention}
+
+字段 · 渲染为 `<xh-mention>` · 值：字符串，空值 `""` · 适用的校验：必填、长度、正则、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.placeholder` | 占位符 | 文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.options` | 候选 | [选项](./schema#options)数组 | `[]` |
+| `data.optionSource` | 候选来源 | 文本 | — |
+| `data.optionDependencies` | 候选依赖 | 字符串数组 | — |
+| `data.triggerPrefix` | 提及符号 | 文本 | `"@"` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 密码 `password` {#password}
+
+字段 · 渲染为 `<xh-password-input>` · 值：字符串，空值 `""` · 适用的校验：必填、长度、正则、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.placeholder` | 占位符 | 文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 数字 `number` {#number}
+
+字段 · 渲染为 `<xh-number-field>` · 值：数值，空值 `null` · 适用的校验：必填、范围、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.placeholder` | 占位符 | 文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.step` | 步长 | 数值 | `1` |
+| `data.precision` | 小数位数 | 整数，≥ 0，≤ 20 | — |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+| `appearance.prefix` | 前缀 | 文本 | — |
+| `appearance.suffix` | 后缀 | 文本 | — |
+
+### 验证码 `pin` {#pin}
+
+字段 · 渲染为 `<xh-pin-input>` · 值：字符串，空值 `""` · 适用的校验：必填、长度、正则、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.placeholder` | 占位符 | 文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.length` | 位数 | 整数，≥ 1，≤ 12 | `6` |
+| `data.mask` | 遮挡输入 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+## 选择 {#category-choice}
+
+### 下拉选择 `select` {#select}
+
+字段 · 渲染为 `<xh-select>` · 值：字符串（打开「多选」时为字符串数组），空值 `null` · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.placeholder` | 占位符 | 文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.options` | 选项 | [选项](./schema#options)数组 | `[]` |
+| `data.optionSource` | 选项来源 | 文本 | — |
+| `data.optionDependencies` | 选项依赖 | 字符串数组 | — |
+| `data.multiple` | 多选 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 可输入下拉 `combobox` {#combobox}
+
+字段 · 渲染为 `<xh-combobox>` · 值：字符串（打开「多选」时为字符串数组），空值 `null` · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.placeholder` | 占位符 | 文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.options` | 选项 | [选项](./schema#options)数组 | `[]` |
+| `data.optionSource` | 选项来源 | 文本 | — |
+| `data.optionDependencies` | 选项依赖 | 字符串数组 | — |
+| `data.multiple` | 多选 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 级联选择 `cascader` {#cascader}
+
+字段 · 渲染为 `<xh-cascader>` · 值：字符串数组（打开「多选」时为数组），空值 `[]` · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.placeholder` | 占位符 | 文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.options` | 选项 | [选项](./schema#options)树，每项可带 `children` 与 `hasChildren` | `[]` |
+| `data.optionSource` | 选项来源 | 文本 | — |
+| `data.optionDependencies` | 选项依赖 | 字符串数组 | — |
+| `data.multiple` | 多选 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 树选择 `tree-select` {#tree-select}
+
+字段 · 渲染为 `<xh-tree-select>` · 值：字符串（打开「多选」时为字符串数组），空值 `null` · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.placeholder` | 占位符 | 文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.options` | 选项 | [选项](./schema#options)树，每项可带 `children` 与 `hasChildren` | `[]` |
+| `data.optionSource` | 选项来源 | 文本 | — |
+| `data.optionDependencies` | 选项依赖 | 字符串数组 | — |
+| `data.multiple` | 多选 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 单选组 `radio-group` {#radio-group}
+
+字段 · 渲染为 `<xh-radio-group>` · 值：字符串，空值 `null` · 适用的校验：必填、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.options` | 选项 | [选项](./schema#options)数组 | `[]` |
+| `data.optionSource` | 选项来源 | 文本 | — |
+| `data.optionDependencies` | 选项依赖 | 字符串数组 | — |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+| `appearance.orientation` | 排列方向 | `horizontal` 横排、`vertical` 竖排 | `"horizontal"` |
+
+### 多选组 `checkbox-group` {#checkbox-group}
+
+字段 · 渲染为 `<xh-checkbox-group>` · 值：字符串数组，空值 `[]` · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.options` | 选项 | [选项](./schema#options)数组 | `[]` |
+| `data.optionSource` | 选项来源 | 文本 | — |
+| `data.optionDependencies` | 选项依赖 | 字符串数组 | — |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+| `appearance.orientation` | 排列方向 | `horizontal` 横排、`vertical` 竖排 | `"horizontal"` |
+
+### 按钮组 `toggle-group` {#toggle-group}
+
+字段 · 渲染为 `<xh-toggle-group>` · 值：字符串（打开「多选」时为字符串数组），空值 `null` · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `data.options` | 选项 | [选项](./schema#options)数组 | `[]` |
+| `data.optionSource` | 选项来源 | 文本 | — |
+| `data.optionDependencies` | 选项依赖 | 字符串数组 | — |
+| `data.multiple` | 多选 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 列表 `listbox` {#listbox}
+
+字段 · 渲染为 `<xh-listbox>` · 值：字符串（打开「多选」时为字符串数组），空值 `null` · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.options` | 选项 | [选项](./schema#options)数组 | `[]` |
+| `data.optionSource` | 选项来源 | 文本 | — |
+| `data.optionDependencies` | 选项依赖 | 字符串数组 | — |
+| `data.multiple` | 多选 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 可选标签 `tag-group` {#tag-group}
+
+字段 · 渲染为 `<xh-tag-group>` · 值：字符串（打开「多选」时为字符串数组），空值 `null` · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.options` | 选项 | [选项](./schema#options)数组 | `[]` |
+| `data.optionSource` | 选项来源 | 文本 | — |
+| `data.optionDependencies` | 选项依赖 | 字符串数组 | — |
+| `data.multiple` | 多选 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 穿梭框 `transfer` {#transfer}
+
+字段 · 渲染为 `<xh-transfer>` · 值：字符串数组，空值 `[]` · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.options` | 选项 | [选项](./schema#options)数组 | `[]` |
+| `data.optionSource` | 选项来源 | 文本 | — |
+| `data.optionDependencies` | 选项依赖 | 字符串数组 | — |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 勾选框 `checkbox` {#checkbox}
+
+字段 · 渲染为 `<xh-checkbox>` · 值：布尔，空值 `false` · 适用的校验：必填、必须勾选、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 开关 `switch` {#switch}
+
+字段 · 渲染为 `<xh-switch>` · 值：布尔，空值 `false` · 适用的校验：必填、必须勾选、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+## 日期时间 {#category-datetime}
+
+### 日期 `date` {#date}
+
+字段 · 渲染为 `<xh-date-picker>` · 值：字符串，空值 `null` · 适用的校验：必填、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.placeholder` | 占位符 | 文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.withTime` | 带时间 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 日期范围 `date-range` {#date-range}
+
+字段 · 渲染为 `<xh-date-range-picker>` · 值：字符串数组，空值 `[]` · 适用的校验：必填、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.placeholder` | 占位符 | 文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.withTime` | 带时间 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 时间 `time` {#time}
+
+字段 · 渲染为 `<xh-time-picker>` · 值：字符串，空值 `null` · 适用的校验：必填、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.withSeconds` | 带秒 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 时间范围 `time-range` {#time-range}
+
+字段 · 渲染为 `<xh-time-range-picker>` · 值：字符串数组，空值 `[]` · 适用的校验：必填、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.withSeconds` | 带秒 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+## 高级 {#category-advanced}
+
+### 滑块 `slider` {#slider}
+
+字段 · 渲染为 `<xh-slider>` · 值：数值（打开「区间」时为数值数组），空值 `null` · 适用的校验：必填、范围、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.min` | 最小值 | 数值 | `0` |
+| `data.max` | 最大值 | 数值 | `100` |
+| `data.step` | 步长 | 数值 | `1` |
+| `data.range` | 区间 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 评分 `rating` {#rating}
+
+字段 · 渲染为 `<xh-rating>` · 值：数值，空值 `null` · 适用的校验：必填、范围、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.count` | 星数 | 整数，≥ 1，≤ 10 | `5` |
+| `data.allowHalf` | 允许半星 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 颜色 `color` {#color}
+
+字段 · 渲染为 `<xh-color-picker>` · 值：字符串，空值 `null` · 适用的校验：必填、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.format` | 格式 | `hex`、`rgba`、`hsla`、`oklch` | `"hex"` |
+| `data.swatches` | 色板颜色 | 字符串数组 | `[]` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+| `appearance.display` | 展示方式 | `picker` 取色器、`swatches` 色板 | `"picker"` |
+
+### 标签 `tags` {#tags}
+
+字段 · 渲染为 `<xh-tags-input>` · 值：字符串数组，空值 `[]` · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.placeholder` | 占位符 | 文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `data.max` | 最大值 | 整数，≥ 1，≤ 1000 | — |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 文件 `file` {#file}
+
+字段 · 渲染为 `<xh-file-upload>` · 值：数组，空值 `[]` · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `data.accept` | 允许的类型 | 文本 | — |
+| `data.maxFiles` | 最多文件数 | 整数，≥ 1，≤ 100 | — |
+| `data.uploadTarget` | 上传位置 | 文本 | — |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+### 签名 `signature` {#signature}
+
+字段 · 渲染为 `<xh-signature-pad>` · 值：对象，空值 `null` · 适用的校验：必填、表达式 · 联动动作：显示、隐藏、启用、禁用、必填、选填、赋值。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | `""` |
+| `basic.hint` | 提示 | 多行文本 | — |
+| `basic.initialValue` | 初始值 | 任意 JSON 值，形状随字段的值 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `basic.readOnly` | 只读 | 布尔 | `false` |
+| `appearance.labelHidden` | 隐藏标签 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+| `appearance.columnMinWidth` | 列最小宽度 | 整数，≥ 48，≤ 1024 | — |
+
+## 布局 {#category-layout}
+
+### 栅格 `grid` {#grid}
+
+容器 · 渲染为 `<xh-grid>` · 只管排版，对数据透明 · 区域 1 个起、最多 12 个 · 区域里能放任意节点 · 联动动作：显示、隐藏、启用、禁用。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `appearance.gap` | 间距 | `xs` 极小、`sm` 小、`md` 中、`lg` 大、`xl` 极大 | `"md"` |
+
+区域属性，存放在各区域的 `props` 里：
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `props.span` | 跨列 | 整数，≥ 1，≤ 12 | `6` |
+| `props.offset` | 左侧留空 | 整数，≥ 0，≤ 11 | — |
+
+### 标签页 `tabs` {#tabs}
+
+容器 · 渲染为 `<xh-tabs>` · 只管排版，对数据透明 · 区域 1 个起、不限上限 · 区域里能放任意节点 · 联动动作：显示、隐藏、启用、禁用。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+
+区域属性，存放在各区域的 `props` 里：
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `props.title` | 标题 | 文本 | `""` |
+
+### 卡片 `card` {#card}
+
+容器 · 渲染为 `<xh-card>` · 只管排版，对数据透明 · 区域固定 1 个 · 区域里能放任意节点 · 联动动作：显示、隐藏、启用、禁用。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.title` | 标题 | 文本 | `""` |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+
+### 折叠面板 `collapse` {#collapse}
+
+容器 · 渲染为 `<xh-accordion>` · 只管排版，对数据透明 · 区域 1 个起、不限上限 · 区域里能放任意节点 · 联动动作：显示、隐藏、启用、禁用。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `appearance.multiple` | 多选 | 布尔 | `true` |
+
+区域属性，存放在各区域的 `props` 里：
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `props.title` | 标题 | 文本 | `""` |
+| `props.expanded` | 默认展开 | 布尔 | `true` |
+
+### 分组 `fieldset` {#fieldset}
+
+容器 · 渲染为 `<xh-fieldset>` · 只管排版，对数据透明 · 区域固定 1 个 · 区域里能放任意节点 · 联动动作：显示、隐藏、启用、禁用。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.legend` | 分组标题 | 文本 | `""` |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+
+### 表格布局 `table` {#table}
+
+容器 · 渲染为 `<xh-grid>` · 只管排版，对数据透明 · 区域 1 个起、不限上限 · 区域里能放任意节点 · 联动动作：显示、隐藏、启用、禁用。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `appearance.rows` | 行数 | 整数，≥ 1，≤ 100 | `2` |
+| `appearance.columns` | 列数 | 整数，≥ 1，≤ 12 | `2` |
+| `appearance.bordered` | 显示格线 | 布尔 | `true` |
+
+区域属性，存放在各区域的 `props` 里：
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `props.row` | 行 | 整数，≥ 0，≤ 99 | `0` |
+| `props.column` | 列 | 整数，≥ 0，≤ 11 | `0` |
+| `props.rowSpan` | 跨行 | 整数，≥ 1，≤ 100 | `1` |
+| `props.columnSpan` | 跨列 | 整数，≥ 1，≤ 12 | `1` |
+
+## 数据 {#category-data}
+
+### 子表单 `subform` {#subform}
+
+容器 · 渲染为 `<xh-field-array>` · 带数据键，值是行对象的数组 · 区域固定 1 个 · 区域里能放任意节点 · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.title` | 标题 | 文本 | `""` |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `data.initialRows` | 初始行数 | 整数，≥ 0，≤ 100 | `0` |
+| `data.movable` | 可调整行序 | 布尔 | `true` |
+
+### 子表 `subtable` {#subtable}
+
+容器 · 渲染为 `<xh-field-array>` · 带数据键，值是行对象的数组 · 区域固定 1 个 · 区域里只能放字段 · 适用的校验：必填、长度、表达式 · 联动动作：显示、隐藏、启用、禁用。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.title` | 标题 | 文本 | `""` |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `basic.disabled` | 禁用 | 布尔 | `false` |
+| `data.initialRows` | 初始行数 | 整数，≥ 0，≤ 100 | `0` |
+| `data.movable` | 可调整行序 | 布尔 | `true` |
+
+## 静态 {#category-static}
+
+### 分隔线 `divider` {#divider}
+
+静态元素 · 渲染为 `<xh-separator>` · 联动动作：显示、隐藏。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.label` | 标签 | 文本 | — |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+
+### 段落 `paragraph` {#paragraph}
+
+静态元素 · 渲染为 `<xh-typography>` · 联动动作：显示、隐藏。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.content` | 内容 | 多行文本 | `""` |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `appearance.size` | 尺寸 | `sm` 小、`md` 中、`lg` 大 | `"md"` |
+
+### 标题 `heading` {#heading}
+
+静态元素 · 渲染为 `<xh-typography>` · 联动动作：显示、隐藏。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.content` | 内容 | 文本 | `""` |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `appearance.level` | 级别 | `2` 二级、`3` 三级、`4` 四级、`5` 五级、`6` 六级 | `3` |
+
+### 提示 `alert` {#alert}
+
+静态元素 · 渲染为 `<xh-alert>` · 联动动作：显示、隐藏。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.title` | 标题 | 文本 | `""` |
+| `basic.content` | 内容 | 多行文本 | `""` |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `appearance.tone` | 语气 | `info` 信息、`success` 成功、`warning` 警告、`danger` 危险、`neutral` 中性 | `"info"` |
+
+### 图片 `image` {#image}
+
+静态元素 · 渲染为 `<xh-image>` · 联动动作：显示、隐藏。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.src` | 图片地址 | 文本 | `""` |
+| `basic.alt` | 替代文本 | 文本 | `""` |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `appearance.width` | 宽度 | 整数，≥ 16，≤ 4096 | — |
+
+### 条码 `barcode` {#barcode}
+
+静态元素 · 渲染为 `<xh-bar-code>` · 联动动作：显示、隐藏。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.value` | 编码内容 | 文本 | `""` |
+| `basic.format` | 码制 | `code128`、`ean13`、`ean8`、`upca`、`upce`、`itf14`、`code39` | `"code128"` |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+| `appearance.showText` | 显示文字 | 布尔 | `true` |
+
+### 二维码 `qrcode` {#qrcode}
+
+静态元素 · 渲染为 `<xh-matrix-code>` · 联动动作：显示、隐藏。
+
+| 属性 | 名称 | 取值 | 新建时 |
+| --- | --- | --- | --- |
+| `basic.value` | 编码内容 | 文本 | `""` |
+| `basic.format` | 码制 | `qr` QR 码、`data-matrix` Data Matrix、`pdf417` PDF417、`aztec` Aztec | `"qr"` |
+| `basic.hidden` | 隐藏 | 布尔 | `false` |
+
+---
+
+来源：https://form.docs.xihanfun.com/reference/renderer
+
+# 渲染器
+
+<!-- 本页由 docs/scripts/gen-reference.mjs 从源码生成，不要手改；源码变了之后在 docs/ 运行 pnpm gen。 -->
+
+`@xihan-form/runtime` 的公开接口：渲染器元素、表单控制器与相关类型。样式在 `@xihan-form/runtime/style.css`，语言包在 `@xihan-form/runtime/locale`。
+
+## `<xh-form-renderer>`
+
+注册 &lt;xh-form-renderer&gt; 与内置字段、容器用到的库内元素；重复调用不报错。宿主自定义字段渲染器用到的元素由宿主注册。
+
+### 属性
+
+| 属性 | attribute | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `schema` | — | `FormDocument \| undefined` | 表单模板。 |
+| `expressionEngine` | — | `ExpressionEngine \| undefined` | 表达式引擎，缺省为 @xihan-ui/expression 的 createExpressionEngine()。 |
+| `values` | — | `Readonly<Record<string, JsonValue>> \| undefined` | 初始数据兼 reset 与 isDirty 的基准；控制器建好后再赋值等于 setFormData(values, { baseline: true })，与当前值相同时不动。 |
+| `variables` | — | `Readonly<Record<string, unknown>> \| undefined` | 宿主提供给表达式的变量，名字以 `$` 开头。 |
+| `loadOptions` | — | `OptionLoader \| undefined` | 选项加载函数。 |
+| `uploadFile` | — | `FileUploader \| undefined` | 文件字段的上传函数，交给 xh-file-upload 的 upload；组件自己不发请求。 |
+| `readonly` | `readonly` | `boolean \| undefined` | 整表只读：仍可提交。attribute 按三态读：没写或写 "false" 不生效，其余写法生效。 |
+| `disabled` | `disabled` | `boolean \| undefined` | 整表禁用：不能提交。attribute 按三态读：没写或写 "false" 不生效，其余写法生效。 |
+| `validateOn` | `validate-on` | `FormValidateOn \| undefined` | 单字段首次校验的时机，缺省 `blur`；校验过的字段此后随改值重算。 |
+| `submitAction` | — | `FormSubmitAction \| undefined` | 提交通过校验后调用的异步动作。 |
+| `translations` | — | `Partial<FormRendererTranslations> \| undefined` | 元素自己的文案，压在全局配置之上。 |
+
+### 存取器
+
+| 属性 | 读写 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `extensions` | 可读写 | `readonly FormRuntimeExtension[] \| undefined` | 扩展：种类、渲染、编辑方式与规则都从这里来，内置扩展自动排在最前；与设计器、validateDocument 的 extensions 是同一份。赋值时当场合并查重，冲突抛 DesignerExtensionError、什么都不变；换了就重建控制器。同一个扩展对象换了引用也算换了，宿主要保持引用稳定。 |
+| `controller` | 只读 | `FormController \| null` | 当前的表单控制器；没给模板或模板无效时为 `null`。模板等属性一变就换一个新的，见 `ready` 事件。 |
+
+### 方法
+
+| 方法 | 说明 |
+| --- | --- |
+| `getFormData(options?: GetFormDataOptions): Record<string, JsonValue>` | 当前表单值的副本。 |
+| `setFormData(data: Readonly<Record<string, JsonValue>>, options?: SetFormDataOptions): void` | 按模板替换全部绑定值，见控制器的 setFormData。 |
+| `getValue(path: JsonPath): JsonValue \| undefined` | 按数据路径读值的副本。 |
+| `setValue(path: JsonPath, value: JsonValue): void` | 写一个字段或列表容器的值。 |
+| `validate(): ValidationOutcome` | 校验全部字段并显示问题。 |
+| `validateField(path: JsonPath): ValidationOutcome` | 校验一个字段或列表容器并显示它的问题。 |
+| `reset(): void` | 回到基准值并清空校验状态。 |
+| `isDirty(): boolean` | 当前值与基准值是否不同。 |
+| `submit(): void` | 走一次提交：与回车、提交键同一条路径；结果看 `submit` / `invalid` 事件。 |
+| `focusField(target: string \| JsonPath): boolean` | 让一个字段获得焦点；target 是节点 id 或数据路径。字段不存在时返回 false。 |
+
+### 事件
+
+事件都是冒泡的 `CustomEvent`。
+
+| 事件 | detail | 说明 |
+| --- | --- | --- |
+| `ready` | `{ controller: FormController }` | 按模板建好控制器、渲染出表单时派发；换了模板、扩展、表达式引擎或选项加载函数后重建，再派发一次。 |
+| `schema-error` | `{ code: FormRuntimeErrorCode, data: Readonly<Record<string, string \| number>>, issues: readonly FormSchemaIssue[] }` | 模板没通过自检或缺少表达式引擎，表单不渲染；`issues` 是全部模板问题。 |
+| `value-change` | `{ paths: readonly JsonPath[], values: Record<string, JsonValue> }` | 表单值变了：用户输入、联动赋值、增删行或宿主赋值；`paths` 是变化的数据路径，`values` 是变化后的整份数据。 |
+| `issues-change` | `{ paths: readonly JsonPath[], issues: readonly ValueIssue[] }` | 字段的校验问题变了；`paths` 是问题有变化的数据路径，`issues` 是当前全部问题。 |
+| `submit` | `{ values: Record<string, JsonValue> }` | 提交通过了校验；`values` 不含隐藏字段的值。 |
+| `invalid` | `{ issues: readonly ValueIssue[], values: Record<string, JsonValue> }` | 提交没通过校验，焦点已移到第一个出问题的字段；`issues` 是全部问题。 |
+| `submit-error` | `{ cause: unknown, values: Record<string, JsonValue> }` | `submitAction` 返回的 thenable 失败了；`cause` 是失败的原因。 |
+| `linkage-error` | `{ issues: readonly LinkageIssue[] }` | 联动规则求值出了问题，或多轮重算后仍不稳定；问题有变化时派发。 |
+
+### FormValidateOn {#formvalidateon}
+
+单字段首次校验的时机。
+
+```ts
+type FormValidateOn = 'submit' | 'blur' | 'change'
+```
+
+### FormSubmitAction {#formsubmitaction}
+
+提交通过校验后调用的异步动作；返回的 thenable 落定前表单处于提交中。
+
+```ts
+type FormSubmitAction = (detail: { readonly values: Record<string, JsonValue> }) => PromiseLike<unknown> | void
+```
+
+## 表单控制器
+
+### createFormController() {#createformcontroller}
+
+```ts
+declare function createFormController(options: FormControllerOptions): FormController
+```
+
+创建表单控制器。创建时先做 schema 自校验，有 error 级问题就抛 `XH_FORM_RT_INVALID_DOCUMENT`（问题列表在 `issues`）；文档里有表达式却没有引擎时抛 `XH_FORM_RT_NO_ENGINE`。不碰 DOM，不写全局状态，多个实例互不影响。
+
+### FormControllerOptions {#formcontrolleroptions}
+
+创建表单控制器的选项。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `document` | `FormDocument` | 表单模板。 |
+| `extensions?` | `readonly FormCoreExtension[]` | 种类、编辑方式与规则从这组扩展来，内置扩展自动排在最前；与渲染器的 extensions 是同一份。 |
+| `expressionEngine?` | `ExpressionEngine` | 表达式引擎；文档里有表达式时必须提供。 |
+| `variables?` | `Readonly<Record<string, unknown>>` | 宿主提供给表达式的额外变量，名字以 `$` 开头。 |
+| `values?` | `Readonly<Record<string, JsonValue>>` | 初始数据，叠在 schema 的初始值之上；也是 `reset` 与 `isDirty` 最初的基准。 |
+| `loadOptions?` | `OptionLoader` | 选项加载函数；有字段带选项来源时，`reloadOptions` 需要它。 |
+
+### FormController {#formcontroller}
+
+表单控制器。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `document` | `FormDocument` | 创建时传入的表单模板。 |
+
+| 方法 | 说明 |
+| --- | --- |
+| `getFormData(options?: GetFormDataOptions): Record<string, JsonValue>` | 当前表单值的副本，已含联动赋值。 |
+| `getValue(path: JsonPath): JsonValue \| undefined` | 按数据路径读值的副本；不存在时为 `undefined`。 |
+| `setFormData(data: Readonly<Record<string, JsonValue>>, options?: SetFormDataOptions): void` | 按 schema 替换全部绑定值：没给的回到初始值，多带的键原样保留；同时清空校验状态。`baseline` 为 `true` 时，填入的值同时成为 `reset` 与 `isDirty` 的基准。 |
+| `setValue(path: JsonPath, value: JsonValue): void` | 写一个字段或列表容器的值；形状不符时抛错。值确实变了时，依赖它的选项字段回到空值，并逐级带上依赖这些字段的字段。 |
+| `getState(target: FormTarget): NodeState \| undefined` | 节点实例的状态；节点 id 只取顶层实例，列表里的实例用实例键或数据路径。 |
+| `getIssues(): readonly ValueIssue[]` | 当前展示的校验问题。 |
+| `getLinkageIssues(): readonly LinkageIssue[]` | 最近一次联动重算的问题。 |
+| `validate(): ValidationOutcome` | 校验全部字段，隐藏或禁用的实例跳过、值保留；此后每次改值都会重算问题。 |
+| `validateField(path: JsonPath): ValidationOutcome` | 校验一个字段或列表容器（含此刻各行里的字段）；此后它们的问题随改值重算，之后新增的行不算在内。 |
+| `reset(): void` | 回到基准值并清空校验状态；宿主的强制设定与已加载的选项保留。基准是创建时的值，或最近一次带 `baseline` 填入的值。 |
+| `isDirty(): boolean` | 当前值与 `reset` 之后的值是否不同。 |
+| `setHidden(target: FormTarget, hidden: boolean \| null): void` | 强制隐藏、禁用、只读：`true` / `false` 强制，`null` 撤销强制。 |
+| `setDisabled(target: FormTarget, disabled: boolean \| null): void` | 强制禁用：`true` / `false` 强制，`null` 撤销强制。 |
+| `setReadOnly(target: FormTarget, readOnly: boolean \| null): void` | 强制只读：`true` / `false` 强制，`null` 撤销强制。 |
+| `addRow(listPath: JsonPath, options?: AddRowOptions): void` | 列表容器的行：新增、删除、移动。行级的强制设定、选项与校验进度跟着行走。 |
+| `removeRow(listPath: JsonPath, index: number): void` | 删掉列表容器的第 `index` 行（从 0 起）。 |
+| `moveRow(listPath: JsonPath, from: number, to: number): void` | 把列表容器的第 `from` 行移到第 `to` 行（从 0 起）。 |
+| `reloadOptions(target?: FormTarget): Promise<void>` | 重新加载选项：不给目标时加载全部带选项来源的字段实例。提供了加载函数时，选项依赖的值一变（改值、整份替换、重置、联动赋值），依赖它的字段实例会自动重新加载。 |
+| `searchOptions(target: FormTarget, query: string): Promise<void>` | 带搜索串重新加载一个字段实例的选项：请求的 `query` 即这个串，之后因依赖值变化的自动重载也带着它。只用于带选项来源的字段；连续调用时只认最后一次的结果。 |
+| `loadChildren(target: FormTarget, parent: string): Promise<readonly OptionItem[]>` | 懒加载选项树里某个节点的直接子项：请求带上 `parent`，返回校验过的子项，不写进字段的选项状态。字段没有选项来源时报 `XH_FORM_RT_NO_OPTION_SOURCE`，返回的子项形状不对时报 `XH_FORM_RT_INVALID_OPTIONS`。 |
+| `getOptions(target: FormTarget): OptionsState` | 字段实例的选项：带选项来源时是加载状态，否则是 schema 里的静态选项。 |
+| `setVariables(variables: Readonly<Record<string, unknown>>): void` | 替换宿主变量并重算联动。 |
+| `subscribe(listener: (event: FormEvent) => void): () => void` | 订阅变更，返回取消函数。 |
+| `dispose(): void` | 销毁：取消全部订阅，之后调用任何方法都抛错，晚到的选项结果被丢弃。 |
+
+### ValidationOutcome {#validationoutcome}
+
+校验结果。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `valid` | `boolean` | 没有问题。 |
+| `issues` | `readonly ValueIssue[]` | 校验出的问题。 |
+
+### GetFormDataOptions {#getformdataoptions}
+
+读取表单数据的选项。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `omitHidden?` | `boolean` | 为 `true` 时去掉隐藏实例的值（含被隐藏容器里的字段与整个被隐藏的列表）。 |
+
+### SetFormDataOptions {#setformdataoptions}
+
+替换表单数据的选项。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `baseline?` | `boolean` | 为 `true` 时，填入的值同时成为 `reset` 与 `isDirty` 的基准。 |
+
+### AddRowOptions {#addrowoptions}
+
+新增行的选项。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `index?` | `number` | 插入位置，缺省追加到末尾。 |
+| `values?` | `Readonly<Record<string, JsonValue>>` | 新行的数据，缺的键取 schema 初始值。 |
+
+## 选项与上传
+
+### OptionLoader {#optionloader}
+
+宿主提供的选项加载函数，返回选项数组或它的 Promise。
+
+```ts
+type OptionLoader = (request: OptionRequest) => readonly OptionItem[] | Promise<readonly OptionItem[]>
+```
+
+### OptionRequest {#optionrequest}
+
+交给宿主加载函数的请求。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `source` | `string` | 字段的 `data.optionSource`。 |
+| `nodeId` | `string` | 字段节点的 id。 |
+| `path` | `JsonPath` | 字段实例的数据路径。 |
+| `values` | `Readonly<Record<string, JsonValue>>` | 当前表单值的副本。 |
+| `query?` | `string` | 搜索串：可输入筛选的字段（组合框）在输入时带上，宿主按它返回匹配的选项；没有输入过时不带。 |
+| `parent?` | `string` | 懒加载：要取直接子项的那个节点的值，宿主只返回它的子项；取整棵（顶层）时不带。 |
+
+### OptionItem {#optionitem}
+
+一个选项；树形选项可带 `children`。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `value` | `string` | 选中后写进表单数据的值。 |
+| `label` | `string` | 显示的文字。 |
+| `disabled?` | `boolean` | 禁用：显示但不能选。 |
+| `children?` | `readonly OptionItem[]` | 子项，只有树形选项（级联、树选择）用。 |
+| `hasChildren?` | `boolean` | 选项树里有子项但还没给出：首次展开时经 `parent` 再请求一次它的直接子项。 |
+
+### OptionsState {#optionsstate}
+
+一个字段实例的选项状态。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `status` | `'idle' \| 'loading' \| 'ready' \| 'error'` | 加载状态：没加载过、加载中、已就绪、失败。静态选项总是 `ready`。 |
+| `items` | `readonly OptionItem[]` | 当前的选项；加载中时是上一次的结果，失败时为空。 |
+
+### FileUploader {#fileuploader}
+
+宿主提供的上传函数：返回带 `id` 的结果时，这个文件转成附件记录写进字段值。
+
+```ts
+type FileUploader = (request: UploadRequest) => FileUploadResult | undefined | void | Promise<FileUploadResult | undefined | void>
+```
+
+### UploadRequest {#uploadrequest}
+
+交给宿主上传函数的请求：UI 的单个文件上传请求，加上所属字段。
+
+继承 `FileUploadRequest`。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `target` | `string \| undefined` | 字段的 `data.uploadTarget`。 |
+| `nodeId` | `string` | 字段节点的 id。 |
+| `path` | `JsonPath` | 字段实例的数据路径。 |
+
+## 扩展
+
+### FormRuntimeExtension {#formruntimeextension}
+
+表单运行时层的扩展：core 层的全部字段，加上各种类的渲染，键是种类名。列表容器（子表单、子表）由渲染器自己按 xh-field-array 建，不经 containerRenderers。
+
+继承 `FormCoreExtension`。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `fieldRenderers?` | `Readonly<Record<string, FieldRenderer>>` | 字段种类的渲染方式：种类名 → 字段渲染器。 |
+| `containerRenderers?` | `Readonly<Record<string, ContainerBuilder>>` | 容器种类的部件树：种类名 → 建出容器元素与各区域放子节点的位置。 |
+| `staticRenderers?` | `Readonly<Record<string, StaticBuilder>>` | 静态元素种类的部件树：种类名 → 建出静态元素。 |
+
+### FieldRenderer {#fieldrenderer}
+
+字段渲染器：按种类登记，渲染器为每个字段实例调用一次。
+
+```ts
+type FieldRenderer = (context: FieldRendererContext) => FieldRendererInstance
+```
+
+### FieldRendererContext {#fieldrenderercontext}
+
+交给字段渲染器的上下文。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `document` | `Document` | 渲染器所在的文档，建节点用。 |
+| `node` | `FieldNode` | 字段节点。 |
+| `path` | `JsonPath` | 字段实例的数据路径。 |
+| `value` | `JsonValue \| undefined` | 字段当前的值。 |
+| `state` | `NodeState` | 联动状态与整表的只读、禁用合并后的结果。 |
+| `error` | `string \| undefined` | 当前展示的错误文案；没有错误时为 `undefined`。 |
+| `options` | `OptionsState \| undefined` | 选项类字段的选项状态，其余为 `undefined`。 |
+| `searchOptions` | `((query: string) => void) \| undefined` | 带搜索串重新加载本字段的选项，结果经 `options` 回来；字段没有选项来源或宿主没给 `loadOptions` 时为 `undefined`。 |
+| `reloadOptions` | `(() => void) \| undefined` | 重新加载本字段的选项（如取数失败后重试），结果经 `options` 回来；字段没有选项来源或宿主没给 `loadOptions` 时为 `undefined`。 |
+| `loadChildren` | `((parent: string) => Promise<readonly OptionItem[]>) \| undefined` | 懒加载选项树里某个节点的直接子项；字段没有选项来源或宿主没给 `loadOptions` 时为 `undefined`。 |
+| `size` | `FieldSize` | 控件尺寸：字段自己的 `appearance.size`，没写时取表单设置的 `size`。 |
+| `translations` | `FormRendererTranslations` | 渲染器当前的文案。 |
+| `uploadFile` | `((request: FileUploadRequest) => ReturnType<FileUploader>) \| undefined` | 上传一个文件，请求里已带上本字段；宿主没给 `uploadFile` 时为 `undefined`。 |
+
+| 方法 | 说明 |
+| --- | --- |
+| `setValue(value: JsonValue): void` | 写值，交给控制器的 setValue；值的形状由种类登记的 valueKind 把关，不符时抛 `XH_FORM_RT_INVALID_VALUE`。 |
+| `commit(): void` | 一次编辑结束（如失焦）。 |
+
+### FieldRendererInstance {#fieldrendererinstance}
+
+字段渲染器产出的实例。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `element` | `HTMLElement` | 控件节点：作为 `<xh-field>` 的 control 部件放进字段外壳，标签、提示与错误文案由外壳给出，不必自带。 |
+
+| 方法 | 说明 |
+| --- | --- |
+| `update(context: FieldRendererContext): void` | 值、状态、错误或选项变化时调用。 |
+| `destroy(): void` | 节点移除前调用。 |
+
+## 文案
+
+### FormRendererTranslations {#formrenderertranslations}
+
+渲染器的文案：无参的是字符串，带参的是函数。
+
+文案键是 `xh-form-renderer`，各语言的文案在 `@xihan-form/runtime/locale`，如中文的 `formZhCN`。
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `optionsEmpty` | `string` | 没有选项。 |
+| `addRow` | `string` | 列表容器的新增把手。 |
+| `fileDropzone` | `string` | 文件字段投放区的说明。 |
+| `valueRequired` | `string` | 值校验问题的文案，按问题码取：`XH_FORM_VALUE_REQUIRED`。规则写了 message 时用规则的。 |
+| `valueNotAccepted` | `string` | `XH_FORM_VALUE_NOT_ACCEPTED`。 |
+| `valuePatternMismatch` | `string` | `XH_FORM_VALUE_PATTERN_MISMATCH`。 |
+| `valueExpressionFalse` | `string` | `XH_FORM_VALUE_EXPRESSION_FALSE`。 |
+| `valueTypeMismatch` | `string` | `XH_FORM_VALUE_TYPE_MISMATCH`。 |
+| `invalidPattern` | `string` | `XH_FORM_INVALID_PATTERN`。 |
+| `expressionFailed` | `string` | `XH_FORM_EXPRESSION_FAILED`。 |
+| `conditionNotBoolean` | `string` | `XH_FORM_CONDITION_NOT_BOOLEAN`。 |
+
+| 方法 | 说明 |
+| --- | --- |
+| `errorSummary(count: number): string` | 错误摘要的标题。 |
+| `errorSummaryItem(label: string, message: string): string` | 错误摘要里的一条：字段标签与问题文案。 |
+| `valueTooShort(min: number): string` | `XH_FORM_VALUE_TOO_SHORT`，参数是长度下限。 |
+| `valueTooLong(max: number): string` | `XH_FORM_VALUE_TOO_LONG`，参数是长度上限。 |
+| `valueTooSmall(min: number): string` | `XH_FORM_VALUE_TOO_SMALL`，参数是下限。 |
+| `valueTooLarge(max: number): string` | `XH_FORM_VALUE_TOO_LARGE`，参数是上限。 |
+
+## 全部导出
+
+### designer-translations
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `DEFAULT_FORM_DESIGNER_TRANSLATIONS` | 常量 | 表单设计器的缺省文案：英文，与其余语言同一张表组出，种类、属性与选项写可读的名字。 |
+| `FormDesignerTranslations` | 接口 | 表单设计器的文案：无参的是字符串，带参的是函数。 |
+| `FormHelpTranslations` | 接口 | 设置对话框「帮助」「关于」两页里表单自己的文字。 |
+| `FormHistoryTranslations` | 接口 | 撤销历史里一步的说明。 |
+| `FormKeyTranslations` | 接口 | 快捷键表里不是命令的按键（归「本设计器」那一组）。 |
+| `FormTourTranslations` | 接口 | 新手引导里表单自己的几步：标题与说明。 |
+
+### extensions
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `createFormRuntimeModel` | 函数 | 合出运行时模型：core 的合并查重见 `createFormModel`，内置渲染 `FORM_RUNTIME_EXTENSION` 排在传入的之前；同一种类的渲染登记了两次时抛 `DesignerExtensionError`。 |
+| `FORM_RUNTIME_EXTENSION` | 常量 | 运行时层的内置扩展：内置种类的渲染。 |
+| `FormRuntimeExtension` | 接口 | 表单运行时层的扩展：core 层的全部字段，加上各种类的渲染，键是种类名。 |
+| `FormRuntimeModel` | 接口 | 一组运行时扩展合出的模型：core 模型加上按种类名查的三张渲染表。 |
+
+### renderer/containers
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `ContainerBuilder` | 类型 | 按种类建容器节点。 |
+| `ContainerView` | 接口 | 容器的节点：宿主元素与每个区域放子节点的位置。 |
+| `StaticBuilder` | 类型 | 按种类建静态元素节点。 |
+| `StaticView` | 接口 | 静态元素的节点。 |
+
+### renderer/element
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `defineFormRenderer` | 函数 | 注册 &lt;xh-form-renderer&gt; 与内置字段、容器用到的库内元素；重复调用不报错。 |
+| `FORM_RENDERER_TAG` | 常量 | 渲染器的标签名。 |
+| `FormRendererEventMap` | 接口 | 渲染器派发的事件。 |
+| `FormSubmitAction` | 类型 | 提交通过校验后调用的异步动作；返回的 thenable 落定前表单处于提交中。 |
+| `FormValidateOn` | 类型 | 单字段首次校验的时机。 |
+| `XhFormRenderer` | 类 | `<xh-form-renderer>`：按表单模板渲染出表单，取值、赋值、校验、重置与提交都经它的方法；选项加载与附件上传经回调交给宿主，组件自己不发请求。 |
+
+### renderer/fields/index
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `FORM_FIELD_RENDERERS` | 常量 | 内置字段种类的渲染器。 |
+
+### renderer/types
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `FieldRenderer` | 类型 | 字段渲染器：按种类登记，渲染器为每个字段实例调用一次。 |
+| `FieldRendererContext` | 接口 | 交给字段渲染器的上下文。 |
+| `FieldRendererInstance` | 接口 | 字段渲染器产出的实例。 |
+| `FieldSize` | 类型 | 字段的尺寸档。 |
+| `FileUploader` | 类型 | 宿主提供的上传函数：返回带 `id` 的结果时，这个文件转成附件记录写进字段值。 |
+| `UploadRequest` | 接口 | 交给宿主上传函数的请求：UI 的单个文件上传请求，加上所属字段。 |
+
+### state/controller
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `AddRowOptions` | 接口 | 新增行的选项。 |
+| `createFormController` | 函数 | 创建表单控制器。 |
+| `FormController` | 接口 | 表单控制器。 |
+| `FormControllerOptions` | 接口 | 创建表单控制器的选项。 |
+| `FormEvent` | 类型 | 变更通知，带着变化范围： |
+| `FormEventType` | 类型 | 变更通知的种类。 |
+| `FormTarget` | 类型 | 寻址：字符串是节点 id 或实例键（节点 id 后接 `#` 与逐层行号，即 states 通知里的键），数组是数据路径。 |
+| `GetFormDataOptions` | 接口 | 读取表单数据的选项。 |
+| `LinkageIssue` | 类型 | 联动问题：表达式求值的问题，或联动多轮重算后仍不稳定。 |
+| `SetFormDataOptions` | 接口 | 替换表单数据的选项。 |
+| `ValidationOutcome` | 接口 | 校验结果。 |
+
+### state/errors
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `FormRuntimeError` | 类 | 运行时错误；`message` 就是错误码。 |
+| `FormRuntimeErrorCode` | 类型 | 运行时错误码： |
+
+### state/options
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `OptionItem` | 接口 | 一个选项；树形选项可带 `children`。 |
+| `OptionLoader` | 类型 | 宿主提供的选项加载函数，返回选项数组或它的 Promise。 |
+| `OptionRequest` | 接口 | 交给宿主加载函数的请求。 |
+| `OptionsState` | 接口 | 一个字段实例的选项状态。 |
+
+### translations
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `DEFAULT_FORM_RENDERER_TRANSLATIONS` | 常量 | 渲染器的缺省文案。 |
+| `FormRendererTranslations` | 接口 | 渲染器的文案：无参的是字符串，带参的是函数。 |
+
+## `@xihan-form/runtime/locale` 的导出
+
+### locale
+
+| 名称 | 种类 | 说明 |
+| --- | --- | --- |
+| `formDeDE` | 常量 | 德语：渲染器、设计器与 designer-shell 零件。 |
+| `formEnUS` | 常量 | 英语：渲染器、设计器与 designer-shell 零件。 |
+| `formEsES` | 常量 | 西班牙语：渲染器、设计器与 designer-shell 零件。 |
+| `formFrFR` | 常量 | 法语：渲染器、设计器与 designer-shell 零件。 |
+| `formJaJP` | 常量 | 日语：渲染器、设计器与 designer-shell 零件。 |
+| `formKoKR` | 常量 | 韩语：渲染器、设计器与 designer-shell 零件。 |
+| `formPtBR` | 常量 | 葡萄牙语（巴西）：渲染器、设计器与 designer-shell 零件。 |
+| `formRuRU` | 常量 | 俄语：渲染器、设计器与 designer-shell 零件。 |
+| `formZhCN` | 常量 | 简体中文：渲染器、设计器与 designer-shell 零件。 |
+| `formZhTW` | 常量 | 繁体中文（台湾）：渲染器、设计器与 designer-shell 零件。 |
+
+---
+
+来源：https://form.docs.xihanfun.com/reference/schema
+
+# 模板类型
+
+<!-- 本页由 docs/scripts/gen-reference.mjs 从源码生成，不要手改；源码变了之后在 docs/ 运行 pnpm gen。 -->
+
+表单文档 `FormDocument` 的全部类型，按 `@xihan-form/core` 的源码列出。当前结构版本 `FORM_SCHEMA_VERSION` 为 `1`。
+
+各种类的属性包里有哪些属性见[种类与属性](./kinds)。
+
+## 文档、节点与规则
+
+### PropertyBag {#propertybag}
+
+属性包：一组按名字存放的 JSON 值。
+
+类型：<code>Readonly&lt;Record&lt;string, JsonValue&gt;&gt;</code>
+
+### ExtensionData {#extensiondata}
+
+扩展数据：扩展 id → 这个扩展自己的 JSON 对象。只给扩展用，与业务属性分开；编辑与复制粘贴原样带着走。
+
+类型：<code>Readonly&lt;Record&lt;string, JsonObject&gt;&gt;</code>
+
+### PropertyGroup {#propertygroup}
+
+节点的属性分组：基础、数据、外观。校验与联动另以规则列表存放。
+
+类型：<code>'basic' &#124; 'data' &#124; 'appearance'</code>
+
+### RequiredRule {#requiredrule}
+
+必填：值为空时不通过，空值判定取 `@xihan-ui/headless` 的 `isEmptyFormValue`：null、只含空白的字符串、空列表与元素全为空的列表算空，`false` 与 `0` 不算空。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `id` | <code>string</code> | 是 | 规则 id，在所在规则列表里唯一；设计器编辑与问题定位都按它找规则。 |
+| `kind` | <code>'required'</code> | 是 | 规则种类。 |
+| `message` | <code>string</code> | 可省 | 不通过时给最终用户看的提示；不写时由运行时按问题码给出缺省文案。 |
+
+### AcceptedRule {#acceptedrule}
+
+必须为 `true`：用于「必须勾选同意」，值为 `false` 或空时都不通过。只适用于布尔值字段。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `id` | <code>string</code> | 是 | 规则 id，在所在规则列表里唯一；设计器编辑与问题定位都按它找规则。 |
+| `kind` | <code>'accepted'</code> | 是 | 规则种类。 |
+| `message` | <code>string</code> | 可省 | 不通过时给最终用户看的提示；不写时由运行时按问题码给出缺省文案。 |
+
+### LengthRule {#lengthrule}
+
+长度：字符串按字素计（`@xihan-ui/headless` 的 `graphemeLength`，与文本框的字数一致）、列表按元素个数，闭区间。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `id` | <code>string</code> | 是 | 规则 id，在所在规则列表里唯一；设计器编辑与问题定位都按它找规则。 |
+| `kind` | <code>'length'</code> | 是 | 规则种类。 |
+| `min` | <code>number</code> | 可省 | 最少多少个字符或元素。 |
+| `max` | <code>number</code> | 可省 | 最多多少个字符或元素。 |
+| `message` | <code>string</code> | 可省 | 不通过时给最终用户看的提示；不写时由运行时按问题码给出缺省文案。 |
+
+### RangeRule {#rangerule}
+
+数值范围，闭区间。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `id` | <code>string</code> | 是 | 规则 id，在所在规则列表里唯一；设计器编辑与问题定位都按它找规则。 |
+| `kind` | <code>'range'</code> | 是 | 规则种类。 |
+| `min` | <code>number</code> | 可省 | 下限。 |
+| `max` | <code>number</code> | 可省 | 上限。 |
+| `message` | <code>string</code> | 可省 | 不通过时给最终用户看的提示；不写时由运行时按问题码给出缺省文案。 |
+
+### PatternRule {#patternrule}
+
+正则：`flags` 只允许 `i`、`m`、`s`、`u`，整串不匹配即不通过。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `id` | <code>string</code> | 是 | 规则 id，在所在规则列表里唯一；设计器编辑与问题定位都按它找规则。 |
+| `kind` | <code>'pattern'</code> | 是 | 规则种类。 |
+| `pattern` | <code>string</code> | 是 | 正则的源码，不带两边的斜杠。 |
+| `flags` | <code>string</code> | 可省 | 正则标志。 |
+| `message` | <code>string</code> | 可省 | 不通过时给最终用户看的提示；不写时由运行时按问题码给出缺省文案。 |
+
+### ExpressionRule {#expressionrule}
+
+表达式：结果为 `false` 时不通过，为 `true` 或 `null` 时通过。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `id` | <code>string</code> | 是 | 规则 id，在所在规则列表里唯一；设计器编辑与问题定位都按它找规则。 |
+| `kind` | <code>'expression'</code> | 是 | 规则种类。 |
+| `expression` | <code>string</code> | 是 | 受限表达式，`$value` 是字段自己的值。 |
+| `message` | <code>string</code> | 可省 | 不通过时给最终用户看的提示；不写时由运行时按问题码给出缺省文案。 |
+
+### ValidationRule {#validationrule}
+
+声明式校验规则。`message` 是模板作者写给最终用户的提示，缺省时由运行时按规则种类给出。
+
+取其一：<code><a href="#requiredrule">RequiredRule</a></code>、<code><a href="#acceptedrule">AcceptedRule</a></code>、<code><a href="#lengthrule">LengthRule</a></code>、<code><a href="#rangerule">RangeRule</a></code>、<code><a href="#patternrule">PatternRule</a></code>、<code><a href="#expressionrule">ExpressionRule</a></code>。
+
+### ValidationKind {#validationkind}
+
+校验规则的种类。
+
+类型：<code><a href="#validationrule">ValidationRule</a>['kind']</code>
+
+### LinkageAction {#linkageaction}
+
+联动动作：条件成立时生效，不成立时回到节点的静态设定。
+- `show` / `hide`：显示 / 隐藏。
+- `enable` / `disable`：可用 / 禁用。
+- `require` / `optional`：设为必填 / 取消必填。
+- `assign`：把 `value` 表达式的结果赋给字段。
+
+类型：<code>'show' &#124; 'hide' &#124; 'enable' &#124; 'disable' &#124; 'require' &#124; 'optional' &#124; 'assign'</code>
+
+### LinkageRule {#linkagerule}
+
+声明式联动规则；`when` 缺省表示总是成立。同一状态有多条规则成立时，排在后面的生效。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `id` | <code>string</code> | 是 | 规则 id，在所在规则列表里唯一。 |
+| `action` | <code><a href="#linkageaction">LinkageAction</a></code> | 是 | 条件成立时做什么。 |
+| `when` | <code>string</code> | 可省 | 条件，受限表达式，结果为 `true` 时成立；缺省总是成立。 |
+| `value` | <code>string</code> | 可省 | `assign` 的取值，受限表达式；其它动作不用。 |
+
+### FieldNode {#fieldnode}
+
+字段：有数据键与值。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `type` | <code>'field'</code> | 是 | 节点类型。 |
+| `id` | <code>string</code> | 是 | 节点 id，在整份文档里唯一。 |
+| `kind` | <code>string</code> | 是 | 种类，如 `text`、`select`，决定渲染方式与可用的属性。 |
+| `key` | <code>string</code> | 是 | 数据键：字段的值在表单数据里的键，在所在作用域里唯一。 |
+| `basic` | <code><a href="#propertybag">PropertyBag</a></code> | 是 | 基础属性，如标签、提示、初始值、隐藏与禁用。 |
+| `data` | <code><a href="#propertybag">PropertyBag</a></code> | 是 | 数据属性，如选项、精度、数据来源。 |
+| `appearance` | <code><a href="#propertybag">PropertyBag</a></code> | 是 | 外观属性，如尺寸、前后缀。 |
+| `validation` | <code>readonly <a href="#validationrule">ValidationRule</a>[]</code> | 是 | 校验规则。 |
+| `linkage` | <code>readonly <a href="#linkagerule">LinkageRule</a>[]</code> | 是 | 联动规则。 |
+| `extensions` | <code><a href="#extensiondata">ExtensionData</a></code> | 可省 | 各扩展放在这个节点上的数据。 |
+
+### Region {#region}
+
+区域：容器里放子节点的一格，如栅格的一列、标签页的一页、表格布局的一个单元格。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `id` | <code>string</code> | 是 | 区域 id，在整份文档里唯一。 |
+| `props` | <code><a href="#propertybag">PropertyBag</a></code> | 是 | 区域属性，如栅格的列宽、标签页的标题、表格布局单元格的位置。 |
+| `children` | <code>readonly <a href="#formnode">FormNode</a>[]</code> | 是 | 放在这一格里的节点。 |
+
+### ContainerNode {#containernode}
+
+容器：子节点放在区域里。列表作用域的容器（子表单、子表）带 `key`，它的值是行对象的列表，区域里字段的键相对于行对象。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `type` | <code>'container'</code> | 是 | 节点类型。 |
+| `id` | <code>string</code> | 是 | 节点 id，在整份文档里唯一。 |
+| `kind` | <code>string</code> | 是 | 种类，如 `grid`、`subform`，决定渲染方式与可用的属性。 |
+| `key` | <code>string</code> | 可省 | 数据键：只有列表容器有，值是行对象的列表。 |
+| `basic` | <code><a href="#propertybag">PropertyBag</a></code> | 是 | 基础属性，如标签、提示、初始值、隐藏与禁用。 |
+| `data` | <code><a href="#propertybag">PropertyBag</a></code> | 是 | 数据属性，如选项、精度、数据来源。 |
+| `appearance` | <code><a href="#propertybag">PropertyBag</a></code> | 是 | 外观属性，如尺寸、前后缀。 |
+| `validation` | <code>readonly <a href="#validationrule">ValidationRule</a>[]</code> | 是 | 校验规则：只对列表容器的整份列表生效。 |
+| `linkage` | <code>readonly <a href="#linkagerule">LinkageRule</a>[]</code> | 是 | 联动规则。 |
+| `regions` | <code>readonly <a href="#region">Region</a>[]</code> | 是 | 区域，按顺序排列。 |
+| `extensions` | <code><a href="#extensiondata">ExtensionData</a></code> | 可省 | 各扩展放在这个节点上的数据。 |
+
+### StaticNode {#staticnode}
+
+静态元素：只展示，没有值，如分隔线、说明文字。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `type` | <code>'static'</code> | 是 | 节点类型。 |
+| `id` | <code>string</code> | 是 | 节点 id，在整份文档里唯一。 |
+| `kind` | <code>string</code> | 是 | 种类，如 `divider`、`paragraph`，决定渲染方式与可用的属性。 |
+| `basic` | <code><a href="#propertybag">PropertyBag</a></code> | 是 | 基础属性，如正文、标题文字与隐藏。 |
+| `data` | <code><a href="#propertybag">PropertyBag</a></code> | 是 | 数据属性。 |
+| `appearance` | <code><a href="#propertybag">PropertyBag</a></code> | 是 | 外观属性，如级别、宽度。 |
+| `linkage` | <code>readonly <a href="#linkagerule">LinkageRule</a>[]</code> | 是 | 联动规则：只有显示与隐藏。 |
+| `extensions` | <code><a href="#extensiondata">ExtensionData</a></code> | 可省 | 各扩展放在这个节点上的数据。 |
+
+### FormNode {#formnode}
+
+表单节点。
+
+取其一：<code><a href="#fieldnode">FieldNode</a></code>、<code><a href="#containernode">ContainerNode</a></code>、<code><a href="#staticnode">StaticNode</a></code>。
+
+### NodeType {#nodetype}
+
+节点类型。
+
+类型：<code><a href="#formnode">FormNode</a>['type']</code>
+
+### FormDocument {#formdocument}
+
+表单文档：纯 JSON，不含任何代码。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `schemaVersion` | <code>typeof FORM_SCHEMA_VERSION</code> | 是 | 结构版本，当前是 `FORM_SCHEMA_VERSION`。 |
+| `settings` | <code><a href="#propertybag">PropertyBag</a></code> | 是 | 表单设置，如标签位置、尺寸、整表禁用与只读。 |
+| `children` | <code>readonly <a href="#formnode">FormNode</a>[]</code> | 是 | 顶层节点，按顺序排列。 |
+| `extensions` | <code><a href="#extensiondata">ExtensionData</a></code> | 可省 | 各扩展放在文档上的数据。 |
+
+## 选项 {#options}
+
+选项：选项列表用 designer-kit 的内建编辑方式 `options`，选项树用 `treeOptions`，都要求 label。每项是 `{ value: string, label: string, disabled?: boolean, tone?: Tone, description?: string }`，选项树的项另可带 `children`（下一层的选项）与 `hasChildren`（有子项但还没给出，首次展开时向宿主要）。按 `@xihan-ui/core/options` 的 `findOptionViolation` 严格检查：不许多余的键，`value` 不为空、同一层里不重复，选项树最多 32 层；问题落在那一项的那个键上，如 `[2, "value"]`、`[0, "children", 1, "label"]`。
