@@ -1,0 +1,3 @@
+# Claude Code 的本机配置、worktree 与启动配置不入库，只留指向 .agents/skills 的链接
+.claude/*
+!.claude/skills

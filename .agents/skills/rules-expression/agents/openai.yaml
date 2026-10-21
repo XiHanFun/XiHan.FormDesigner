@@ -1,0 +1,7 @@
+interface:
+  display_name: "XiHan.FormDesigner 规则与表达式"
+  short_description: "改校验与联动规则、表达式接入与服务端复核"
+  default_prompt: "使用 $xihan-form-rules-expression 修改或排查表单的校验、联动规则与表达式。"
+
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,7 @@
+interface:
+  display_name: "XiHan.FormDesigner 文档站"
+  short_description: "改表单设计器文档站的正文、参考页、示例与机读资产"
+  default_prompt: "使用 $xihan-form-docs-site 修改并验证表单设计器的文档站。"
+
+policy:
+  allow_implicit_invocation: true

@@ -18,11 +18,17 @@ XiHan.FormDesigner 是框架无关的表单设计器，以原生 Web Components 
 | Web Components | Light DOM | 对外交付形态 |
 | ESLint + oxlint | @antfu/eslint-config | Lint |
 
+## 开始前必须做
+
+- 按任务读取对应技能（`.agents/skills/<名>/SKILL.md`），不一次读取无关的：`designer-development` 改 core、runtime 与 designer；`rules-expression` 改校验与联动规则、表达式接入与服务端复核；`docs-site` 改文档站；`commit-msg` 写提交信息；`create-pr` 准备 PR；`changelog-collect` 整理更新日志；`issue-reply` 回复 Issue；`test-review` 审查测试；`version-release` 定版本与发布。
+
 ## 目录结构
 
 ```text
 /
 ├─ AGENTS.md
+├─ .agents/skills/                 # 按任务划分的仓库技能
+├─ .claude/skills -> ../.agents/skills  # Claude Code 技能入口
 ├─ CLAUDE.md -> AGENTS.md         # Claude Code 仓库指令入口
 ├─ .github/ .gitee/ .gitcode/     # 三平台 Issue / PR 模板，GitHub 另有 CI 与发版工作流
 ├─ docs/                           # 产品文档站（VitePress，独立的 pnpm 项目）
