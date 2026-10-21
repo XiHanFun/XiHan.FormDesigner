@@ -114,6 +114,12 @@ const FORM_COMMON_KEYS = DESIGNER_COMMON_KEYS.filter(key => key.id === 'menubar'
 /** 选中工具条往行尾挪的量，样式里加在 inset-inline-end 上。 */
 const NODE_TOOLBAR_SHIFT = '--xh-form-node-toolbar-shift'
 
+/**
+ * 宿主写在设计器上、转交给外框的作者内容：menubar-center 是模板标题（菜单栏正中，放不下截断、再窄藏起），
+ * menubar-end 是要常显的别的内容（菜单栏右边），status-end 是保存状态（状态栏右端、预览宽度前面，状态栏关掉时跟着收起）。
+ */
+const HOST_SLOTS: readonly string[] = ['menubar-center', 'menubar-end', 'status-end']
+
 /** 预览态登记的区：只留菜单栏、工具栏、画布与状态栏。 */
 const PREVIEW_REGIONS: ReadonlySet<string> = new Set(['menubar', 'toolbar', 'canvas', 'status'])
 
@@ -341,7 +347,7 @@ export class XhFormDesigner extends XhReactiveElement {
   #cancelSpanDrag: (() => void) | undefined
   /** 正在用拖动工具平移画布：调用即停在此处。 */
   #cancelPan: (() => void) | undefined
-  /** 把宿主写在设计器上的 slot="menubar-end" 转交给外框：调用即停止转交。 */
+  /** 把宿主写在设计器上的作者内容（HOST_SLOTS）转交给外框：调用即停止转交。 */
   #releaseSlots: (() => void) | undefined
   /** 调试日志：开发者模式与渲染日志都开着时记每次重画、重铺画布与模板自检的耗时。 */
   readonly #debug = createDesignerDebugLogger({ name: FORM_DESIGNER_TAG, settings: () => this.#resolvedSettings })
@@ -588,7 +594,7 @@ export class XhFormDesigner extends XhReactiveElement {
       this.#configStale = true
     }, this)
     const parts = this.#ensureParts()
-    this.#releaseSlots ??= forwardFrameSlots(this, parts.frame, ['menubar-end'])
+    this.#releaseSlots ??= forwardFrameSlots(this, parts.frame, HOST_SLOTS)
     for (const type of CLIPBOARD_EVENTS)
       this.addEventListener(type, this.#onClipboard)
     this.#releaseDropTarget ??= registerDropTarget<unknown>(parts.canvas, {
@@ -997,8 +1003,8 @@ export class XhFormDesigner extends XhReactiveElement {
     tour.addEventListener('tour-end', this.#onTourEnd)
     const jsonEditor = createAuthoredElement(doc, 'xh-designer-json-editor', { 'data-part': 'json-editor' })
     jsonEditor.addEventListener('json-apply', this.#onJsonApply)
-    // 宿主写在设计器上的 slot="menubar-end"（如模板标题与保存状态）先转进外框，放在菜单栏右边，后来加的跟着转
-    this.#releaseSlots = forwardFrameSlots(this, frame, ['menubar-end'])
+    // 宿主写在设计器上的模板标题、保存状态这些作者内容先转进外框，后来加的跟着转
+    this.#releaseSlots = forwardFrameSlots(this, frame, HOST_SLOTS)
     this.replaceChildren(frame, settings, tour, jsonEditor)
     // 面板头的命令（如历史记录的清空）按设计器此刻的命令表铺
     const panels = createPanelHost<FormDesignerContext>(frame, { commands: () => this.#model.commands })

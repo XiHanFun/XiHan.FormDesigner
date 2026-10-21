@@ -1122,17 +1122,47 @@ describe('<xh-form-designer>：菜单栏', () => {
     expect([createFormDesignerModel([]).commands.has('show-menubar'), regionNames(designer).includes('menubar')]).toEqual([false, true])
   })
 
-  it('宿主写在设计器上的 slot="menubar-end" 放到菜单栏右边一段，连上文档前写的、后来加的都一样', async () => {
-    const title = window.document.createElement('span')
-    title.slot = 'menubar-end'
-    title.textContent = '报销单'
-    const designer = await mount(element => element.append(title))
-    expect([title.isConnected, title.parentElement!.getAttribute('data-zone'), title.closest('[data-region]')!.getAttribute('data-region')]).toEqual([true, 'end', 'menubar'])
-    const state = window.document.createElement('span')
-    state.slot = 'menubar-end'
-    designer.append(state)
+  it('宿主写在设计器上的三处：menubar-center 在菜单栏正中、menubar-end 在菜单栏右边、status-end 在状态栏右段，连上文档前写的、后来加的都一样', async () => {
+    const host = (slot: string, text: string): HTMLElement => {
+      const element = window.document.createElement('span')
+      element.slot = slot
+      element.textContent = text
+      return element
+    }
+    const title = host('menubar-center', '报销单 · EXP-01')
+    const extra = host('menubar-end', '只读')
+    const saved = host('status-end', '已保存')
+    const designer = await mount(element => element.append(title, extra, saved))
     await settle(designer)
-    expect(state.closest('[data-region]')!.getAttribute('data-region')).toBe('menubar')
+    const place = (element: Element): (string | null | undefined)[] => [element.closest('[data-region]')?.getAttribute('data-region'), element.parentElement?.getAttribute('data-zone')]
+    expect([place(title), place(extra), place(saved)]).toEqual([['menubar', 'center'], ['menubar', 'end'], ['status', 'end']])
+    const later = host('menubar-center', '草稿')
+    designer.append(later)
+    await settle(designer)
+    expect(place(later)).toEqual(['menubar', 'center'])
+  })
+
+  it('状态栏右段里宿主的状态排在表单自己的预览宽度前面，后加的也一样；设置里关掉状态栏时宿主的状态不在任何区里，再打开放回原处', async () => {
+    const saved = window.document.createElement('span')
+    saved.slot = 'status-end'
+    saved.textContent = '已保存'
+    const designer = await mount(element => element.append(saved))
+    await settle(designer)
+    // 比文字不比元素：同样的空元素换了顺序 toEqual 也算相等
+    const end = (): string[] => Array.from(designer.querySelector('[data-region="status"] [data-zone="end"]')!.children, child => child.textContent ?? '')
+    expect(end()).toEqual(['已保存', expect.stringContaining('Preview width')])
+    const time = window.document.createElement('span')
+    time.slot = 'status-end'
+    time.textContent = '10:21'
+    designer.append(time)
+    await settle(designer)
+    expect(end()).toEqual(['已保存', '10:21', expect.stringContaining('Preview width')])
+    designer.settings = { 'general.statusBar': false }
+    await settle(designer)
+    expect([saved.isConnected, saved.closest('[data-region]'), time.closest('[data-region]')]).toEqual([true, null, null])
+    designer.settings = {}
+    await settle(designer)
+    expect(end()).toEqual(['已保存', '10:21', expect.stringContaining('Preview width')])
   })
 
   it('画布有焦点时按 F10 把焦点交给菜单栏，再按 F10 回到画布', async () => {
