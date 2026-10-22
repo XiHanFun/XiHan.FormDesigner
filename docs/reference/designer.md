@@ -85,7 +85,7 @@
 | `mode-change` | `{ mode: FormDesignerMode }` | 在设计态与预览态之间切换了。 |
 | `settings-change` | `{ key: string, value: JsonValue \| undefined, settings: DesignerSettings }` | 在设置对话框里改了一条设置，或在外框上挪了面板（键是 layout.panels，值是整份布局）：设计器已换成新的 settings 并生效（主题、主题色、状态栏与面板布局）；value 为 undefined 表示删掉这个键、回到缺省值。宿主存起来，下次赋回 settings。 |
 | `settings-storage-error` | `VisualEnvironmentStorageError` | 读写 settingsStorageKey 指的本机存储失败（内容不是对象、无痕窗口、配额满）；设置留在内存里。 |
-| `history-change` | `HistorySnapshot` | 撤销历史变了：执行（含并入上一步）、撤销、重做、跳转、装载、清空与保存之后都派发，拖动跨度这样的事务进行中不派发。detail 是此刻的 historyState。 |
+| `history-change` | `HistorySnapshot` | 撤销历史变了：执行（含并入上一步）、撤销、重做、跳转、装载、清空与保存之后都派发；拖动跨度在松手写进模板时派发一次。detail 是此刻的 historyState。 |
 | `tour-end` | `{ reason: 'complete' \| 'skip' \| 'close', step: string \| undefined }` | 新手引导收起了：reason 是 complete（走完）、skip（跳过或 Esc）或 close（关闭钮），step 是收起时那一步的 id。设计器同时在设置里记下 help.tourDone（会派发 settings-change），下次不再自动开始。 |
 | `close` | `Record<string, never>` | 按了菜单栏最右端的关闭钮（closable 开着时才有）。关掉或回到列表由宿主做，有未保存的修改时由宿主先问；设计器自己不做别的。 |
 
