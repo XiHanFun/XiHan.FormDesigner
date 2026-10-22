@@ -26,7 +26,7 @@ description: 实现、重构、修复或测试 XiHan.FormDesigner 的 core、run
 
 - 依赖方向 `designer → runtime → core`，不反向引用；core 不碰 DOM，runtime 体积敏感、不放设计器专用代码。
 - 运行时依赖只允许 `@xihan-form/*` 与 `@xihan-ui/*`。UI 已有的组件、编码器、算法与格式化一律直接用；常用能力缺了先报给协调会话、在 XiHan.UI 补上，不在本仓另写。设计器外壳、菜单栏、设置对话框、面板与历史来自 `@xihan-ui/designer-shell`，共有的扩展形状来自 `@xihan-ui/designer-kit`。
-- `@xihan-ui/*` 是 peer 依赖（`^5.0.0`）加 `devDependencies`（`catalog:`）；UI 的新能力要等 UI 发版、升 catalog 后才进得来。
+- `@xihan-ui/*` 是 peer 依赖（`^5.1.0`）加 `devDependencies`（`catalog:`）；UI 的新能力要等 UI 发版、升 catalog 后才进得来。
 - 模板是纯 JSON：不 `eval`、不 `new Function`、不把用户内容拼进 `innerHTML`；组件不发网络请求，选项与附件经 `loadOptions`、`uploadFile` 交给宿主；不往 `window` 挂东西、不用固定键名的 localStorage（设计器草稿按 `draftKey` 区分）。
 - 新能力优先做成 `extensions` 的登记项，按实例生效；元素对外：复杂数据走 property，事件是 `CustomEvent`，名字照 UI 的写法（如 `value-change`）。
 - 新文案：先加进 `designer-translations.ts`（或渲染器的 `translations.ts`）的类型与英文，再补 `locale/` 下每一种语言，少键多键都是类型错误。
