@@ -1108,6 +1108,31 @@ describe('<xh-form-designer>：菜单栏', () => {
     menubarOf(designer).dispatchEvent(new CustomEvent('item-select', { detail: { menu, value: `${menu}/${id}` } }))
   }
 
+  it('closable：缺省没有关闭钮；开了以后交给外框、钮在菜单栏里，点钮时设计器派发一次 close，外框那一个不冒到宿主', async () => {
+    const designer = await mount(() => {})
+    const frame = designer.querySelector('xh-designer-frame')!
+    const button = (): HTMLElement | null => frame.querySelector<HTMLElement>('[data-part="menubar-close"]')
+    const shown = (): boolean => button() !== null && !button()!.hidden
+    const closes: EventTarget[] = []
+    const listening = new AbortController()
+    window.document.body.addEventListener('close', event => void closes.push(event.target!), { signal: listening.signal })
+    expect(frame.closable).toBe(false)
+    expect(shown()).toBe(false)
+    designer.setAttribute('closable', '')
+    await settle(designer)
+    expect(designer.closable).toBe(true)
+    expect(frame.closable).toBe(true)
+    expect(shown()).toBe(true)
+    expect(button()!.parentElement!.contains(menubarOf(designer))).toBe(true)
+    button()!.click()
+    expect(closes).toEqual([designer])
+    designer.closable = false
+    await settle(designer)
+    expect(frame.closable).toBe(false)
+    expect(shown()).toBe(false)
+    listening.abort()
+  })
+
   function regionNames(designer: XhFormDesigner): string[] {
     return designer.querySelector('xh-designer-frame')!.regions!.map(region => region.name)
   }
