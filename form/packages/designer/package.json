@@ -1,7 +1,7 @@
 {
   "name": "@xihan-form/designer",
   "type": "module",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0-rc.2",
   "description": "XiHan Form Designer — a visual form designer delivered as Web Components.",
   "author": {
     "name": "XiHanFun",

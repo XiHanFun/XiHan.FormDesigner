@@ -1,5 +1,19 @@
 # @xihan-form/designer
 
+## 1.0.0-rc.2
+
+### Minor Changes
+
+- 3af1db8: **新增** `<xh-form-designer>` 的 `closable`（同名特性）：在菜单栏最右端显示关闭钮，按下时设计器派发 `close`，由宿主关掉或回到列表，有未保存的修改时由宿主先问；缺省不显示。
+
+### Patch Changes
+
+- 9530c98: **调整** 设计器改模板时画布只重排变了的节点，其余节点原样保留，逐字改属性、放下拖动的节点不再整张画布重建。拖栅格一列的跨度时，拖动中只在画布上画出新跨度，松手才写进模板：`schema` 与属性面板在松手后才变，`schema-change` 的操作只有最终那一条 `setRegionProperty`；拖回原来的跨度再松手不留步。
+- 03461c2: **调整** 对 `@xihan-ui/*` 的对等依赖改为 `^5.1.0`，宿主要装 XiHan.UI 5.1.0 或更高的 5.x。
+- Updated dependencies [03461c2]
+  - @xihan-form/core@1.0.0-rc.2
+  - @xihan-form/runtime@1.0.0-rc.2
+
 ## 1.0.0-rc.1
 
 ### Major Changes

@@ -8,6 +8,9 @@
     "@xihan-form/playground": "0.0.0"
   },
   "changesets": [
-    "first-release"
+    "canvas-reuse-span-preview",
+    "designer-closable",
+    "first-release",
+    "ui-5-1"
   ]
 }
