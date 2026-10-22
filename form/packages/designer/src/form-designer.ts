@@ -101,6 +101,8 @@ export interface FormDesignerEventMap {
    * 设计器同时在设置里记下 help.tourDone（会派发 settings-change），下次不再自动开始。
    */
   'tour-end': CustomEvent<{ reason: 'complete' | 'skip' | 'close', step: string | undefined }>
+  /** 按了菜单栏最右端的关闭钮（closable 开着时才有）。关掉或回到列表由宿主做，有未保存的修改时由宿主先问；设计器自己不做别的。 */
+  'close': CustomEvent<Record<string, never>>
 }
 
 const CLIPBOARD_EVENTS = ['copy', 'cut', 'paste'] as const
@@ -243,6 +245,7 @@ export class XhFormDesigner extends XhReactiveElement {
     settingsStorageKey: { attribute: 'settings-storage-key', converter: { fromAttribute: (value: string | null) => value ?? undefined } },
     draftKey: { attribute: 'draft-key', converter: { fromAttribute: (value: string | null) => value ?? undefined } },
     autoTour: { attribute: 'auto-tour', converter: BOOLEAN_CONVERTER },
+    closable: { converter: BOOLEAN_CONVERTER },
     historyLimit: { attribute: 'history-limit', converter: { fromAttribute: (value: string | null) => (value === null || value === '' ? undefined : Number(value)) } },
   }
 
@@ -299,6 +302,8 @@ export class XhFormDesigner extends XhReactiveElement {
    * 写 false 不自动开始，仍能用 startTour() 或命令 start-tour 开。同名 attribute auto-tour，写 "false" 为关。
    */
   declare autoTour: boolean | undefined
+  /** 在菜单栏最右端显示关闭钮，按下派发 close；缺省不显示。同名 attribute closable。 */
+  declare closable: boolean | undefined
 
   readonly #config = new XhConfigController(this)
   readonly #editor: FormEditor
@@ -658,6 +663,7 @@ export class XhFormDesigner extends XhReactiveElement {
     this.#configStale = false
     this.#syncSettings(parts, changed)
     setAttributes(parts.frame, { 'data-mode': mode, 'data-width': this.previewWidth ?? 'full', 'data-readonly': this.readonly === true, 'aria-label': t.label })
+    parts.frame.closable = this.closable === true
     this.#syncStatus(t)
     if (changed.has('mode'))
       this.#syncMode()
@@ -984,6 +990,11 @@ export class XhFormDesigner extends XhReactiveElement {
     inspector.headless = true
     problems.headless = true
     frame.addEventListener('layout-change', this.#onLayoutChange)
+    // 外框的关闭钮：外框那一个不冒到宿主，改由设计器元素派发
+    frame.addEventListener('close', (event) => {
+      event.stopPropagation()
+      emitEvent(this, 'close', {})
+    })
     // 拖动工具开关了：工具栏「拖动」钮的按下状态跟着重画
     frame.addEventListener('canvas-tool-change', () => this.requestUpdate())
     // 快捷键在整个设计器里认：画布、物料、属性与问题列表

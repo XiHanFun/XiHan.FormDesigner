@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-// 宿主的几件事：保存模板、把自己的操作与模板标题挂进菜单栏、保存状态放进状态栏、离开前提醒、服务端复核模板与提交的数据。
+// 宿主的几件事：保存模板、把自己的操作与模板标题挂进菜单栏、保存状态放进状态栏、接菜单栏的关闭钮、离开前提醒、服务端复核模板与提交的数据。
 
 import type { FormDocument } from '@xihan-form/core'
 import type { XhFormDesigner } from '@xihan-form/designer'
@@ -16,6 +16,8 @@ declare const api: {
   loadTemplate: (id: string) => Promise<FormDocument>
   saveTemplate: (id: string, schema: FormDocument) => Promise<void>
 }
+/** 宿主自己的确认框：有未保存的修改时问要不要离开。 */
+declare function confirmLeave(): Promise<boolean>
 
 // #region save
 export async function openTemplate(id: string): Promise<void> {
@@ -33,9 +35,14 @@ export function hostMenubar(name: string): void {
     id: 'acme.host',
     commands: [
       { id: 'acme.new', label: '新建', placement: ['menubar:file'], run: () => location.assign('/forms/new') },
-      { id: 'acme.back', label: '返回列表', placement: ['menubar:file', 'toolbar'], run: () => history.back() },
     ],
   }]
+  // 菜单栏最右端的关闭钮：回到列表，有未保存的修改时先问
+  designer.closable = true
+  designer.addEventListener('close', async () => {
+    if (!designer.dirty || await confirmLeave())
+      history.back()
+  })
   const title = document.createElement('span')
   title.slot = 'menubar-center'
   title.textContent = name
