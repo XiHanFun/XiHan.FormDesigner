@@ -92,7 +92,7 @@ export interface FormDesignerEventMap {
   /** 读写 settingsStorageKey 指的本机存储失败（内容不是对象、无痕窗口、配额满）；设置留在内存里。 */
   'settings-storage-error': CustomEvent<VisualEnvironmentStorageError>
   /**
-   * 撤销历史变了：执行（含并入上一步）、撤销、重做、跳转、装载、清空与保存之后都派发，拖动跨度这样的事务进行中不派发。
+   * 撤销历史变了：执行（含并入上一步）、撤销、重做、跳转、装载、清空与保存之后都派发；拖动跨度在松手写进模板时派发一次。
    * detail 是此刻的 historyState。
    */
   'history-change': CustomEvent<HistorySnapshot>
