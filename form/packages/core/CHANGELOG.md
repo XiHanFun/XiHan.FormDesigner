@@ -1,5 +1,11 @@
 # @xihan-form/core
 
+## 1.0.0-rc.2
+
+### Patch Changes
+
+- 03461c2: **调整** 对 `@xihan-ui/*` 的对等依赖改为 `^5.1.0`，宿主要装 XiHan.UI 5.1.0 或更高的 5.x。
+
 ## 1.0.0-rc.1
 
 ### Major Changes
