@@ -40,7 +40,7 @@ designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
 
 | 区域 | 内容 |
 | --- | --- |
-| 菜单栏 | 文件、编辑、视图、帮助四张菜单；正中放宿主的模板标题，右边一段放宿主别的常显内容，见[菜单栏](#菜单栏) |
+| 菜单栏 | 文件、编辑、视图、帮助四张菜单；正中放宿主的模板标题，右边一段放宿主别的常显内容，开着 `closable` 时最右端是关闭钮，见[菜单栏](#菜单栏) |
 | 工具栏 | 撤销、重做；删除、创建副本；设计与预览；拖动与预览宽度三档；末组是面板 |
 | 物料（左） | 卡片。按分类列出可以放进表单的种类：每组一行组名，下面是方形小卡片，图标在上、种类名在下，按面板宽度排成几列，悬停显示全名；全部展开，可搜索。拖到画布上放进想要的位置，点一下插到选中节点之后，没有选中时放到末尾。扩展可以经[物料来源](./extensions#物料来源)在后面加几组 |
 | 页面结构（左，物料下面） | 卡片。按树列出模板里的节点，见[页面结构](#页面结构) |
@@ -95,7 +95,9 @@ export function hostLayout(designer: XhFormDesigner): void {
 
 按 F10 把焦点交给菜单栏，左右键在菜单之间走，下键、Enter 或 Space 展开；再按 F10，或在菜单栏上按 Esc，回到原来的地方。窄屏时菜单栏收成行首一颗「菜单」钮，各张菜单是它的子菜单。菜单栏常在，没有关掉它的开关。
 
-宿主自己的操作（新建、发布、返回列表）写成一个扩展的命令，`placement` 写 `menubar:file` 就进「文件」菜单，排在设置之前，写了 `toolbar` 也上工具栏；模板标题写成设计器的子元素 `slot="menubar-center"`，显示在整条菜单栏的正中，放不下时截断加省略号，再窄就藏起；保存状态写成 `slot="status-end"`，显示在状态栏右端、预览宽度的左边，状态栏在设置里关掉时跟着不显示；别的要常显的内容写 `slot="menubar-end"`，显示在菜单栏右边。后来加的子元素也一样转过去。这样设计器外面不必另起一条操作条。扩展还能登记自己的菜单，见[扩展](./extensions#命令)。
+宿主自己的操作（新建、发布）写成一个扩展的命令，`placement` 写 `menubar:file` 就进「文件」菜单，排在设置之前，写了 `toolbar` 也上工具栏；模板标题写成设计器的子元素 `slot="menubar-center"`，显示在整条菜单栏的正中，放不下时截断加省略号，再窄就藏起；保存状态写成 `slot="status-end"`，显示在状态栏右端、预览宽度的左边，状态栏在设置里关掉时跟着不显示；别的要常显的内容写 `slot="menubar-end"`，显示在菜单栏右边。后来加的子元素也一样转过去。这样设计器外面不必另起一条操作条。扩展还能登记自己的菜单，见[扩展](./extensions#命令)。
+
+要关掉设计器或回到列表时开 `closable`（同名特性）：菜单栏最右端出一颗关闭钮，按下时设计器派发 `close`。关掉或回到列表由宿主做，有未保存的修改（`dirty`）时由宿主先问，不必在「文件」菜单里另放「返回列表」。
 
 ```ts
 export function hostMenubar(name: string): void {
@@ -103,9 +105,14 @@ export function hostMenubar(name: string): void {
     id: 'acme.host',
     commands: [
       { id: 'acme.new', label: '新建', placement: ['menubar:file'], run: () => location.assign('/forms/new') },
-      { id: 'acme.back', label: '返回列表', placement: ['menubar:file', 'toolbar'], run: () => history.back() },
     ],
   }]
+  // 菜单栏最右端的关闭钮：回到列表，有未保存的修改时先问
+  designer.closable = true
+  designer.addEventListener('close', async () => {
+    if (!designer.dirty || await confirmLeave())
+      history.back()
+  })
   const title = document.createElement('span')
   title.slot = 'menubar-center'
   title.textContent = name
@@ -179,7 +186,7 @@ F10 不论焦点在画布、面板还是工具栏上都认：把焦点交给菜�
 
 ## 撤销与历史记录
 
-改动随输入写进模板，连续改同一个属性合成一步撤销。拖栅格一列的跨度从按下到松手是一步，拖动中按 Esc 取消、跨度回到原样；连续按 Alt + ↑ ↓ 挪同一个节点，相隔一秒以内的并成一步，换了选择就另起一步。
+改动随输入写进模板，连续改同一个属性合成一步撤销。拖栅格一列的跨度时，拖动中只在画布上画出新跨度，松手才写进模板，记为一步，拖回原来的跨度再松手不留步；拖动中按 Esc 取消、跨度回到原样；连续按 Alt + ↑ ↓ 挪同一个节点，相隔一秒以内的并成一步，换了选择就另起一步。
 
 撤销历史的每一步带一句说明，写成「动作 + 对象名」，如「删除「单行文本 · name」」「修改「标签」」「移动 2 个组件」，跟着设计器的语言变。工具栏上撤销、重做的全名带上下一步的说明，如「撤销：删除「单行文本 · name」」，按钮上看得见的仍是图标与「撤销」。直接用 `createFormEditor` 的宿主把 `describeFormOperations` 传给它的 `describe`，也能得到同样的说明。
 
@@ -277,7 +284,7 @@ export function standalone(designer: XhFormDesigner): void {
 
 设计器不存模板，只告诉宿主什么时候变了、用户想什么时候存：
 
-- 每次修改派发 `schema-change`，载荷里是变化后的模板与这一步的操作，可以用来自动保存。拖动跨度这样的手势在松手时派发一次，操作是整个手势的；取消的手势不派发。
+- 每次修改派发 `schema-change`，载荷里是变化后的模板与这一步的操作，可以用来自动保存。拖动跨度在松手时才写进模板、派发一次，操作只有最终的那一条；取消的手势不派发。
 - 有没有未保存的修改变了时派发 `dirty-change`。
 - 用户按 Ctrl / ⌘ + S 或点「文件」菜单的「保存」（designer-shell 内置的命令 `save`）时派发 `save`；宿主存好后调用 `markSaved()`，设计器把当前模板记为已保存。
 

@@ -10,6 +10,12 @@
 
 本页记录 `@xihan-form/core`、`@xihan-form/runtime`、`@xihan-form/designer` 各版本使用者能感知的变更，每条标注 **新增 / 修复 / 调整 / 移除**。这几个包总是同一个版本号一起发布；逐包的完整记录见仓库里各包的 `CHANGELOG.md`。
 
+## v1.0.0-rc.2（2026-10-22）
+
+- **新增** `@xihan-form/designer`：`<xh-form-designer>` 的 `closable`（同名特性）在菜单栏最右端显示关闭钮，按下时设计器派发 `close`，由宿主关掉或回到列表，有未保存的修改时由宿主先问；缺省不显示。
+- **调整** `@xihan-form/designer`：改模板时画布只重排变了的节点，逐字改属性、放下拖动的节点不再整张画布重建。拖栅格一列的跨度时，拖动中只在画布上画出新跨度，松手才写进模板：`schema` 与属性面板在松手后才变，`schema-change` 的操作只有最终那一条 `setRegionProperty`；拖回原来的跨度再松手不留步。
+- **调整** 三个包对 `@xihan-ui/*` 的对等依赖改为 `^5.1.0`，宿主要装 XiHan.UI 5.1.0 或更高的 5.x。
+
 ## v1.0.0-rc.1（2026-10-21）
 
 首次发布，以原生 Web Components 交付，不绑定前端框架。模板是纯 JSON，按模板渲染出带排布、校验、联动、异步选项与列表的表单；设计器可视化编辑模板，按实例传入的扩展登记新种类、属性编辑器、命令与面板。
@@ -467,7 +473,7 @@ designer.commandLayout = { toolbar: [...FORM_TOOLBAR_LAYOUT, ['save']] }
 
 | 区域 | 内容 |
 | --- | --- |
-| 菜单栏 | 文件、编辑、视图、帮助四张菜单；正中放宿主的模板标题，右边一段放宿主别的常显内容，见[菜单栏](#菜单栏) |
+| 菜单栏 | 文件、编辑、视图、帮助四张菜单；正中放宿主的模板标题，右边一段放宿主别的常显内容，开着 `closable` 时最右端是关闭钮，见[菜单栏](#菜单栏) |
 | 工具栏 | 撤销、重做；删除、创建副本；设计与预览；拖动与预览宽度三档；末组是面板 |
 | 物料（左） | 卡片。按分类列出可以放进表单的种类：每组一行组名，下面是方形小卡片，图标在上、种类名在下，按面板宽度排成几列，悬停显示全名；全部展开，可搜索。拖到画布上放进想要的位置，点一下插到选中节点之后，没有选中时放到末尾。扩展可以经[物料来源](./extensions#物料来源)在后面加几组 |
 | 页面结构（左，物料下面） | 卡片。按树列出模板里的节点，见[页面结构](#页面结构) |
@@ -522,7 +528,9 @@ export function hostLayout(designer: XhFormDesigner): void {
 
 按 F10 把焦点交给菜单栏，左右键在菜单之间走，下键、Enter 或 Space 展开；再按 F10，或在菜单栏上按 Esc，回到原来的地方。窄屏时菜单栏收成行首一颗「菜单」钮，各张菜单是它的子菜单。菜单栏常在，没有关掉它的开关。
 
-宿主自己的操作（新建、发布、返回列表）写成一个扩展的命令，`placement` 写 `menubar:file` 就进「文件」菜单，排在设置之前，写了 `toolbar` 也上工具栏；模板标题写成设计器的子元素 `slot="menubar-center"`，显示在整条菜单栏的正中，放不下时截断加省略号，再窄就藏起；保存状态写成 `slot="status-end"`，显示在状态栏右端、预览宽度的左边，状态栏在设置里关掉时跟着不显示；别的要常显的内容写 `slot="menubar-end"`，显示在菜单栏右边。后来加的子元素也一样转过去。这样设计器外面不必另起一条操作条。扩展还能登记自己的菜单，见[扩展](./extensions#命令)。
+宿主自己的操作（新建、发布）写成一个扩展的命令，`placement` 写 `menubar:file` 就进「文件」菜单，排在设置之前，写了 `toolbar` 也上工具栏；模板标题写成设计器的子元素 `slot="menubar-center"`，显示在整条菜单栏的正中，放不下时截断加省略号，再窄就藏起；保存状态写成 `slot="status-end"`，显示在状态栏右端、预览宽度的左边，状态栏在设置里关掉时跟着不显示；别的要常显的内容写 `slot="menubar-end"`，显示在菜单栏右边。后来加的子元素也一样转过去。这样设计器外面不必另起一条操作条。扩展还能登记自己的菜单，见[扩展](./extensions#命令)。
+
+要关掉设计器或回到列表时开 `closable`（同名特性）：菜单栏最右端出一颗关闭钮，按下时设计器派发 `close`。关掉或回到列表由宿主做，有未保存的修改（`dirty`）时由宿主先问，不必在「文件」菜单里另放「返回列表」。
 
 ```ts
 export function hostMenubar(name: string): void {
@@ -530,9 +538,14 @@ export function hostMenubar(name: string): void {
     id: 'acme.host',
     commands: [
       { id: 'acme.new', label: '新建', placement: ['menubar:file'], run: () => location.assign('/forms/new') },
-      { id: 'acme.back', label: '返回列表', placement: ['menubar:file', 'toolbar'], run: () => history.back() },
     ],
   }]
+  // 菜单栏最右端的关闭钮：回到列表，有未保存的修改时先问
+  designer.closable = true
+  designer.addEventListener('close', async () => {
+    if (!designer.dirty || await confirmLeave())
+      history.back()
+  })
   const title = document.createElement('span')
   title.slot = 'menubar-center'
   title.textContent = name
@@ -606,7 +619,7 @@ F10 不论焦点在画布、面板还是工具栏上都认：把焦点交给菜�
 
 ## 撤销与历史记录
 
-改动随输入写进模板，连续改同一个属性合成一步撤销。拖栅格一列的跨度从按下到松手是一步，拖动中按 Esc 取消、跨度回到原样；连续按 Alt + ↑ ↓ 挪同一个节点，相隔一秒以内的并成一步，换了选择就另起一步。
+改动随输入写进模板，连续改同一个属性合成一步撤销。拖栅格一列的跨度时，拖动中只在画布上画出新跨度，松手才写进模板，记为一步，拖回原来的跨度再松手不留步；拖动中按 Esc 取消、跨度回到原样；连续按 Alt + ↑ ↓ 挪同一个节点，相隔一秒以内的并成一步，换了选择就另起一步。
 
 撤销历史的每一步带一句说明，写成「动作 + 对象名」，如「删除「单行文本 · name」」「修改「标签」」「移动 2 个组件」，跟着设计器的语言变。工具栏上撤销、重做的全名带上下一步的说明，如「撤销：删除「单行文本 · name」」，按钮上看得见的仍是图标与「撤销」。直接用 `createFormEditor` 的宿主把 `describeFormOperations` 传给它的 `describe`，也能得到同样的说明。
 
@@ -704,7 +717,7 @@ export function standalone(designer: XhFormDesigner): void {
 
 设计器不存模板，只告诉宿主什么时候变了、用户想什么时候存：
 
-- 每次修改派发 `schema-change`，载荷里是变化后的模板与这一步的操作，可以用来自动保存。拖动跨度这样的手势在松手时派发一次，操作是整个手势的；取消的手势不派发。
+- 每次修改派发 `schema-change`，载荷里是变化后的模板与这一步的操作，可以用来自动保存。拖动跨度在松手时才写进模板、派发一次，操作只有最终的那一条；取消的手势不派发。
 - 有没有未保存的修改变了时派发 `dirty-change`。
 - 用户按 Ctrl / ⌘ + S 或点「文件」菜单的「保存」（designer-shell 内置的命令 `save`）时派发 `save`；宿主存好后调用 `markSaved()`，设计器把当前模板记为已保存。
 
@@ -2121,6 +2134,7 @@ declare function createFormModel(extensions?: readonly FormCoreExtension[]): For
 | `draftKey` | `draft-key` | `string \| undefined` | 自动保存草稿的键：区分同一页、同一种设计器里的不同模板（宿主写模板 id）；不给时按页面地址区分。设置里开着自动保存时，未保存的修改停手约一秒存成这台浏览器里的草稿；下次装进同一个键的模板、和草稿不一样时问恢复还是丢弃。同名 attribute draft-key。 |
 | `historyLimit` | `history-limit` | `number \| undefined` | 撤销步数上限，缺省 100；在下一次装载（赋 schema）时生效。同名 attribute history-limit。 |
 | `autoTour` | `auto-tour` | `boolean \| undefined` | 第一次铺好画布后自动开始新手引导，缺省开；设置里记着引导已经走完或跳过（help.tourDone）时不开。写 false 不自动开始，仍能用 startTour() 或命令 start-tour 开。同名 attribute auto-tour，写 "false" 为关。 |
+| `closable` | `closable` | `boolean \| undefined` | 在菜单栏最右端显示关闭钮，按下派发 close；缺省不显示。同名 attribute closable。 |
 
 ### 存取器
 
@@ -2177,8 +2191,9 @@ declare function createFormModel(extensions?: readonly FormCoreExtension[]): For
 | `mode-change` | `{ mode: FormDesignerMode }` | 在设计态与预览态之间切换了。 |
 | `settings-change` | `{ key: string, value: JsonValue \| undefined, settings: DesignerSettings }` | 在设置对话框里改了一条设置，或在外框上挪了面板（键是 layout.panels，值是整份布局）：设计器已换成新的 settings 并生效（主题、主题色、状态栏与面板布局）；value 为 undefined 表示删掉这个键、回到缺省值。宿主存起来，下次赋回 settings。 |
 | `settings-storage-error` | `VisualEnvironmentStorageError` | 读写 settingsStorageKey 指的本机存储失败（内容不是对象、无痕窗口、配额满）；设置留在内存里。 |
-| `history-change` | `HistorySnapshot` | 撤销历史变了：执行（含并入上一步）、撤销、重做、跳转、装载、清空与保存之后都派发，拖动跨度这样的事务进行中不派发。detail 是此刻的 historyState。 |
+| `history-change` | `HistorySnapshot` | 撤销历史变了：执行（含并入上一步）、撤销、重做、跳转、装载、清空与保存之后都派发；拖动跨度在松手写进模板时派发一次。detail 是此刻的 historyState。 |
 | `tour-end` | `{ reason: 'complete' \| 'skip' \| 'close', step: string \| undefined }` | 新手引导收起了：reason 是 complete（走完）、skip（跳过或 Esc）或 close（关闭钮），step 是收起时那一步的 id。设计器同时在设置里记下 help.tourDone（会派发 settings-change），下次不再自动开始。 |
+| `close` | `Record<string, never>` | 按了菜单栏最右端的关闭钮（closable 开着时才有）。关掉或回到列表由宿主做，有未保存的修改时由宿主先问；设计器自己不做别的。 |
 
 ## 类型
 
