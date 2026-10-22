@@ -94,7 +94,7 @@ XiHan.FormDesigner 是框架无关的表单设计器，以原生 Web Components 
 - runtime 是业务页面使用的元素，体积敏感；设计器专用的代码不进 runtime。
 - 所有包源码不得 import 任何前端框架（ESLint 已拦截）。
 - 运行时依赖只允许 `@xihan-form/*` 与 `@xihan-ui/*`；引入任何其他依赖之前先征得维护者同意。
-- `@xihan-ui/*` 在三个发布包里写成 `peerDependencies`（`^5.0.0`，由宿主装唯一的一份），开发时另写 `devDependencies`（`catalog:`）；`@xihan-form/*` 之间照旧写 `dependencies`。UI 的新能力要等 UI 发版、升级 catalog 后才进得来，缺 UI 能力时先报给协调会话，不在本仓另写。
+- `@xihan-ui/*` 在三个发布包里写成 `peerDependencies`（`^5.1.0`，由宿主装唯一的一份），开发时另写 `devDependencies`（`catalog:`）；`@xihan-form/*` 之间照旧写 `dependencies`。UI 的新能力要等 UI 发版、升级 catalog 后才进得来，缺 UI 能力时先报给协调会话，不在本仓另写。
 
 ## 硬性约定
 
