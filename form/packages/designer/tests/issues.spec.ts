@@ -4,7 +4,7 @@ import { DEFAULT_FORM_DESIGNER_TRANSLATIONS } from '@xihan-form/runtime'
 import { createIdAllocator } from '@xihan-ui/designer-kit'
 import { createExpressionEngine } from '@xihan-ui/expression'
 import { describe, expect, it } from 'vitest'
-import { issueFocus, issueItems } from '../src/issues'
+import { issueFocus, issueItems, issueMarks } from '../src/issues'
 
 const registry = createFormModel().registry
 const t = DEFAULT_FORM_DESIGNER_TRANSLATIONS
@@ -52,5 +52,30 @@ describe('issueFocus', () => {
 
   it('问题指向的对象已不在文档里时为 undefined', () => {
     expect(issueFocus(createDocument(), { code: 'invalid-value', path: ['children', 0, 'key'], target: { kind: 'node', id: 'gone' } })).toBeUndefined()
+  })
+})
+
+describe('issueMarks', () => {
+  it('节点、区域上的问题标在它自己身上，规则上的问题标在规则所在的节点上；没有对象的问题不标', () => {
+    const { document, name, grid } = broken()
+    const marks = issueMarks(document, issuesOf(document))
+    expect([...marks.nodes]).toEqual([[name.id, 'error']])
+    expect([...marks.regions]).toEqual([[grid.regions[0]!.id, 'error']])
+    const ruleOnly = issueMarks(document, issuesOf(document).filter(issue => issue.target?.kind === 'rule'))
+    expect([...ruleOnly.nodes]).toEqual([[name.id, 'error']])
+  })
+
+  it('同一个对象取最严重的一级，先报警告后报错误也是错误；对象已不在文档里的规则不标', () => {
+    const { document, name, grid } = broken()
+    const region = grid.regions[0]!.id
+    const marks = issueMarks(document, [
+      { code: 'a', path: [], target: { kind: 'node', id: name.id }, severity: 'warning' },
+      { code: 'b', path: [], target: { kind: 'node', id: name.id } },
+      { code: 'c', path: [], target: { kind: 'node', id: grid.id }, severity: 'warning' },
+      { code: 'd', path: [], target: { kind: 'region', id: region }, severity: 'warning' },
+      { code: 'e', path: [], target: { kind: 'rule', id: 'gone' } },
+    ])
+    expect([...marks.nodes]).toEqual([[name.id, 'error'], [grid.id, 'warning']])
+    expect([...marks.regions]).toEqual([[region, 'warning']])
   })
 })

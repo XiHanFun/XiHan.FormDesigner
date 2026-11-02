@@ -8,6 +8,7 @@
 
 import type { ContainerNode, FieldNode, FormDocument, FormNode, KindRegistry, StaticNode } from '@xihan-form/core'
 import type { FieldRendererContext, FieldRendererInstance, FieldSize, FormDesignerTranslations, FormRendererTranslations, FormRuntimeModel, OptionItem } from '@xihan-form/runtime'
+import type { IssueSeverity } from '@xihan-ui/designer-kit/schema'
 import type { FormDropTarget, FormSelection } from './editor'
 import { isValueOfKind, numberControl } from '@xihan-form/core'
 import { createFieldShell } from '@xihan-form/runtime/design'
@@ -38,6 +39,14 @@ export interface CanvasDrop {
   /** 插入点前面的节点块；插在开头时为 undefined。 */
   readonly after: HTMLElement | undefined
 }
+
+/** 画布上的问题标记：节点、区域各自的 id → 落在它上面最严重的一级。 */
+export interface IssueMarks {
+  readonly nodes: ReadonlyMap<string, IssueSeverity>
+  readonly regions: ReadonlyMap<string, IssueSeverity>
+}
+
+const NO_ISSUES: IssueMarks = { nodes: new Map(), regions: new Map() }
 
 const DESIGN_STATE = { hidden: false, disabled: false, readOnly: false } as const
 
@@ -140,6 +149,8 @@ export class DesignCanvas {
   #previous: CanvasBlocks | undefined
   /** 页面结构里标出的节点或区域；重排后照样标在新的外框上。 */
   #highlighted: string | null = null
+  /** 问题标记；重排后照样标在新的外框上。 */
+  #issues: IssueMarks = NO_ISSUES
 
   constructor(host: CanvasHost) {
     this.#host = host
@@ -178,6 +189,16 @@ export class DesignCanvas {
       }
     }
     this.highlight(this.#highlighted)
+    this.markIssues(this.#issues)
+  }
+
+  /** 把问题标记落到节点与区域上：写 data-issue，取值为落在它上面最严重的一级，没有问题的去掉。 */
+  markIssues(marks: IssueMarks): void {
+    this.#issues = marks
+    for (const [id, element] of this.#blocks.nodes)
+      setAttributes(element, { 'data-issue': marks.nodes.get(id) })
+    for (const [id, element] of this.#blocks.regions)
+      setAttributes(element, { 'data-issue': marks.regions.get(id) })
   }
 
   /** 标出一个节点或区域（写 data-highlighted，样式同悬停），null 撤掉；不改选择、不滚动。 */

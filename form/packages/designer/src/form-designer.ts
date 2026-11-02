@@ -46,7 +46,7 @@ import { createFormEditor } from './editor'
 import { createFormDesignerModel, FORM_DESIGNER_EXTENSION } from './extensions'
 import { describeFormOperations } from './history-labels'
 import { provideInternals } from './internals'
-import { issueFocus, issueItems } from './issues'
+import { issueFocus, issueItems, issueMarks } from './issues'
 import { dragSubject, paletteGroups, paletteSubject } from './palette'
 import { propertyErrors, propertyOperations, propertyView } from './properties'
 import { RuleLists } from './rule-lists'
@@ -335,6 +335,8 @@ export class XhFormDesigner extends XhReactiveElement {
   #dropList: HTMLElement | undefined
   #suppressClick = false
   #issuesShown: readonly FormSchemaIssue[] | undefined
+  /** 画布上的问题标记按哪一份问题与模板算的。 */
+  #issuesMarked: { readonly issues: readonly FormSchemaIssue[], readonly document: FormDocument } | undefined
   /** 拖来的片段按哪一组扩展检查过、结果如何：拖动中反复悬停不重复校验。 */
   #settingsHost: DesignerSettingsHost | undefined
   #settingsHostOptions: readonly unknown[] = []
@@ -670,6 +672,7 @@ export class XhFormDesigner extends XhReactiveElement {
     const fresh = changed.has('extensions') || changed.has('translations') || configStale
     if (this.#rendered !== this.#editor.document || fresh)
       this.#renderCanvas(!fresh)
+    this.#syncIssueMarks()
     this.#syncPreview()
     this.#syncProperties(changed, t)
     // 属性卡片的副标题取这一轮算出的编辑对象，所以先更新属性面板再设区；面板开关命令的文字取区的标题，所以设完区再铺工具栏
@@ -1411,6 +1414,15 @@ export class XhFormDesigner extends XhReactiveElement {
       return undefined
     const { source, id } = payload as { source?: unknown, id?: unknown }
     return source === 'palette' && typeof id === 'string' && this.#sourceItems.has(id) ? id : undefined
+  }
+
+  /** 问题或模板变了时把问题标记重新落到画布上。 */
+  #syncIssueMarks(): void {
+    const document = this.#editor.document
+    if (this.#issuesMarked?.issues === this.#issues && this.#issuesMarked.document === document)
+      return
+    this.#issuesMarked = { issues: this.#issues, document }
+    this.#canvas.markIssues(issueMarks(document, this.#issues))
   }
 
   /** 问题或文案变了时重列问题。 */

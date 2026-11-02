@@ -792,6 +792,32 @@ describe('<xh-form-designer>：问题列表', () => {
     expect(window.document.activeElement?.closest('[data-path]')?.getAttribute('data-path')).toBe('key')
   })
 
+  it('有问题的节点与区域在画布上带 data-issue，规则上的问题标在所在节点上；整份重排后照样标着，问题消失后去掉', async () => {
+    const { document, name, card, inner } = sample()
+    const region = card.regions[0]!.id
+    const warned: FormDesignerExtension = { id: 'warned', rules: [() => [{ code: 'warned.region', path: [], target: { kind: 'region', id: region }, severity: 'warning' }]] }
+    const designer = await mount((element) => {
+      element.schema = document
+      element.extensions = [warned]
+    })
+    const issue = (id: string): string | null => (block(designer, id) ?? designer.querySelector(`[data-region-id="${id}"]`))!.getAttribute('data-issue')
+    expect([issue(name.id), issue(card.id), issue(region), issue(inner.id)]).toEqual([null, null, 'warning', null])
+
+    designer.execute([{ type: 'setKey', nodeId: name.id, key: '1bad' }])
+    designer.execute([{ type: 'insertRule', nodeId: inner.id, list: 'linkage', index: 0, rule: { id: 'r1', action: 'hide', when: 'age +' } }])
+    await settle(designer)
+    expect([issue(name.id), issue(card.id), issue(region), issue(inner.id)]).toEqual(['error', null, 'warning', 'error'])
+
+    designer.extensions = [{ ...warned }]
+    await settle(designer)
+    expect([issue(name.id), issue(region), issue(inner.id)]).toEqual(['error', 'warning', 'error'])
+
+    designer.execute([{ type: 'setKey', nodeId: name.id, key: 'name' }])
+    designer.extensions = []
+    await settle(designer)
+    expect([issue(name.id), issue(region), issue(inner.id)]).toEqual([null, null, 'error'])
+  })
+
   it('错误、警告数在问题卡片的面板头里，零件自己的头部不再画；再给 extensions 赋值两次后仍在文档里', async () => {
     const { document, name } = sample()
     const designer = await mount((element) => {

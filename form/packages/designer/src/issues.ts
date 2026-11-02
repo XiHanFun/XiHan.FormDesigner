@@ -8,11 +8,13 @@
 import type { FormDocument, FormNode, FormSchemaIssue, RuleList } from '@xihan-form/core'
 import type { FormDesignerTranslations } from '@xihan-form/runtime'
 import type { JsonPath } from '@xihan-ui/core/json'
-import type { SchemaIssue } from '@xihan-ui/designer-kit/schema'
+import type { IssueSeverity, SchemaIssue } from '@xihan-ui/designer-kit/schema'
 import type { DesignerIssueItem } from '@xihan-ui/designer-shell'
+import type { IssueMarks } from './canvas'
 import type { FormSelection } from './editor'
 import type { PropertyScope } from './properties'
 import { findNode, findRegion, walkNodes } from '@xihan-form/core'
+import { issueSeverity } from '@xihan-ui/designer-kit/schema'
 import { fieldPath, locations } from './properties'
 
 /**
@@ -56,6 +58,43 @@ function subjectOf(document: FormDocument, issue: FormSchemaIssue, t: FormDesign
     default:
       return undefined
   }
+}
+
+/** 规则 id → 规则所在节点的 id。 */
+function ruleOwners(document: FormDocument): Map<string, string> {
+  const owners = new Map<string, string>()
+  walkNodes(document, (node) => {
+    for (const rule of [...(node.type === 'static' ? [] : node.validation), ...node.linkage]) {
+      if (!owners.has(rule.id))
+        owners.set(rule.id, node.id)
+    }
+  })
+  return owners
+}
+
+/** 画布上的问题标记：节点、区域上的问题记在它自己身上，规则上的问题记在规则所在的节点上，各取最严重的一级。 */
+export function issueMarks(document: FormDocument, issues: readonly FormSchemaIssue[]): IssueMarks {
+  const nodes = new Map<string, IssueSeverity>()
+  const regions = new Map<string, IssueSeverity>()
+  const mark = (marks: Map<string, IssueSeverity>, id: string | undefined, issue: FormSchemaIssue): void => {
+    if (id !== undefined && marks.get(id) !== 'error')
+      marks.set(id, issueSeverity(issue))
+  }
+  let owners: Map<string, string> | undefined
+  for (const issue of issues) {
+    const target = issue.target
+    if (target?.kind === 'node') {
+      mark(nodes, target.id, issue)
+    }
+    else if (target?.kind === 'region') {
+      mark(regions, target.id, issue)
+    }
+    else if (target?.kind === 'rule') {
+      owners ??= ruleOwners(document)
+      mark(nodes, owners.get(target.id), issue)
+    }
+  }
+  return { nodes, regions }
 }
 
 /** 问题列表的条目：说明取 describe（缺省为文案），对象名取种类与键。 */

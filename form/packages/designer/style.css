@@ -135,11 +135,47 @@ xh-form-designer [data-node-id][data-selected] {
   border-color: var(--xh-ring-focus);
 }
 
+/* 问题标记：节点外框右上角内侧、区域外框右上角上各一颗圆点，按落在它上面最严重的一级着色 */
+xh-form-designer [data-node-id][data-issue]::after,
+xh-form-designer [data-region-id][data-issue]::after {
+  content: '';
+  position: absolute;
+  inline-size: var(--xh-space-1_5);
+  block-size: var(--xh-space-1_5);
+  border-radius: var(--xh-radius-full);
+  background: var(--xh-fg-danger);
+  pointer-events: none;
+}
+
+xh-form-designer [data-node-id][data-issue]::after {
+  inset-block-start: var(--xh-space-1);
+  inset-inline-end: var(--xh-space-1);
+}
+
+/* 区域的圆点压在外框的角上，外描一圈表单底色 */
+xh-form-designer [data-region-id][data-issue]::after {
+  box-sizing: content-box;
+  inset-block-start: calc(-1 * var(--xh-stroke-thin));
+  inset-inline-end: calc(-1 * var(--xh-stroke-thin));
+  border: var(--xh-stroke-thin) solid var(--xh-bg-surface);
+  translate: 50% -50%;
+}
+
+[dir='rtl'] xh-form-designer [data-region-id][data-issue]::after {
+  translate: -50% -50%;
+}
+
+xh-form-designer [data-node-id][data-issue='warning']::after,
+xh-form-designer [data-region-id][data-issue='warning']::after {
+  background: var(--xh-fg-warning);
+}
+
 xh-form-designer [data-node-id] > [data-part='node-tag'] {
   display: none;
   position: absolute;
   inset-block-end: 100%;
   inset-inline-start: 0;
+  z-index: var(--xh-z-sticky);
   padding: 0 var(--xh-space-1);
   border-radius: var(--xh-radius-sm);
   background: var(--xh-ring-focus);
