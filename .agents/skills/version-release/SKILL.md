@@ -12,6 +12,8 @@ description: 为 XiHan.FormDesigner 准备版本、消费变更集、进出 rc �
 - 工作区干净、无冲突、无进行中的 merge / rebase；在 `dev` 上做，detached HEAD 不发版。
 - 三个公开包经 changesets 的 `fixed` 组锁步同版，版本真源是它们的 `version`；playground 不计版。
 - 预发布状态在 `form/.changeset/pre.json`（`mode: pre`、`tag: rc`）。预发布期间用过的变更集记在它的 `changesets` 里、文件留着，转正式版时才一并消费删掉，不要手删。
+- 发布分支：预览版（带 `-rc.N` 这类预发布后缀）从 `preview` 发，正式版从 `main` 发，都由 `dev` 快进。预览版沿用 `rc` 通道：已经发到 `1.0.0-rc.2`，按 semver `preview` 排在 `rc` 之前，换名字版本号会倒退。
+- 预览版现在还发不出去：`release.yml` 的 guard 只放行 `main` 上的标签，`ci.yml` 也不跑 `preview`（见 `AGENTS.md`「发版」）。
 - 已推到远端的提交不 amend、不 rebase、不强推；要改就新增提交。
 
 ## 定版本
@@ -27,8 +29,8 @@ description: 为 XiHan.FormDesigner 准备版本、消费变更集、进出 rc �
 只有用户明确要求才做，一步一停：
 
 1. 推 `dev`，等 dev 上的 CI 全绿。
-2. `git fetch . dev:main` 快进 `main`（不是快进就停下查），推 `main`，等 main 上的 CI 全绿。
-3. 在版本提交上打 `v<版本>` 标签并推送。标签号必须等于三个包的版本、预发布与否与 `pre.json` 一致，且在 `main` 的历史里；本地可在 `form/` 用 `RELEASE_TAG=v<版本> node scripts/release/check-release-tag.mjs` 先核。
+2. 快进发布分支（预览版 `git fetch . dev:preview`，正式版 `git fetch . dev:main`，不是快进就停下查），推发布分支，等上面的 CI 全绿。
+3. 在版本提交上打 `v<版本>` 标签并推送。标签号必须等于三个包的版本、预发布与否与 `pre.json` 一致，且在对应发布分支的历史里（预览版 `preview`，正式版 `main`）；本地可在 `form/` 用 `RELEASE_TAG=v<版本> node scripts/release/check-release-tag.mjs` 先核。
 4. `.github/workflows/release.yml` 依次跑「核对标签 → 发到 npm（`changeset publish --no-git-tag`）→ 预发布版跟上 `latest`（`scripts/release/promote-latest.mjs`：预发布模式、且 npm 上这个包还没有正式版时，等取得到这一版（最多约 5 分钟）再 `npm dist-tag add <包>@<版本> latest`；`latest` 已是这一版就跳过；有正式版后不动，`0.0.0-stage` 这类占位带后缀，不算正式版）→ 发布后冒烟（`smoke.mjs --version`）→ 部署文档站」。看 Release 只看 `gh run view <id>` 的摘要，失败时再取失败步骤的日志原文。
 5. 发完用 `npm view @xihan-form/core dist-tags`（runtime、designer 同样）核对：三个包都在；正式版发出前 `rc` 与 `latest` 都指向这一版，之后预发布只动 `rc`。本地可在 `form/` 跑 `node scripts/release/promote-latest.mjs --dry-run` 看每个包会怎么做。
 
@@ -38,4 +40,4 @@ description: 为 XiHan.FormDesigner 准备版本、消费变更集、进出 rc �
 - 「预发布版跟上 latest」那一步失败（多半是 npm 还取不到这一版，它会等约 5 分钟）：重跑「发到 npm」这个 job（`rerun --failed`），发包那步跳过已有的版本，接着补上 `latest`。不手工改 dist-tag，除非用户明确要。npm 给新包自动建的 `0.0.0-stage` 占位不是我们发的。
 - 发到 npm 报二次验证（OTP）一类错误，是令牌的事，报给用户，修好后同样 `rerun --failed`。
 - 其它失败停下报告原文。不删标签重打、不移动标签、不手改 dist、不重复发布已在 npm 上的版本。
-- 文档站只部署已经发布的版本（`deploy-docs.yml` 核对标签、main 上的包版本与 npm）。npm 包的版本不建 GitHub Release。
+- 文档站只部署已经发布的版本（`deploy-docs.yml` 核对标签、main 上的包版本与 npm），预览版发布时跳过部署，不算失败。npm 包的版本不建 GitHub Release。
