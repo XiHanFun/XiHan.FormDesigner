@@ -88,40 +88,23 @@ function collectionSync(element: HTMLElement): (items: readonly OptionItem[]) =>
   }
 }
 
-/** 组合框：`xh-combobox`，输入串筛选候选：有选项来源时交给 searchOptions 由宿主筛，静态选项按文字包含筛。 */
+/** 组合框：`xh-combobox`，输入串筛选候选：有选项来源时交给 searchOptions 由宿主筛，静态选项由元素按文字包含筛。 */
 export const comboboxField: FieldRenderer = (context) => {
   const element = host(context.document, 'xh-combobox')
   const multiple = context.node.data.multiple === true
   if (multiple)
     assign(element, 'multiple', true)
+  const syncCollection = collectionSync(element)
   const ref: ContextRef = { current: context }
-  let query = ''
-  let last: readonly OptionItem[] | undefined
-  const show = (items: readonly OptionItem[]): void => {
-    const keyword = query.trim().toLocaleLowerCase()
-    const matched = ref.current.searchOptions !== undefined || keyword === ''
-      ? items
-      : items.filter(item => item.label.toLocaleLowerCase().includes(keyword))
-    assign(element, 'collection', collectionOf(matched))
-  }
   on<{ value: string[] }>(element, 'value-change', detail => ref.current.setValue(fromList(detail.value, multiple)))
-  on<{ inputValue: string }>(element, 'input-value-change', (detail) => {
-    query = detail.inputValue
-    if (ref.current.searchOptions !== undefined)
-      ref.current.searchOptions(query)
-    else
-      show(itemsOf(ref.current))
-  })
+  on<{ inputValue: string }>(element, 'input-value-change', detail => ref.current.searchOptions?.(detail.inputValue))
   const update = (next: FieldRendererContext): void => {
     ref.current = next
     paintCommon(element, next, { placeholder: true })
     assign(element, 'empty', next.translations.optionsEmpty)
     assign(element, 'loading', next.options?.status === 'loading' ? true : undefined)
-    const items = itemsOf(next)
-    if (items !== last) {
-      last = items
-      show(items)
-    }
+    assign(element, 'filter', next.searchOptions === undefined ? 'contains' : undefined)
+    syncCollection(itemsOf(next))
     assign(element, 'value', toList(next.value))
   }
   update(context)

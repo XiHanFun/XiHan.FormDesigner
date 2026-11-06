@@ -1516,7 +1516,7 @@ describe('<xh-form-renderer>：级联字段', () => {
 })
 
 describe('<xh-form-renderer>：组合框字段', () => {
-  type Combobox = HTMLElement & { collection?: { value: string, label: string }[], value?: string[], multiple?: boolean, loading?: boolean, empty?: string, updateComplete: Promise<boolean> }
+  type Combobox = HTMLElement & { collection?: { value: string, label: string }[], value?: string[], multiple?: boolean, loading?: boolean, empty?: string, filter?: unknown, updateComplete: Promise<boolean> }
 
   function combobox(renderer: XhFormRenderer): Combobox {
     return group(renderer, ['vendor']).querySelector('xh-combobox') as Combobox
@@ -1526,7 +1526,7 @@ describe('<xh-form-renderer>：组合框字段', () => {
     element.dispatchEvent(new CustomEvent('input-value-change', { detail: { inputValue }, bubbles: true, composed: true }))
   }
 
-  it('静态选项按输入串的文字筛选；选中写回字段值，多选写成数组', async () => {
+  it('静态选项整份交给元素，由元素按文字包含筛；选中写回字段值，多选写成数组', async () => {
     const { registry, ids } = setup()
     const options = [{ value: 'a', label: '上海一号' }, { value: 'b', label: '北京二号' }, { value: 'c', label: '上海三号' }]
     const renderer = await mount((element) => {
@@ -1534,9 +1534,9 @@ describe('<xh-form-renderer>：组合框字段', () => {
     })
     const element = combobox(renderer)
     expect(element.multiple).toBe(true)
-    expect(element.collection!.map(item => item.value)).toEqual(['a', 'b', 'c'])
+    expect(element.filter).toBe('contains')
     typeQuery(element, '上海')
-    expect(element.collection!.map(item => item.value)).toEqual(['a', 'c'])
+    expect(element.collection!.map(item => item.value)).toEqual(['a', 'b', 'c'])
     element.dispatchEvent(new CustomEvent('value-change', { detail: { value: ['c'] }, bubbles: true, composed: true }))
     expect(renderer.getFormData().vendor).toEqual(['c'])
     expect(element.value).toEqual(['c'])
@@ -1559,6 +1559,7 @@ describe('<xh-form-renderer>：组合框字段', () => {
     })
     const element = combobox(renderer)
     await vi.waitFor(() => expect(element.collection).toEqual([{ value: 'all', label: '全部' }]))
+    expect(element.filter).toBeUndefined()
     typeQuery(element, '上')
     await vi.waitFor(() => expect(element.loading).toBe(true))
     expect(requests).toEqual([undefined, '上'])
