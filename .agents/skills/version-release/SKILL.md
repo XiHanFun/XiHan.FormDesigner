@@ -12,7 +12,7 @@ description: 为 XiHan.FormDesigner 准备版本、消费变更集、进出 rc �
 - 工作区干净、无冲突、无进行中的 merge / rebase；在 `dev` 上做，detached HEAD 不发版。
 - 三个公开包经 changesets 的 `fixed` 组锁步同版，版本真源是它们的 `version`；playground 不计版。
 - 预发布状态在 `form/.changeset/pre.json`（`mode: pre`、`tag: rc`）。预发布期间用过的变更集记在它的 `changesets` 里、文件留着，转正式版时才一并消费删掉，不要手删。
-- 发布分支：预览版（带 `-rc.N` 这类预发布后缀）从 `preview` 发，正式版从 `main` 发，都由 `dev` 快进。预览版沿用 `rc` 通道：已经发到 `1.0.0-rc.2`，按 semver `preview` 排在 `rc` 之前，换名字版本号会倒退。
+- 发布分支：预览版（带 `-rc.N` 这类预发布后缀）从 `preview` 发，正式版从 `main` 发，都由 `dev` 快进。预览版沿用已发过的 `rc` 通道：按 semver `preview` 排在 `rc` 之前，换名字版本号会倒退。
 - 已推到远端的提交不 amend、不 rebase、不强推；要改就新增提交。
 
 ## 定版本
