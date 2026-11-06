@@ -177,7 +177,7 @@ xh-form-designer [data-node-id] > [data-part='node-tag'] {
   inset-inline-start: 0;
   z-index: var(--xh-z-sticky);
   padding: 0 var(--xh-space-1);
-  border-radius: var(--xh-radius-sm);
+  border-radius: var(--xh-shape-inset);
   background: var(--xh-ring-focus);
   color: var(--xh-fg-on-brand);
   font-size: var(--xh-font-size-xs);
