@@ -6,6 +6,7 @@
 // 文件字段：只建 `xh-file-upload` 宿主，投放区、表单影子与按文件铺的每一行都由元素按标准结构生成。
 // 表单值是附件记录 `{ id, name, size?, type?, url? }[]`，即 UI 的 remoteFiles；
 // 上传交给宿主的 uploadFile，返回带 id 的结果后文件转成附件记录，经 remote-files-change 写回字段值。
+// 本地待传的文件列表 files 由本字段受控、经 files-change 写回元素，不经表单字段组读写字段值。
 
 import type { JsonValue } from '@xihan-ui/core/json'
 import type { FileUploadRemoteFile, FileUploadRequest } from '@xihan-ui/headless'
@@ -57,6 +58,8 @@ export const fileField: FieldRenderer = (context) => {
   let recorded: JsonValue | undefined
   let dropzone: string | undefined
   const upload = (request: FileUploadRequest): ReturnType<NonNullable<FieldRendererContext['uploadFile']>> => ref.current.uploadFile?.(request)
+  assign(element, 'files', [])
+  on<{ files: File[] }>(element, 'files-change', detail => assign(element, 'files', detail.files))
   on<{ files: FileUploadRemoteFile[] }>(element, 'remote-files-change', detail => ref.current.setValue(valueOf(detail.files)))
   const update = (next: FieldRendererContext): void => {
     ref.current = next
