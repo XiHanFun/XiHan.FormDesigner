@@ -30,7 +30,7 @@ description: 为 XiHan.FormDesigner 准备版本、消费变更集、进出 rc �
 1. 推 `dev`，等 dev 上的 CI 全绿。
 2. 快进发布分支（预览版 `git fetch . dev:preview`，正式版 `git fetch . dev:main`，不是快进就停下查），推发布分支，等上面的 CI 全绿。
 3. 在版本提交上打 `v<版本>` 标签并推送。标签号必须等于三个包的版本、预发布与否与 `pre.json` 一致，且在对应发布分支的历史里（预览版 `preview`，正式版 `main`）；本地可在 `form/` 用 `RELEASE_TAG=v<版本> node scripts/release/check-release-tag.mjs` 先核。
-4. `.github/workflows/release.yml` 依次跑「核对标签 → 发到 npm（`changeset publish --no-git-tag`）→ 预发布版跟上 `latest`（`scripts/release/promote-latest.mjs`：预发布模式、且 npm 上这个包还没有正式版时，等取得到这一版（最多约 5 分钟）再 `npm dist-tag add <包>@<版本> latest`；`latest` 已是这一版就跳过；有正式版后不动，`0.0.0-stage` 这类占位带后缀，不算正式版）→ 发布后冒烟（`smoke.mjs --version`）→ 部署文档站」。看 Release 只看 `gh run view <id>` 的摘要，失败时再取失败步骤的日志原文。
+4. `.github/workflows/release.yml` 依次跑「核对标签 → 发到 npm（`changeset publish --no-git-tag`）→ 预发布版跟上 `latest`（`scripts/release/promote-latest.mjs`：预发布模式、且 npm 上这个包还没有正式版时，等取得到这一版（最多约 5 分钟）再 `npm dist-tag add <包>@<版本> latest`；`latest` 已是这一版就跳过；有正式版后不动，`0.0.0-stage` 这类占位带后缀，不算正式版）→ 建 GitHub Release（`release-notes.mjs` 取 `docs/changelog.md` 这一版的一节作说明，预发布版标成 Pre-release，与冒烟并行）→ 发布后冒烟（`smoke.mjs --version`）→ 部署文档站」。看 Release 只看 `gh run view <id>` 的摘要，失败时再取失败步骤的日志原文。
 5. 发完用 `npm view @xihan-form/core dist-tags`（runtime、designer 同样）核对：三个包都在；正式版发出前 `rc` 与 `latest` 都指向这一版，之后预发布只动 `rc`。本地可在 `form/` 跑 `node scripts/release/promote-latest.mjs --dry-run` 看每个包会怎么做。
 
 ## 失败时
@@ -39,4 +39,4 @@ description: 为 XiHan.FormDesigner 准备版本、消费变更集、进出 rc �
 - 「预发布版跟上 latest」那一步失败（多半是 npm 还取不到这一版，它会等约 5 分钟）：重跑「发到 npm」这个 job（`rerun --failed`），发包那步跳过已有的版本，接着补上 `latest`。不手工改 dist-tag，除非用户明确要。npm 给新包自动建的 `0.0.0-stage` 占位不是我们发的。
 - 发到 npm 报二次验证（OTP）一类错误，是令牌的事，报给用户，修好后同样 `rerun --failed`。
 - 其它失败停下报告原文。不删标签重打、不移动标签、不手改 dist、不重复发布已在 npm 上的版本。
-- 文档站只部署已经发布的版本（`deploy-docs.yml` 核对标签、main 上的包版本与 npm），预览版发布时跳过部署，不算失败。npm 包的版本不建 GitHub Release。
+- 文档站只部署已经发布的版本（`deploy-docs.yml` 核对标签、main 上的包版本与 npm），预览版发布时跳过部署，不算失败。
