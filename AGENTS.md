@@ -106,7 +106,7 @@ Node.js 与 pnpm 的最低版本见 `form/package.json` 的 `engines`，其余�
 - **对外契约**：复杂数据走 property 不走 attribute；事件用 `CustomEvent`；公开方法、事件和属性都要有类型声明。
 - **命名（四款设计器统一）**：元素名一律 `xh-form-*`，渲染器是 `<xh-form-renderer>`；表单模板的属性叫 `schema`；表达式引擎叫 `expressionEngine`，格式化叫 `formatter`；事件名照 XiHan.UI 的写法，不带前缀、用短横线，如 `value-change`。内建文案按产品出语言包（`@xihan-form/runtime/locale`，渲染器与设计器共用），语言与 UI 的内建语言包一一对应，导出名是 `form` 加 UI 语言包的名字（`formZhCN`、`formJaJP`……），每份并入 designer-shell 同一语言的那份；宿主用 `mergeXhConfig` 与 UI 同一语言的语言包合并，类型经 `XhTranslationOverrides` 的模块扩充补进去。语言包在 `runtime/src/locale/`，一种语言一个文件，按 `FormLocale` 声明，对照表的键取 `locale/types.ts` 里的内建键，问题说明按模板结构问题码各写一条，少键、多键都是类型错误；英文包就是缺省文案。
 - **样式**：Light DOM，样式只消费 `@xihan-ui` 设计令牌，不写颜色、间距、圆角等散值。
-- **注释**：只写代码做什么，不写为什么这样设计、也不写任何参考项目名称；设计理由写进提交说明。
+- **注释**：只写代码做什么，不写为什么这样设计、也不写任何参考项目名称；设计理由需要留档时写进 PR 描述或文档，不写进提交信息。
 - **源码文件头**：
 
 ```ts
@@ -147,6 +147,7 @@ Node.js 与 pnpm 的最低版本见 `form/package.json` 的 `engines`，其余�
 
 - 保留用户已有和无关改动；不要 reset、checkout 或清理它们。
 - 使用 Conventional Commits：`<type>(<scope>): <中文说明>`，scope 取 `core`、`runtime`、`designer`、`docs`、`repo`。
+- 提交信息只写一行标题，不写正文。说明一句话讲这次改动的结果，不超过 40 个字（汉字、字母、数字、标点各算一个，末尾的 `（ADR-NNNN）` 不计）；不再用「：」「；」往下展开，不罗列文件、成员、取值与改前改后，不写测试数量与门禁结果，这些细节写进 变更集、更新日志或 PR 描述。细则见 `commit-msg` 技能。
 - 一项完整功能一个提交；改 `form/` 的提交前跑 `pnpm lint`、`pnpm build`、`pnpm typecheck`、`pnpm test`，改 `docs/` 的在 `docs/` 跑 `pnpm gate:gen`、`pnpm check:examples`、`pnpm lint`、`pnpm typecheck`、`pnpm build`，都要过 `git diff --check`。
 - 不推送、不发布、不创建远程 PR，除非用户明确要求。
 
